@@ -524,7 +524,7 @@
 
         // --- MUSIC (procedural pentatonic loop, one step every `tempo` seconds) ---
         const PENTATONIC = [0, 2, 4, 7, 9]; // semitones
-        const MUSIC_ROOTS = { forest: 293.66, fire: 261.63, bone: 220, sea: 246.94 }; // D4, C4, A3, B3
+        const MUSIC_ROOTS = { forest: 293.66, fire: 261.63, bone: 220, sea: 246.94, web: 207.65, sky: 329.63 }; // D4, C4, A3, B3, G#3, E4
         const MUSIC = {
             on: true,
             timer: null,
@@ -672,7 +672,12 @@
             fish:      { fw: 16, fh: 9,  frames: 2, ax: 8, foot: 8 },
             crab:      { fw: 16, fh: 10, frames: 2, ax: 8, foot: 9 },
             jelly:     { fw: 12, fh: 11, frames: 2, ax: 6, foot: 10 },
-            dragon:    { fw: 24, fh: 24, frames: 2, ax: 9, foot: 23 }
+            dragon:    { fw: 24, fh: 24, frames: 2, ax: 9, foot: 23 },
+            spider:    { fw: 14, fh: 9,  frames: 2, ax: 7, foot: 8 },
+            spiderQueen: { fw: 24, fh: 20, frames: 2, ax: 12, foot: 19 },
+            soldier:   { fw: 12, fh: 16, frames: 2, ax: 6, foot: 15 },
+            stormCloud: { fw: 14, fh: 10, frames: 2, ax: 7, foot: 9 },
+            erlang:    { fw: 24, fh: 24, frames: 2, ax: 9, foot: 23 }
         };
 
         // Source rectangles inside tiles.png (16px grid)
@@ -772,11 +777,53 @@
                 boss: 'dragonKing',
                 bossAnim: ENEMY_ANIMS.dragon,
                 bossScale: 4,
-                bossGlow: '#22d3ee'
+                bossGlow: '#22d3ee',
+                minion: 'crab'
+            };
+            // Cave: everything pushed toward black and purple; darkness and a stalactite ceiling are drawn on top
+            THEMES.web = {
+                sky: tintImage(IMG.sky, '#0c0a09', 0.9),
+                bgTrees: tintImage(IMG.bgTrees, '#1c1917', 0.8),
+                trees: tintImage(IMG.treeDark, '#1c1917', 0.7),
+                treesMid: tintImage(IMG.treeDark, '#0c0a09', 0.8),
+                tiles: tintImage(IMG.tiles, '#3b0764', 0.35),
+                ground: 'stone',
+                ledge: 'moss',
+                bushRow: 4,
+                props: ['rockA', 'rockB', 'rockC', 'mushA', 'mushC'],
+                fog: 'rgba(168, 85, 247, 0.12)',
+                ambient: 'wisp',
+                boss: 'spiderQueen',
+                bossAnim: ENEMY_ANIMS.spiderQueen,
+                bossScale: 4,
+                bossGlow: '#a855f7',
+                minion: 'spiderling',
+                cave: true,
+                dark: true
+            };
+            // Heaven: golden sky, gilded marble floors, cloud ledges drawn in code, no trees or bushes
+            THEMES.sky = {
+                sky: tintImage(IMG.sky, '#fde68a', 0.6),
+                bgTrees: tintImage(IMG.bgTrees, '#f59e0b', 0.45),
+                trees: null,
+                treesMid: null,
+                tiles: tintImage(IMG.tiles, '#fde68a', 0.55),
+                ground: 'stone',
+                ledge: 'cloud',
+                bushRow: null,
+                props: ['lantern', 'lantern', 'rockB'],
+                fog: 'rgba(254, 243, 199, 0.12)',
+                ambient: 'sparkle',
+                boss: 'erlang',
+                bossAnim: ENEMY_ANIMS.erlang,
+                bossScale: 4,
+                bossGlow: '#fde047',
+                minion: 'soldier'
             };
 
             const enemySheets = ['boarRun', 'boarRunBlack', 'boarRunWhite', 'snailWalk', 'beeFly', 'beeAttack',
-                'fishSwim', 'crabWalk', 'jellyFloat', 'dragonKing'];
+                'fishSwim', 'crabWalk', 'jellyFloat', 'dragonKing', 'spiderCrawl', 'spiderQueen',
+                'soldierWalk', 'stormCloud', 'erlang'];
             FLASH.gold = {};
             for (const key of enemySheets) {
                 FLASH[key] = tintImage(IMG[key], '#ffffff', 1);
@@ -785,7 +832,7 @@
             FLASH.dash = tintImage(IMG.hero, '#fde68a', 1);
             FLASH.clone = tintImage(IMG.hero, '#fcd34d', 0.35);
             FLASH.rage = {};
-            for (const key of ['boarRunBlack', 'boarRunWhite', 'dragonKing']) FLASH.rage[key] = tintImage(IMG[key], '#dc2626', 0.35);
+            for (const key of ['boarRunBlack', 'boarRunWhite', 'dragonKing', 'spiderQueen', 'erlang']) FLASH.rage[key] = tintImage(IMG[key], '#dc2626', 0.35);
         }
 
         // Builds a tiny sprite from rows of palette characters ('.' = transparent)
@@ -990,8 +1037,211 @@
             '...oooooo...'
         ], { c: '#fb7185', C: '#fda4af', o: '#9f1239' });
 
+        // --- CODE-DRAWN CAVE SPRITES (Bàn Tơ Động) ---
+        const CAVE_SPRITES = {
+            spiderCrawl: {
+                palette: { o: '#0f0a1a', b: '#581c87', B: '#9333ea', e: '#ef4444', l: '#1e1b4b' },
+                frames: [[
+                    '..l........l..',
+                    '.l.l.oooo.l.l.',
+                    'l...obbbbo...l',
+                    '..loBbbbbbol..',
+                    '.l.oeebbbbo.l.',
+                    'l..obbbbbbo..l',
+                    '..l.oooooo.l..',
+                    '.l..l....l..l.',
+                    'l..l......l..l'
+                ], [
+                    '.l..........l.',
+                    'l.l..oooo..l.l',
+                    '.l..obbbbo..l.',
+                    '...oBbbbbbo...',
+                    'l.loeebbbbol.l',
+                    '.l.obbbbbbo.l.',
+                    'l...oooooo...l',
+                    '..l.l....l.l..',
+                    '.l..........l.'
+                ]]
+            },
+            // Nhện Tinh: spider body with a yellow hourglass, demon-woman head with long black hair
+            spiderQueen: {
+                palette: { o: '#1e1b4b', b: '#6b21a8', B: '#a855f7', s: '#fde68a', h: '#111827', e: '#ef4444',
+                           r: '#be123c', l: '#3b0764', y: '#facc15' },
+                frames: [[
+                    '....hhhh................',
+                    '...hhhhhh.......oooooo..',
+                    '..hhssssh.....oobbbbbboo',
+                    '..hseessh....obbBBbbbbbo',
+                    '..hssssh...obbbbbyybbbbo',
+                    '.hhsrrsh..obbbbbyyyybbbo',
+                    '.hh.ss.hoobbbbbbyybbbbbo',
+                    '.h..oooobbbbbbbbbbbbbbo.',
+                    '...obBBbbbbbbbbbbbbbbo..',
+                    '..obbbbbbbbbbbbbbbbbo...',
+                    '..oobbbbbbbbbbbbbboo....',
+                    '.l..oooooooooooooo..l...',
+                    'l.l..l.l....l.l..l.l....',
+                    'l..l.l..l..l..l.l..l....',
+                    '.l..l...l..l...l..l.....',
+                    '.l...l..l....l..l...l...',
+                    'l....l...l...l...l...l..',
+                    'l.....l..l...l..l.....l.',
+                    'l.....l...........l....l',
+                    'l......l.........l.....l'
+                ], [
+                    '....hhhh................',
+                    '...hhhhhh.......oooooo..',
+                    '..hhssssh.....oobbbbbboo',
+                    '..hseessh....obbBBbbbbbo',
+                    '..hssssh...obbbbbyybbbbo',
+                    '.hhsrrsh..obbbbbyyyybbbo',
+                    '.hh.ss.hoobbbbbbyybbbbbo',
+                    '.h..oooobbbbbbbbbbbbbbo.',
+                    '...obBBbbbbbbbbbbbbbbo..',
+                    '..obbbbbbbbbbbbbbbbbo...',
+                    '..oobbbbbbbbbbbbbboo....',
+                    '.l..oooooooooooooo..l...',
+                    '.l.l..l.l..l.l..l.l.....',
+                    '.l..l.l..l..l..l.l..l...',
+                    'l..l...l..l...l..l..l...',
+                    'l...l..l....l..l...l....',
+                    '.l...l...l...l...l...l..',
+                    '.l....l..l...l..l....l..',
+                    '.l....l..........l....l.',
+                    '.l.....l........l.....l.'
+                ]]
+            }
+        };
+
+        // --- CODE-DRAWN HEAVEN SPRITES (Thiên Cung) ---
+        const SKY_SPRITES = {
+            // Thiên binh: gold helmet, red armour, spear held in front
+            soldierWalk: {
+                palette: { o: '#1c1917', h: '#facc15', H: '#fef08a', s: '#fed7aa', e: '#111827', a: '#b91c1c', A: '#ef4444',
+                           m: '#94a3b8', p: '#78350f', l: '#334155' },
+                frames: [[
+                    'm...........',
+                    'm...ohhho...',
+                    'p..ohHhhho..',
+                    'p..ossssso..',
+                    'p..oesssso..',
+                    'p...ossso...',
+                    'ps.oaAAaao..',
+                    'psoaaAAaaao.',
+                    'p.ohhhhhhho.',
+                    'p.oaaaaaaao.',
+                    'p..oaaaaao..',
+                    'p..ol...lo..',
+                    'p..ol...lo..',
+                    'p..ol...lo..',
+                    'p.ool..ool..',
+                    '..ooo..ooo..'
+                ], [
+                    'm...........',
+                    'm...ohhho...',
+                    'p..ohHhhho..',
+                    'p..ossssso..',
+                    'p..oesssso..',
+                    'p...ossso...',
+                    'ps.oaAAaao..',
+                    'psoaaAAaaao.',
+                    'p.ohhhhhhho.',
+                    'p.oaaaaaaao.',
+                    'p..oaaaaao..',
+                    'p..ol..lo...',
+                    'p..ol..lo...',
+                    'p.ol....lo..',
+                    'p.ol....lo..',
+                    '.ooo...ooo..'
+                ]]
+            },
+            // Lôi Vân Tinh: an angry storm cloud that drops lightning
+            stormCloud: {
+                palette: { o: '#334155', c: '#94a3b8', C: '#cbd5e1', e: '#fde047', y: '#facc15' },
+                frames: [[
+                    '....oooo......',
+                    '..ooCCCCoooo..',
+                    '.oCCccccCCCCo.',
+                    'oCcceccceccCco',
+                    'occcccccccccco',
+                    '.occcccccccco.',
+                    '..oooooooooo..',
+                    '....y...y.....',
+                    '...y...y......',
+                    '....y...y.....'
+                ], [
+                    '....oooo......',
+                    '..ooCCCCoooo..',
+                    '.oCCccccCCCCo.',
+                    'oCcceccceccCco',
+                    'occcccccccccco',
+                    '.occcccccccco.',
+                    '..oooooooooo..',
+                    '......y...y...',
+                    '.....y...y....',
+                    '......y...y...'
+                ]]
+            },
+            // Nhị Lang Thần: silver helmet with red plume, third eye, gold armour, blue cape, three-pointed blade
+            erlang: {
+                palette: { o: '#0f172a', m: '#cbd5e1', M: '#f1f5f9', r: '#dc2626', s: '#fed7aa', e: '#111827', t: '#ef4444',
+                           g: '#facc15', G: '#fde68a', b: '#1d4ed8', p: '#78350f', w: '#e2e8f0' },
+                frames: [[
+                    '........rr........w.w.w.',
+                    '.......rrr........wwwww.',
+                    '......ommmmo.......p....',
+                    '.....omMMmmmo......p....',
+                    '.....ommmmmmo......p....',
+                    '.....osstssso......p....',
+                    '.....oesssseo......p....',
+                    '.....ossssso.......p....',
+                    '......osso.........p....',
+                    '....bogggGgob......p....',
+                    '...bbogGGggggo.....p....',
+                    '..bbboggGgggggoosssp....',
+                    '..bbbogggggggo.....p....',
+                    '..bbboggrrgggo.....p....',
+                    '..bbbogggggggo.....p....',
+                    '..bbbommmmmmmo.....p....',
+                    '..bbbogggggggo.....p....',
+                    '...bbbogggggo......p....',
+                    '...bbbommmmmo......p....',
+                    '....bbommmmmo......p....',
+                    '.....omm.mmo.......p....',
+                    '.....omm.mmo.......p....',
+                    '....ommm.mmmo......p....',
+                    '....oooo.oooo......p....'
+                ], [
+                    '........rr........w.w.w.',
+                    '.......rrr........wwwww.',
+                    '......ommmmo.......p....',
+                    '.....omMMmmmo......p....',
+                    '.....ommmmmmo......p....',
+                    '.....osstssso......p....',
+                    '.....oesssseo......p....',
+                    '.....ossssso.......p....',
+                    '......osso.........p....',
+                    '....bogggGgob......p....',
+                    '...bbogGGggggo.....p....',
+                    '..bbboggGgggggoosssp....',
+                    '..bbbogggggggo.....p....',
+                    '..bbboggrrgggo.....p....',
+                    '..bbbogggggggo.....p....',
+                    '..bbbommmmmmmo.....p....',
+                    '..bbbogggggggo.....p....',
+                    '...bbbogggggo......p....',
+                    '...bbbommmmmo......p....',
+                    '....bbommmmmo......p....',
+                    '....omm..mmo.......p....',
+                    '....omm...mmo......p....',
+                    '...ommm...mmmo.....p....',
+                    '...oooo...oooo.....p....'
+                ]]
+            }
+        };
+
         function buildProceduralSprites() {
-            for (const [key, def] of Object.entries(SEA_SPRITES)) IMG[key] = makeSheet(def.frames, def.palette);
+            for (const [key, def] of Object.entries({ ...SEA_SPRITES, ...CAVE_SPRITES, ...SKY_SPRITES })) IMG[key] = makeSheet(def.frames, def.palette);
         }
 
         // Rounds to the nearest device pixel so scaled pixel art stays crisp
@@ -1146,6 +1396,91 @@
                 chests: [{ x: 1160, y: 100 }, { x: 1850, y: 480 }],
                 portalX: 2880,
                 portalY: 400
+            },
+            {
+                name: "CẢNH 5: BÀN TƠ ĐỘNG - NHỆN TINH",
+                theme: 'web',
+                worldWidth: 3000,
+                bgGradient: ['#0c0a09', '#1c1917', '#000000'],
+                platforms: [
+                    { x: 0, y: 480, w: 650, h: 60, type: 'stone' },
+                    { x: 780, y: 480, w: 570, h: 60, type: 'stone' },
+                    { x: 1500, y: 480, w: 550, h: 60, type: 'stone' },
+                    { x: 2200, y: 480, w: 800, h: 60, type: 'stone' },
+                    { x: 280, y: 350, w: 160, h: 20, type: 'stone' },
+                    { x: 560, y: 260, w: 140, h: 20, type: 'stone' },
+                    { x: 900, y: 330, w: 180, h: 20, type: 'stone' },
+                    { x: 1180, y: 230, w: 150, h: 20, type: 'stone' },
+                    { x: 1560, y: 320, w: 160, h: 20, type: 'stone' },
+                    { x: 1820, y: 240, w: 140, h: 20, type: 'stone' },
+                    { x: 1400, y: 110, w: 110, h: 20, type: 'stone' }, // secret ledge
+                ],
+                // Mạng nhện: zones that slow the player until cut with an attack
+                webs: [
+                    { x: 1000, y: 380, w: 110, h: 100 },
+                    { x: 1180, y: 130, w: 150, h: 100 },
+                    { x: 1650, y: 380, w: 110, h: 100 },
+                    { x: 2320, y: 380, w: 100, h: 100 },
+                ],
+                enemies: [
+                    { x: 380, y: 440, type: 'spiderling' },
+                    { x: 520, y: 40, type: 'spider' },
+                    { x: 1100, y: 440, type: 'spiderling' },
+                    { x: 1250, y: 30, type: 'spider' },
+                    { x: 1600, y: 440, type: 'spiderling' },
+                    { x: 1720, y: 40, type: 'spider' },
+                    { x: 1950, y: 440, type: 'spiderling' },
+                    { x: 2600, y: 400, type: 'boss' },
+                ],
+                bossName: 'NHỆN TINH BÀN TƠ',
+                bossShot: '#e5e7eb',
+                bossShotSlows: true, // web balls stick to the player
+                checkpoints: [{ x: 880, y: 480 }, { x: 2260, y: 480 }],
+                peaches: [{ x: 360, y: 320 }, { x: 630, y: 230 }, { x: 1250, y: 200 }, { x: 1890, y: 210 }, { x: 2100, y: 330 }],
+                chests: [{ x: 1430, y: 110 }, { x: 1960, y: 480 }],
+                portalX: 2880,
+                portalY: 400
+            },
+            {
+                name: "CẢNH 6: THIÊN CUNG - NHỊ LANG THẦN",
+                theme: 'sky',
+                worldWidth: 3200,
+                bgGradient: ['#fde68a', '#fbbf24', '#78350f'],
+                platforms: [
+                    { x: 0, y: 480, w: 500, h: 60, type: 'stone' },
+                    { x: 560, y: 420, w: 140, h: 20, type: 'cloud' },
+                    { x: 760, y: 360, w: 120, h: 20, type: 'cloud', move: { dx: 90, speed: 1 } },
+                    { x: 980, y: 300, w: 140, h: 20, type: 'cloud' },
+                    { x: 1180, y: 380, w: 120, h: 20, type: 'cloud', move: { dx: 120, speed: 0.8 } },
+                    { x: 1420, y: 320, w: 140, h: 20, type: 'cloud' },
+                    { x: 1600, y: 480, w: 350, h: 60, type: 'stone' },
+                    { x: 1700, y: 300, w: 140, h: 20, type: 'cloud' },
+                    { x: 2000, y: 400, w: 120, h: 20, type: 'cloud', move: { dx: 100, speed: 1.1 } },
+                    { x: 2220, y: 330, w: 130, h: 20, type: 'cloud' },
+                    { x: 2400, y: 480, w: 800, h: 60, type: 'stone' },
+                    { x: 1240, y: 170, w: 110, h: 20, type: 'cloud' }, // secret ledge
+                ],
+                // Gió trời: a headwind before the island and a tailwind updraft after it
+                currents: [
+                    { x: 1340, y: 180, w: 200, h: 300, fx: -1.4, fy: 0 },
+                    { x: 1960, y: 0, w: 220, h: 540, fx: 1.2, fy: -0.15 },
+                ],
+                enemies: [
+                    { x: 300, y: 420, type: 'soldier' },
+                    { x: 900, y: 200, type: 'cloud' },
+                    { x: 1500, y: 150, type: 'cloud' },
+                    { x: 1780, y: 420, type: 'soldier' },
+                    { x: 2150, y: 150, type: 'cloud' },
+                    { x: 2550, y: 420, type: 'soldier' },
+                    { x: 2850, y: 400, type: 'boss' },
+                ],
+                bossName: 'NHỊ LANG THẦN',
+                bossShot: '#fde047',
+                checkpoints: [{ x: 1640, y: 480 }, { x: 2440, y: 480 }],
+                peaches: [{ x: 620, y: 390 }, { x: 820, y: 320 }, { x: 1050, y: 270 }, { x: 1490, y: 290 }, { x: 2280, y: 300 }],
+                chests: [{ x: 1270, y: 170 }, { x: 1880, y: 480 }],
+                portalX: 3100,
+                portalY: 400
             }
         ];
 
@@ -1221,7 +1556,7 @@
         }
 
         // --- AMBIENT PARTICLES (fireflies / embers / wisps, screen space) ---
-        const AMBIENT_COLORS = { firefly: '#d9f99d', ember: '#fb923c', wisp: '#c4b5fd', bubble: '#bae6fd' };
+        const AMBIENT_COLORS = { firefly: '#d9f99d', ember: '#fb923c', wisp: '#c4b5fd', bubble: '#bae6fd', sparkle: '#fef08a' };
         let ambient = [];
         let ambientType = 'firefly';
 
@@ -1535,6 +1870,7 @@
                 const box = { x: this.x - this.size / 2, y: this.y - this.size / 2, width: this.size, height: this.size };
                 if (overlaps(player, box)) {
                     player.takeDamage(15);
+                    if (currentLevel.bossShotSlows && !player.isDead) player.slowTimer = 1.5;
                     this.dead = true;
                 }
                 for (const p of platforms) {
@@ -1594,6 +1930,97 @@
 
         let hazards = [];
 
+        // --- WEBS (Bàn Tơ Động): slow the player until cut by an attack or a slam ---
+        class Web {
+            constructor(x, y, w, h) {
+                this.x = x;
+                this.y = y;
+                this.width = w;
+                this.height = h;
+                this.alive = true;
+            }
+
+            cut() {
+                if (!this.alive) return;
+                this.alive = false;
+                playSound('slash');
+                for (let i = 0; i < 16; i++) {
+                    particles.push(new Particle(
+                        this.x + Math.random() * this.width, this.y + Math.random() * this.height,
+                        (Math.random() - 0.5) * 4, -Math.random() * 2, '#e5e7eb', 2, 0.5
+                    ));
+                }
+            }
+
+            draw(ctx, camX) {
+                if (!this.alive) return;
+                const x = this.x - camX;
+                if (x + this.width < 0 || x > GAME_WIDTH) return;
+                const cx = x + this.width / 2, cy = this.y + this.height / 2;
+                const r = Math.max(this.width, this.height) * 0.75;
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x, this.y, this.width, this.height);
+                ctx.clip();
+                ctx.strokeStyle = 'rgba(226, 232, 240, 0.55)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                for (let i = 0; i < 8; i++) {
+                    const a = (i / 8) * Math.PI * 2;
+                    ctx.moveTo(cx, cy);
+                    ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+                }
+                for (let ring = 1; ring <= 4; ring++) {
+                    const rr = (r / 4) * ring;
+                    for (let i = 0; i <= 8; i++) {
+                        const a = (i / 8) * Math.PI * 2;
+                        const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
+                        if (i === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                }
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        let webs = [];
+
+        function inWeb(entity) {
+            return webs.some(w => w.alive && overlaps(entity, w));
+        }
+
+        // Jagged stalactite ceiling, locked to the world so it scrolls with the ground
+        function drawCaveCeiling(camX) {
+            const step = 24;
+            for (let wx = Math.floor(camX / step) * step; wx < camX + GAME_WIDTH + step; wx += step) {
+                const hash = Math.abs(Math.sin(wx * 12.9898) * 43758.5453) % 1;
+                const h = 18 + hash * 46;
+                const x = snap(wx - camX);
+                ctx.fillStyle = '#0c0a09';
+                ctx.fillRect(x, 0, step, h);
+                // taper into a pointed tip
+                ctx.fillRect(x + 6, h, step - 12, 10);
+                ctx.fillRect(x + 9, h + 10, step - 18, 8);
+                ctx.fillStyle = '#292524';
+                ctx.fillRect(x, h - 3, step, 3);
+            }
+        }
+
+        // Hang tối: only a pool of light around the player; it widens when the boss fight starts
+        function drawDarkness(ctx, camX) {
+            const px = player.x + player.width / 2 - camX;
+            const py = player.y + player.height / 2;
+            const bossFight = enemies.some(e => e.type === 'boss' && e.awake && !e.dead);
+            const inner = bossFight ? 170 : 100;
+            const outer = bossFight ? 480 : 330;
+            const g = ctx.createRadialGradient(px, py, inner, px, py, outer);
+            g.addColorStop(0, 'rgba(5, 3, 10, 0)');
+            g.addColorStop(1, 'rgba(5, 3, 10, 0.93)');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        }
+
         // Streaks drifting through each current zone show which way it pushes
         function drawCurrents(ctx, camX) {
             ctx.save();
@@ -1642,8 +2069,29 @@
             ctx.restore();
         }
 
-        // Code-drawn sea floor props: swaying kelp and coral
-        function drawSeaProp(ctx, name, x, y) {
+        // Code-drawn props: swaying kelp and coral (sea), red palace lanterns (heaven)
+        function drawCodeProp(ctx, name, x, y) {
+            if (name === 'lantern') {
+                if (x + 30 < 0 || x > GAME_WIDTH) return;
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(snap(x + 8), y - 64, 3, 64);
+                ctx.fillRect(snap(x + 8), y - 64, 16, 3);
+                const ly = snap(y - 58 + Math.sin(worldTime * 2 + x * 0.1) * 1.5);
+                ctx.save();
+                ctx.globalAlpha = 0.25;
+                ctx.fillStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.arc(x + 22, ly + 12, 18, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                ctx.fillStyle = '#dc2626';
+                ctx.fillRect(snap(x + 16), ly + 3, 12, 14);
+                ctx.fillStyle = '#facc15';
+                ctx.fillRect(snap(x + 16), ly + 3, 12, 2);
+                ctx.fillRect(snap(x + 16), ly + 15, 12, 2);
+                ctx.fillRect(snap(x + 21), ly + 17, 2, 6);
+                return;
+            }
             if (name === 'coral') {
                 const w = CORAL_SPRITE.width * 3, h = CORAL_SPRITE.height * 3;
                 if (x + w < 0 || x > GAME_WIDTH) return;
@@ -1729,6 +2177,8 @@
                 this.pillarBaseY = 0;
                 this.jumpBuffer = 0;     // a jump pressed slightly too early still fires on landing
                 this.swimCooldown = 0;
+                this.slowTimer = 0;
+                this.slowed = false;
 
                 this.animState = 'idle';
                 this.animTime = 0;
@@ -1856,6 +2306,9 @@
                 if (this.attackCooldown > 0) this.attackCooldown -= dt;
                 if (this.comboWindow > 0) this.comboWindow -= dt;
                 if (this.swimCooldown > 0) this.swimCooldown -= dt;
+                if (this.slowTimer > 0) this.slowTimer -= dt;
+                // Caught in a web or hit by a web ball: sluggish and sticky
+                this.slowed = this.slowTimer > 0 || inWeb(this);
 
                 if (this.isDead) {
                     this.vx *= 0.9;
@@ -1888,7 +2341,7 @@
                         this.isDashing = false;
                     }
                 } else {
-                    const speed = currentLevel.water ? this.speed * 0.85 : this.speed;
+                    const speed = this.speed * (currentLevel.water ? 0.85 : 1) * (this.slowed ? 0.4 : 1);
                     if (keys.left) {
                         this.vx = -speed;
                         this.facing = 'left';
@@ -1900,6 +2353,7 @@
                     }
                     this.vy += this.gravity();
                     if (currentLevel.water) this.vy = Math.min(this.vy, 5);
+                    if (this.slowed) this.vy = Math.max(-6, Math.min(this.vy, 1.5));
                     this.applyCurrents();
                 }
 
@@ -1951,6 +2405,9 @@
                 if (this.isAttacking) {
                     for (const c of chests) {
                         if (!c.opened && overlaps(this.attackBox, c)) c.open();
+                    }
+                    for (const w of webs) {
+                        if (w.alive && overlaps(this.attackBox, w)) w.cut();
                     }
                 }
 
@@ -2048,6 +2505,7 @@
                             this.y = p.y - this.height;
                             this.vy = 0;
                             this.isGrounded = true;
+                            this.groundPlatform = p; // lets moving clouds carry whoever stands on them
                             this.jumpCount = 0;
                         } else if (this.vy < 0) {
                             this.y = p.y + p.h;
@@ -2092,7 +2550,7 @@
                     return true;
                 }
                 if (this.isGrounded || this.jumpCount < this.maxJumps) {
-                    this.vy = this.jumpForce;
+                    this.vy = this.slowed ? this.jumpForce * 0.6 : this.jumpForce;
                     this.jumpCount++;
                     this.isGrounded = false;
                     playSound('jump');
@@ -2184,6 +2642,14 @@
 
                 const a = this.animState === 'attack' ? HERO_ANIMS[ATTACK_FRAMES[this.attackCombo][0]] : HERO_ANIMS[this.animState];
                 drawSprite(IMG.hero, a, this.currentFrame(), cx, feetY, flip, HERO_SCALE);
+
+                if (this.slowed && !this.isDead) {
+                    // sticky silk strands across the body
+                    ctx.fillStyle = 'rgba(241, 245, 249, 0.7)';
+                    for (let i = 0; i < 3; i++) {
+                        ctx.fillRect(snap(cx - 18), snap(this.y + 14 + i * 16), 36, 2);
+                    }
+                }
             }
         }
 
@@ -2236,6 +2702,9 @@
             }
             for (const c of chests) {
                 if (!c.opened && Math.abs(c.x + c.width / 2 - cx) < 170 && Math.abs(c.y + c.height - feetY) < 60) c.open();
+            }
+            for (const w of webs) {
+                if (w.alive && Math.abs(w.x + w.width / 2 - cx) < 200 && Math.abs(w.y + w.height - feetY) < 120) w.cut();
             }
         }
 
@@ -2363,8 +2832,14 @@
             boss:   { width: 100, height: 84, hp: 350, speed: 2.0, damage: 35, scoreValue: 1000, barLift: 14 },
             fish:   { width: 44,  height: 26, hp: 50,  speed: 2.4, damage: 15, scoreValue: 250,  barLift: 10 },
             crab:   { width: 44,  height: 28, hp: 70,  speed: 1.6, damage: 15, scoreValue: 200,  barLift: 10 },
-            jelly:  { width: 32,  height: 32, hp: 40,  speed: 0,   damage: 20, scoreValue: 150,  barLift: 10 }
+            jelly:  { width: 32,  height: 32, hp: 40,  speed: 0,   damage: 20, scoreValue: 150,  barLift: 10 },
+            spider: { width: 36,  height: 24, hp: 40,  speed: 0,   damage: 15, scoreValue: 200,  barLift: 10 },
+            spiderling: { width: 26, height: 16, hp: 25, speed: 3.2, damage: 10, scoreValue: 100, barLift: 10 },
+            soldier: { width: 30, height: 46, hp: 80, speed: 2.0, damage: 20, scoreValue: 300, barLift: 10 },
+            cloud:   { width: 40, height: 26, hp: 50, speed: 2.0, damage: 15, scoreValue: 250, barLift: 10 }
         };
+        // Lowest point a hanging spider drops to (just above the ground)
+        const SPIDER_DROP_LIMIT = 480 - ENEMY_STATS.spider.height;
         const ENEMY_DEATH_TIME = 0.6;
 
         class Enemy {
@@ -2376,9 +2851,13 @@
                 this.maxHp = this.hp;
 
                 // Bees (demon) and fish hover around their spawn point and chase; jellyfish just drift up and down
-                this.flying = type === 'demon' || type === 'fish' || type === 'jelly';
-                this.baseY = type === 'jelly' ? y : y - 50;
+                // Hanging spiders sit on a thread at their spawn height and drop onto the player
+                this.flying = type === 'demon' || type === 'fish' || type === 'jelly' || type === 'spider' || type === 'cloud';
+                this.shootTimer = 1.5; // storm clouds drop a lightning bolt on this timer
+                this.baseY = type === 'jelly' || type === 'spider' ? y : y - 50;
                 if (this.flying) this.y = this.baseY;
+                this.dropState = 'hang';
+                this.dropTimer = 0;
 
                 this.vx = this.speed;
                 this.vy = 0;
@@ -2449,6 +2928,10 @@
                     this.kvx *= 0.85;
                     return;
                 }
+                if (this.type === 'spider') {
+                    this.updateHangingSpider(dt, player);
+                    return;
+                }
                 const distToPlayer = Math.hypot((player.x + player.width / 2) - (this.x + this.width / 2), (player.y + player.height / 2) - (this.y + this.height / 2));
                 const chasing = distToPlayer < 250 && !player.isDead;
                 const stunned = Math.abs(this.kvx) > 1;
@@ -2476,7 +2959,16 @@
                 this.x += (stunned ? 0 : this.vx) + this.kvx;
                 this.kvx *= 0.85;
 
-                if (this.flying) {
+                if (this.type === 'cloud') {
+                    // Hover well above the player and drop lightning bolts
+                    const targetY = chasing ? Math.max(30, player.y - 150) : this.baseY + Math.sin(this.animTime * 2) * 12;
+                    this.y += Math.max(-2, Math.min(2, (targetY - this.y) * 0.05));
+                    this.shootTimer -= dt;
+                    if (chasing && this.shootTimer <= 0) {
+                        this.shootTimer = 2.2;
+                        projectiles.push(new Projectile(this.x + this.width / 2, this.y + this.height, '#fde047'));
+                    }
+                } else if (this.flying) {
                     const targetY = chasing
                         ? player.y + player.height / 2 - this.height / 2
                         : this.baseY + Math.sin(this.animTime * 2.5) * 16;
@@ -2485,6 +2977,34 @@
                 } else {
                     this.applyGravity(platforms);
                 }
+            }
+
+            // hang -> drop (player walks underneath) -> wait -> climb back up the thread
+            updateHangingSpider(dt, player) {
+                const dx = Math.abs(player.x + player.width / 2 - (this.x + this.width / 2));
+                if (this.dropState === 'hang') {
+                    this.y = this.baseY + Math.sin(this.animTime * 2) * 4;
+                    if (dx < 110 && player.y > this.y && !player.isDead) this.dropState = 'drop';
+                } else if (this.dropState === 'drop') {
+                    this.y += 7;
+                    const floor = Math.min(player.y + player.height - this.height, SPIDER_DROP_LIMIT);
+                    if (this.y >= floor) {
+                        this.y = floor;
+                        this.dropState = 'wait';
+                        this.dropTimer = 1.2;
+                    }
+                } else if (this.dropState === 'wait') {
+                    this.dropTimer -= dt;
+                    if (this.dropTimer <= 0) this.dropState = 'climb';
+                } else {
+                    this.y -= 2.5;
+                    if (this.y <= this.baseY) {
+                        this.y = this.baseY;
+                        this.dropState = 'hang';
+                    }
+                }
+                this.x += this.kvx;
+                this.kvx *= 0.85;
             }
 
             applyGravity(platforms) {
@@ -2528,7 +3048,8 @@
                     playSound('roar');
                     addShake(10);
                     floatingTexts.push(new FloatingText('NỔI GIẬN!', this.x, this.y - 30, '#ef4444', 14));
-                    enemies.push(new Enemy(this.homeLeft + 40, this.y, 'goblin'), new Enemy(this.homeRight - 40, this.y, 'goblin'));
+                    const minion = THEMES[currentLevel.theme].minion || 'goblin';
+                    enemies.push(new Enemy(this.homeLeft + 40, this.y, minion), new Enemy(this.homeRight - 40, this.y, minion));
                 }
 
                 this.stateTimer -= dt;
@@ -2662,6 +3183,10 @@
                 if (this.type === 'fish') return { key: 'fishSwim', anim: ENEMY_ANIMS.fish, fps: this.isLunging ? 12 : 6, scale: 3 };
                 if (this.type === 'crab') return { key: 'crabWalk', anim: ENEMY_ANIMS.crab, fps: 6, scale: 3 };
                 if (this.type === 'jelly') return { key: 'jellyFloat', anim: ENEMY_ANIMS.jelly, fps: 2, scale: 3 };
+                if (this.type === 'spider') return { key: 'spiderCrawl', anim: ENEMY_ANIMS.spider, fps: this.dropState === 'hang' ? 2 : 8, scale: 3 };
+                if (this.type === 'spiderling') return { key: 'spiderCrawl', anim: ENEMY_ANIMS.spider, fps: 12, scale: 2 };
+                if (this.type === 'soldier') return { key: 'soldierWalk', anim: ENEMY_ANIMS.soldier, fps: 5, scale: 3 };
+                if (this.type === 'cloud') return { key: 'stormCloud', anim: ENEMY_ANIMS.stormCloud, fps: 6, scale: 3 };
                 if (this.type === 'demon') {
                     return this.isLunging
                         ? { key: 'beeAttack', anim: ENEMY_ANIMS.beeAttack, fps: 14, scale: ART_SCALE }
@@ -2705,6 +3230,12 @@
                 // Boss stomps in place before charging
                 const winding = this.type === 'boss' && this.state === 'telegraph';
                 if (winding) cx += Math.sin(this.animTime * 60) * 3;
+
+                if (this.type === 'spider') {
+                    // silk thread up to where it hangs from
+                    ctx.fillStyle = 'rgba(226, 232, 240, 0.6)';
+                    ctx.fillRect(snap(cx), this.baseY - 60, 1, this.y - this.baseY + 64);
+                }
 
                 if (!this.flying) {
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
@@ -2881,7 +3412,7 @@
                 if (p.h < 40) continue;
                 for (let x = p.x + 20; x < p.x + p.w - 60; x += 70 + rand() * 110) {
                     const r = rand();
-                    if (r < 0.3 && x + bushW < p.x + p.w - 10) {
+                    if (r < 0.3 && theme.bushRow !== null && x + bushW < p.x + p.w - 10) {
                         scenery.decor.push({ type: 'bush', x, y: p.y });
                         x += bushW * 0.6;
                     } else if (r < 0.75) {
@@ -2903,11 +3434,25 @@
 
         function drawTree(img, r, x, bottom, scale) {
             const w = r.w * scale, h = r.h * scale;
-            if (x + w < 0 || x > GAME_WIDTH) return;
+            if (!img || x + w < 0 || x > GAME_WIDTH) return;
             ctx.drawImage(img, r.x, r.y, r.w, r.h, snap(x), snap(bottom - h), w, h);
         }
 
         // One tile row cut into left cap / repeating middle / right cap, stretched to width w
+        // A puffy pixel cloud whose top surface is at y (Thiên Cung ledges)
+        function drawCloudLedge(x, y, w) {
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillRect(snap(x + 4), y + 12, w - 8, 8);
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(snap(x), y + 2, w, 12);
+            for (let i = 0, bx = x + 6; bx < x + w - 6; i++, bx += 16) {
+                const bump = 5 + ((i * 7) % 4) * 2;
+                ctx.fillRect(snap(bx - 6), y + 4 - bump, 18, bump);
+            }
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(snap(x + 4), y + 2, w - 8, 2);
+        }
+
         function drawRowSlices(img, d, sy, sh, x, w, dy) {
             const S = ART_SCALE;
             const L = d.left * S, R = d.right * S, dh = sh * S;
@@ -2936,6 +3481,8 @@
                     drawRowSlices(theme.tiles, d, d.fillY, d.fillH, drawX, p.w, dy);
                     dy += d.fillH * S;
                 }
+            } else if (theme.ledge === 'cloud') {
+                drawCloudLedge(drawX, p.y, p.w);
             } else {
                 const d = TILE[theme.ledge];
                 drawRowSlices(theme.tiles, d, d.sy, d.sh, drawX, p.w, p.y - d.surface * S);
@@ -2951,7 +3498,7 @@
                 const sy = BUSH.rowY + theme.bushRow * BUSH.rowStep;
                 ctx.drawImage(theme.tiles, BUSH.x, sy, BUSH.w, BUSH.h, x, item.y + 12 - h, w, h);
             } else if (!PROPS[item.name]) {
-                drawSeaProp(ctx, item.name, x, item.y);
+                drawCodeProp(ctx, item.name, x, item.y);
             } else {
                 const r = PROPS[item.name];
                 const w = r.w * S, h = r.h * S;
@@ -3000,6 +3547,8 @@
                 if (drawX + p.w < -100 || drawX > GAME_WIDTH + 100) continue;
                 drawPlatform(theme, p, drawX);
             }
+
+            if (theme.cave) drawCaveCeiling(camX);
         }
 
         const vignette = ctx.createRadialGradient(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_HEIGHT * 0.35, GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_HEIGHT * 0.95);
@@ -3032,6 +3581,7 @@
             pickups = (currentLevel.peaches || []).map(p => new Pickup(p.x, p.y));
             chests = (currentLevel.chests || []).map(c => new Chest(c.x, c.y));
             hazards = (currentLevel.hazards || []).map(h => new Hazard(h.x, h.y));
+            webs = (currentLevel.webs || []).map(w => new Web(w.x, w.y, w.w, w.h));
             clones = [];
             projectiles = [];
             shockwaves = [];
@@ -3202,8 +3752,8 @@
             { x: 250, y: 285, stage: 1, title: 'HỎA DIỆM SƠN' },
             { x: 395, y: 355, stage: 2, title: 'BẠCH CỐT ĐỘNG' },
             { x: 530, y: 250, stage: 3, title: 'LONG CUNG' },
-            { x: 650, y: 330, title: 'BÀN TƠ ĐỘNG' },
-            { x: 735, y: 200, title: 'THIÊN CUNG' }
+            { x: 650, y: 330, stage: 4, title: 'BÀN TƠ ĐỘNG' },
+            { x: 735, y: 200, stage: 5, title: 'THIÊN CUNG' }
         ];
         const MAP_HERO_SCALE = 3;
         const mapState = { selected: 0, from: 0, walkT: 1, t: 0 };
@@ -3487,6 +4037,20 @@
         bindTouch('btn-skill2', 'skill2', () => player.useSkill('clone'));
         bindTouch('btn-skill3', 'skill3', () => player.useSkill('freeze'));
 
+        // Platforms with `move` drift side to side; whoever stands on one rides along
+        function moveClouds(platforms) {
+            for (const p of platforms) {
+                if (!p.move) continue;
+                if (p.baseX === undefined) p.baseX = p.x;
+                const nx = p.baseX + Math.sin(worldTime * p.move.speed) * p.move.dx;
+                const delta = nx - p.x;
+                p.x = nx;
+                for (const rider of [player, ...clones]) {
+                    if (rider.isGrounded && rider.groundPlatform === p) rider.x += delta;
+                }
+            }
+        }
+
         // --- MAIN GAME LOOP ---
         function updateWorld(dt) {
             if (comboCount > 0) {
@@ -3498,6 +4062,7 @@
             }
 
             const platforms = currentLevel.platforms;
+            moveClouds(platforms);
             player.update(dt, platforms);
             // A finished death animation may have ended the run (game over overlay)
             if (gameState !== 'PLAYING') return;
@@ -3584,6 +4149,7 @@
                 for (const c of checkpoints) c.draw(ctx, camX);
                 for (const c of chests) c.draw(ctx, camX, theme);
                 for (const h of hazards) h.draw(ctx, camX);
+                for (const w of webs) w.draw(ctx, camX);
                 portal.draw(ctx, camX);
                 for (const p of pickups) p.draw(ctx, camX);
 
@@ -3603,6 +4169,7 @@
             ctx.restore();
 
             if (currentLevel.water && theme) drawWaterOverlay(ctx, camX);
+            if (theme && theme.dark) drawDarkness(ctx, camX);
             drawAmbient(ctx, camX);
             ctx.fillStyle = vignette;
             ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
