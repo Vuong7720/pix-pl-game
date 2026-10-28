@@ -49,7 +49,7 @@
 <body class="w-screen h-screen flex flex-col justify-center items-center relative select-none">
 
     <!-- Game Header / TOP HUD -->
-    <div class="fixed top-2 left-0 right-0 z-20 px-4 max-w-6xl mx-auto flex justify-between items-center pointer-events-none">
+    <div id="hud" class="hidden fixed top-2 left-0 right-0 z-20 px-4 max-w-6xl mx-auto flex justify-between items-center pointer-events-none">
         <!-- Player Info -->
         <div class="glass-panel rounded-xl p-3 flex items-center gap-4 pointer-events-auto shadow-lg border-l-4 border-amber-500">
             <div class="relative w-12 h-12 rounded-lg bg-slate-800 border-2 border-amber-500/50 flex items-center justify-center overflow-hidden">
@@ -126,24 +126,23 @@
                         <span class="text-slate-400">Cân Đẩu Vân (Lướt)</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-sky-400 font-mono">U</kbd>
-                        <span class="text-slate-400">Như Ý Trụ Thiên (40 Pháp Lực)</span>
+                        <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-sky-400 font-mono">U</kbd> <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-sky-400 font-mono">I</kbd> <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-sky-400 font-mono">O</kbd>
+                        <span class="text-slate-400">Kỹ năng (lĩnh ngộ khi qua ải)</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-sky-400 font-mono">I</kbd>
-                        <span class="text-slate-400">Phân Thân Thuật (50 Pháp Lực)</span>
+                        <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">ESC</kbd> <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">M</kbd>
+                        <span class="text-slate-400">Tạm dừng · Nhạc</span>
                     </div>
-                    <div class="flex items-center gap-2 col-span-2">
-                        <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">M</kbd>
-                        <span class="text-slate-400">Bật / tắt nhạc · Đánh trúng quái để nạp Pháp Lực · Chém rương để mở</span>
+                    <div class="col-span-2 text-slate-500">
+                        Đánh trúng quái để nạp Pháp Lực · Chém rương để lấy Đào Tiên · Dùng Đào Tiên mua nâng cấp ở Cửa Hàng Thổ Địa
                     </div>
                 </div>
 
                 <button id="start-btn" disabled class="w-full py-4 bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-500 hover:to-red-500 text-white pixel-font text-sm rounded-xl shadow-lg shadow-amber-950 hover:scale-[1.02] active:scale-[0.98] transition duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-wait disabled:hover:scale-100">
                     ĐANG TẢI ĐỒ HỌA...
                 </button>
-                <button id="continue-btn" class="hidden w-full py-3 bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-300 pixel-font text-xs rounded-xl transition cursor-pointer">
-                    CHƠI TIẾP
+                <button id="reset-btn" class="hidden text-slate-500 hover:text-red-400 text-xs underline cursor-pointer">
+                    Xóa tiến trình và chơi lại từ đầu
                 </button>
             </div>
         </div>
@@ -169,36 +168,61 @@
                 <button id="restart-btn" class="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white pixel-font text-xs rounded-xl shadow-lg hover:scale-105 transition cursor-pointer">
                     CHƠI LẠI CẢNH NÀY
                 </button>
+                <button class="to-map-btn w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 pixel-font text-xs rounded-xl transition cursor-pointer">
+                    VỀ BẢN ĐỒ
+                </button>
             </div>
         </div>
 
-        <!-- STAGE CLEAR / VICTORY OVERLAY -->
-        <div id="victory-overlay" class="hidden absolute inset-0 z-30 flex flex-col items-center justify-center glass-panel bg-slate-950/95 p-6 text-center">
-            <div class="max-w-md mx-auto space-y-6">
-                <i class="fa-solid fa-crown text-6xl text-amber-400 animate-bounce"></i>
-                <h2 class="pixel-font text-3xl text-amber-400">ĐẠI THẮNG!</h2>
-                <p class="text-slate-300 text-sm">Ngộ Không đã quét sạch yêu quái, thu phục bình an cho nhân gian!</p>
-
-                <div class="bg-slate-900 p-4 rounded-xl border border-amber-500/30 space-y-2">
-                    <div class="flex justify-between text-xs text-slate-400">
-                        <span>Tổng Điểm:</span>
-                        <span id="victory-score" class="pixel-font text-amber-400">0</span>
-                    </div>
-                    <div class="flex justify-between text-xs text-slate-400">
-                        <span>Danh Hệu:</span>
-                        <span class="pixel-font text-emerald-400">ĐẤU CHIẾN THẮNG PHẬT</span>
-                    </div>
+        <!-- STAGE CLEAR OVERLAY -->
+        <div id="clear-overlay" class="hidden absolute inset-0 z-30 flex flex-col items-center justify-center glass-panel bg-slate-950/85 p-6 text-center">
+            <div class="max-w-md w-full mx-auto space-y-5">
+                <h2 class="pixel-font text-3xl text-amber-400">QUA ẢI!</h2>
+                <div id="clear-stars" class="text-4xl tracking-widest"></div>
+                <div class="bg-slate-900 p-4 rounded-xl border border-amber-500/30 space-y-2 text-xs text-slate-400 text-left">
+                    <div class="flex justify-between"><span>Điểm:</span><span id="clear-score" class="pixel-font text-amber-400">0</span></div>
+                    <div class="flex justify-between"><span>Đào Tiên nhặt được:</span><span id="clear-peaches" class="pixel-font text-pink-300">0</span></div>
+                    <div class="flex justify-between"><span>★ Qua ải · ★ Không mất mạng · ★ Mở hết rương</span></div>
                 </div>
+                <div id="clear-unlock" class="hidden bg-sky-950/80 border border-sky-500/50 rounded-xl p-3 text-sky-200 text-sm"></div>
+                <div class="flex gap-3">
+                    <button class="to-map-btn flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 pixel-font text-xs rounded-xl transition cursor-pointer">BẢN ĐỒ</button>
+                    <button id="next-stage-btn" class="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 pixel-font text-xs rounded-xl transition cursor-pointer">ẢI TIẾP</button>
+                </div>
+            </div>
+        </div>
 
-                <button id="victory-restart-btn" class="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold pixel-font text-xs rounded-xl shadow-lg hover:scale-105 transition cursor-pointer">
-                    CHƠI LẠI TỪ ĐẦU
-                </button>
+        <!-- PAUSE OVERLAY -->
+        <div id="pause-overlay" class="hidden absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/70 p-6 text-center">
+            <div class="max-w-xs w-full mx-auto space-y-4">
+                <h2 class="pixel-font text-2xl text-amber-400">TẠM DỪNG</h2>
+                <button id="resume-btn" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 pixel-font text-xs rounded-xl transition cursor-pointer">TIẾP TỤC</button>
+                <button class="to-map-btn w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 pixel-font text-xs rounded-xl transition cursor-pointer">VỀ BẢN ĐỒ</button>
+            </div>
+        </div>
+
+        <!-- WORLD MAP BOTTOM BAR -->
+        <div id="map-ui" class="hidden absolute bottom-4 left-0 right-0 z-20 flex justify-center gap-3 px-4">
+            <button id="map-play-btn" class="px-6 py-3 bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-500 hover:to-red-500 text-white pixel-font text-xs rounded-xl shadow-lg transition cursor-pointer">VÀO ẢI</button>
+            <button id="map-shop-btn" class="px-6 py-3 bg-slate-900/90 hover:bg-slate-800 border border-pink-400/50 text-pink-200 pixel-font text-xs rounded-xl shadow-lg transition cursor-pointer">CỬA HÀNG <i class="fa-solid fa-apple-whole"></i> <span id="map-peaches">0</span></button>
+        </div>
+
+        <!-- SHOP OVERLAY (Cửa Hàng Thổ Địa) -->
+        <div id="shop-overlay" class="hidden absolute inset-0 z-30 flex items-center justify-center bg-slate-950/80 p-4">
+            <div class="glass-panel rounded-2xl w-full max-w-lg p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="pixel-font text-sm text-amber-400">CỬA HÀNG THỔ ĐỊA</h2>
+                    <span class="pixel-font text-xs text-pink-300"><i class="fa-solid fa-apple-whole"></i> <span id="shop-peaches">0</span></span>
+                </div>
+                <p class="text-slate-400 text-xs">"Đại Thánh cần gì cứ lấy, lão chỉ xin vài quả Đào Tiên thôi!"</p>
+                <div id="shop-list" class="space-y-2 max-h-[55vh] overflow-y-auto pr-1"></div>
+                <button id="shop-close-btn" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 pixel-font text-xs rounded-xl transition cursor-pointer">ĐÓNG (B)</button>
             </div>
         </div>
     </div>
 
     <!-- TOUCH CONTROLS (For mobile & touch tablets) -->
-    <div id="mobile-controls" class="fixed bottom-3 left-3 right-3 z-20 flex justify-between items-end pointer-events-none md:hidden">
+    <div id="mobile-controls" class="hidden fixed bottom-3 left-3 right-3 z-20 flex justify-between items-end pointer-events-none md:hidden">
         <!-- Directional D-Pad -->
         <div class="flex gap-2 pointer-events-auto">
             <button id="btn-left" class="w-14 h-14 bg-slate-900/80 active:bg-rose-600/80 border border-slate-700 rounded-2xl flex items-center justify-center text-white text-2xl active:scale-95 transition">
@@ -213,6 +237,7 @@
             <div class="flex flex-col gap-2">
                 <button id="btn-skill1" class="w-11 h-11 bg-sky-900/80 active:bg-sky-600/80 border border-sky-700 rounded-full flex items-center justify-center text-sky-300 pixel-font text-[10px] active:scale-95 transition">U</button>
                 <button id="btn-skill2" class="w-11 h-11 bg-sky-900/80 active:bg-sky-600/80 border border-sky-700 rounded-full flex items-center justify-center text-sky-300 pixel-font text-[10px] active:scale-95 transition">I</button>
+                <button id="btn-skill3" class="w-11 h-11 bg-sky-900/80 active:bg-sky-600/80 border border-sky-700 rounded-full flex items-center justify-center text-sky-300 pixel-font text-[10px] active:scale-95 transition">O</button>
             </div>
             <button id="btn-dash" class="w-12 h-12 bg-slate-800/80 active:bg-amber-600/80 border border-slate-700 rounded-full flex items-center justify-center text-amber-400 text-lg active:scale-95 transition">
                 <i class="fa-solid fa-bolt"></i>
@@ -243,30 +268,36 @@
         // UI Elements
         const startOverlay = document.getElementById('start-overlay');
         const gameOverOverlay = document.getElementById('gameover-overlay');
-        const victoryOverlay = document.getElementById('victory-overlay');
         const hpBar = document.getElementById('hp-bar');
         const hpText = document.getElementById('hp-text');
         const scoreDisplay = document.getElementById('score-display');
         const comboDisplay = document.getElementById('combo-display');
         const levelIndicator = document.getElementById('level-indicator');
         const startBtn = document.getElementById('start-btn');
-        const continueBtn = document.getElementById('continue-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const hud = document.getElementById('hud');
+        const mobileControls = document.getElementById('mobile-controls');
+        const mapUi = document.getElementById('map-ui');
+        const clearOverlay = document.getElementById('clear-overlay');
+        const pauseOverlay = document.getElementById('pause-overlay');
+        const shopOverlay = document.getElementById('shop-overlay');
         const avatarCanvas = document.getElementById('avatar-canvas');
         const mpBar = document.getElementById('mp-bar');
         const livesDisplay = document.getElementById('lives-display');
         const peachDisplay = document.getElementById('peach-display');
 
         // Game State
-        let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER', 'VICTORY'
+        let gameState = 'START'; // 'START', 'MAP', 'PLAYING', 'PAUSED', 'CLEAR', 'GAMEOVER', 'VICTORY'
         let currentLevelIndex = 0;
         let score = 0;
         let comboCount = 0;
         let comboTimer = 0;
         let lastTime = 0;
 
-        const MAX_LIVES = 3;
-        let lives = MAX_LIVES;
-        let scoreAtLevelStart = 0;
+        const BASE_LIVES = 3;
+        let lives = BASE_LIVES;
+        let maxLives = BASE_LIVES;
+        let runPeaches = 0; // peaches picked up during the current stage attempt
         let respawnPoint = { x: 100, y: 350 };
 
         // Game feel: brief freeze on impact and camera shake (in pixels, decays every frame)
@@ -278,19 +309,46 @@
 
         // --- SAVE DATA (localStorage) ---
         const SAVE_KEY = 'tay-du-ky-save';
-        const save = { unlocked: 0, peaches: 0, best: 0 };
+        function freshSave() {
+            return {
+                unlocked: 0,      // highest stage index that can be entered
+                peaches: 0,       // currency for the shop
+                stars: [],        // best star count per stage
+                bestScores: [],   // best score per stage
+                upgrades: {},     // upgrade id -> level bought
+                skills: {}        // skill id -> true once learned
+            };
+        }
+        let save = freshSave();
 
         function loadSave() {
             try {
                 Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY)) || {});
             } catch (e) { /* storage unavailable: play without saving */ }
+            // Saves from before skills were unlockable: grant what the cleared stages would have taught
+            for (const id in SKILLS) {
+                if (save.unlocked > SKILLS[id].unlockStage) save.skills[id] = true;
+            }
         }
 
         function writeSave() {
-            save.best = Math.max(save.best, score);
             try {
                 localStorage.setItem(SAVE_KEY, JSON.stringify(save));
             } catch (e) { /* storage unavailable */ }
+        }
+
+        // --- SHOP UPGRADES (bought with Đào Tiên); cost[i] is the price of level i+1 ---
+        const UPGRADES = [
+            { id: 'hp',   name: 'Kim Cang Bất Hoại', desc: '+20 máu tối đa',               cost: [15, 25, 40] },
+            { id: 'atk',  name: 'Như Ý Kim Cô Bổng', desc: '+20% sát thương',              cost: [20, 35, 55] },
+            { id: 'mp',   name: 'Linh Khí Hội Tụ',   desc: '+3 Pháp Lực mỗi đòn trúng',    cost: [15, 25, 40] },
+            { id: 'dash', name: 'Cân Đẩu Vân',       desc: 'Lướt hồi nhanh hơn 0,15 giây', cost: [20, 35] },
+            { id: 'life', name: 'Hộ Thân Phù',       desc: '+1 mạng mỗi ải',               cost: [30, 60] },
+            { id: 'jump', name: 'Tam Đoạn Khiêu',    desc: 'Nhảy được 3 lần trên không',  cost: [50] }
+        ];
+
+        function upgradeLevel(id) {
+            return save.upgrades[id] || 0;
         }
 
         // Keyboard Inputs
@@ -311,11 +369,18 @@
             }
             if (e.code === 'KeyJ') keys.attack = true;
             if (e.code === 'KeyK' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.dash = true;
-            if (!e.repeat && gameState === 'PLAYING') {
+            if (e.repeat) return;
+            if (gameState === 'PLAYING') {
                 if (e.code === 'KeyU') player.useSkill('pillar');
                 if (e.code === 'KeyI') player.useSkill('clone');
+                if (e.code === 'KeyO') player.useSkill('freeze');
+                if (e.code === 'Escape' || e.code === 'KeyP') setPaused(true);
+            } else if (gameState === 'PAUSED') {
+                if (e.code === 'Escape' || e.code === 'KeyP') setPaused(false);
+            } else if (gameState === 'MAP') {
+                handleMapKey(e.code);
             }
-            if (e.code === 'KeyM' && !e.repeat) toggleMusic();
+            if (e.code === 'KeyM') toggleMusic();
         });
 
         window.addEventListener('keyup', (e) => {
@@ -554,10 +619,13 @@
         // Staff x inside the pillar frames, relative to ax (art pixels)
         const PILLAR_STAFF_X = -2.5;
 
+        // Each skill is learned by clearing stage `unlockStage`
         const SKILLS = {
-            pillar: { cost: 40 }, // Như Ý Trụ Thiên: staff grows, launching the monkey up, then a ground slam
-            clone:  { cost: 50 }  // Phân Thân Thuật: two clones fight alongside for a few seconds
+            pillar: { cost: 40, key: 'U', name: 'NHƯ Ý TRỤ THIÊN', short: 'TRỤ', unlockStage: 0 }, // staff launch + ground slam
+            clone:  { cost: 50, key: 'I', name: 'PHÂN THÂN THUẬT', short: 'PHÂN', unlockStage: 1 }, // two clones fight alongside
+            freeze: { cost: 60, key: 'O', name: 'ĐỊNH THÂN PHÁP', short: 'ĐỊNH', unlockStage: 2 }   // freezes nearby enemies
         };
+        const FREEZE_TIME = 3;
         // Combo step -> [animation, first frame, frame count], swing duration and hitbox reach
         const ATTACK_FRAMES = { 1: ['sweep', 0, 7], 2: ['smash', 4, 4], 3: ['smash', 0, 8] };
         const ATTACK_TIMINGS = { 1: 0.3, 2: 0.24, 3: 0.4 };
@@ -659,6 +727,10 @@
             }
             FLASH.dash = tintImage(IMG.hero, '#fde68a', 1);
             FLASH.clone = tintImage(IMG.hero, '#fcd34d', 0.35);
+            FLASH.gold = {};
+            for (const key of ['boarRun', 'boarRunBlack', 'boarRunWhite', 'snailWalk', 'beeFly', 'beeAttack']) {
+                FLASH.gold[key] = tintImage(IMG[key], '#fde047', 1);
+            }
             FLASH.rage = {};
             for (const key of ['boarRunBlack', 'boarRunWhite']) FLASH.rage[key] = tintImage(IMG[key], '#dc2626', 0.35);
         }
@@ -1033,6 +1105,7 @@
             collect(player) {
                 this.collected = true;
                 save.peaches++;
+                runPeaches++;
                 score += 50;
                 player.hp = Math.min(player.maxHp, player.hp + 10);
                 playSound('pickup');
@@ -1310,6 +1383,10 @@
 
             useSkill(id) {
                 if (this.isDead || this.skill) return;
+                if (!save.skills[id]) {
+                    floatingTexts.push(new FloatingText('CHƯA LĨNH NGỘ', this.x - 30, this.y - 16, '#94a3b8', 9));
+                    return;
+                }
                 const cost = SKILLS[id].cost;
                 if (this.mp < cost) {
                     floatingTexts.push(new FloatingText('THIẾU PHÁP LỰC', this.x - 40, this.y - 16, '#7dd3fc', 9));
@@ -1335,6 +1412,8 @@
                     this.vy = 0;
                 } else if (id === 'clone') {
                     spawnClones(this);
+                } else if (id === 'freeze') {
+                    castFreeze(this);
                 }
             }
 
@@ -1435,7 +1514,7 @@
                 if (keys.dash && this.dashCooldown <= 0 && !this.isDashing) {
                     this.isDashing = true;
                     this.dashTimer = 0.22;
-                    this.dashCooldown = 0.8;
+                    this.dashCooldown = 0.8 - 0.15 * upgradeLevel('dash');
                     this.vx = (this.facing === 'right' ? 1 : -1) * 16;
                     playSound('slash');
                     for (let i = 0; i < 8; i++) {
@@ -1679,6 +1758,31 @@
         }
 
         // --- SKILL HELPERS ---
+        function damageMultiplier() {
+            return 1 + 0.2 * upgradeLevel('atk');
+        }
+
+        // Applies shop upgrades at the start of a stage attempt
+        function applyUpgrades() {
+            player.maxHp = 100 + 20 * upgradeLevel('hp');
+            player.maxJumps = upgradeLevel('jump') > 0 ? 3 : 2;
+            maxLives = BASE_LIVES + upgradeLevel('life');
+        }
+
+        // Định Thân Pháp: a golden seal ripples out and freezes every enemy in range
+        function castFreeze(p) {
+            const cx = p.x + p.width / 2;
+            addShockwave(cx, p.y + p.height, 420, '#fde047');
+            addShake(4);
+            for (const e of enemies) {
+                if (e.dead || Math.abs(e.x + e.width / 2 - cx) > 450) continue;
+                e.frozen = e.type === 'boss' ? FREEZE_TIME / 2 : FREEZE_TIME;
+                createHitSparks(e.x + e.width / 2, e.y + e.height / 2, '#fde047', 10);
+            }
+            projectiles = [];
+            floatingTexts.push(new FloatingText('ĐỊNH!', p.x - 4, p.y - 20, '#fde047', 16));
+        }
+
         function groundSlam(p) {
             const cx = p.x + p.width / 2;
             const feetY = p.y + p.height;
@@ -1697,7 +1801,7 @@
                 if (e.dead) continue;
                 const ex = e.x + e.width / 2;
                 if (Math.abs(ex - cx) < 170 && Math.abs(e.y + e.height - feetY) < 110) {
-                    e.takeDamage(70, ex > cx ? 'right' : 'left');
+                    e.takeDamage(Math.round(70 * damageMultiplier()), ex > cx ? 'right' : 'left');
                 }
             }
             for (const c of chests) {
@@ -1751,7 +1855,7 @@
                         this.hitDone = true;
                         const reach = { x: this.facing === 'right' ? this.x + this.width : this.x - 80, y: this.y, width: 80, height: 55 };
                         for (const e of enemies) {
-                            if (!e.dead && overlaps(reach, e)) e.takeDamage(18, this.facing);
+                            if (!e.dead && overlaps(reach, e)) e.takeDamage(Math.round(18 * damageMultiplier()), this.facing);
                         }
                     }
                 } else if (target && Math.abs(dx) < 60 && this.cooldown <= 0) {
@@ -1872,8 +1976,8 @@
             }
 
             update(dt, player, platforms) {
-                this.animTime += dt;
                 if (this.dead) {
+                    this.animTime += dt;
                     this.deathTimer -= dt;
                     return;
                 }
@@ -1883,17 +1987,25 @@
                     if (this.hitTimer <= 0) this.isHit = false;
                 }
 
-                if (this.type === 'boss') this.updateBoss(dt, player, platforms);
-                else this.updateMob(dt, player, platforms);
+                // Frozen by Định Thân Pháp: no movement, no contact damage, but can still be hit
+                if (this.frozen > 0) {
+                    this.frozen -= dt;
+                    this.kvx = 0;
+                } else {
+                    this.animTime += dt;
+                    if (this.type === 'boss') this.updateBoss(dt, player, platforms);
+                    else this.updateMob(dt, player, platforms);
 
-                // Hit Player check
-                if (overlaps(player, this)) {
-                    player.takeDamage(this.damage);
+                    // Hit Player check
+                    if (overlaps(player, this)) {
+                        player.takeDamage(this.damage);
+                    }
                 }
 
                 // Attacked by Player
                 if (player.isAttacking && overlaps(player.attackBox, this)) {
-                    if (this.takeDamage(25 + (player.attackCombo * 10), player.facing)) player.gainMp(8);
+                    const damage = Math.round((25 + player.attackCombo * 10) * damageMultiplier());
+                    if (this.takeDamage(damage, player.facing)) player.gainMp(8 + 3 * upgradeLevel('mp'));
                 }
             }
 
@@ -2167,6 +2279,23 @@
                     ctx.globalAlpha = 1;
                 }
 
+                if (this.frozen > 0) {
+                    // Golden sheen plus a spinning seal above the head
+                    ctx.globalAlpha = 0.35 + 0.15 * Math.sin(this.frozen * 10);
+                    drawSprite(FLASH.gold[key], anim, frame, cx, feetY, flip, scale);
+                    ctx.globalAlpha = 1;
+                    const sealY = this.y - this.barLift - 14;
+                    ctx.save();
+                    ctx.translate(cx, sealY);
+                    ctx.rotate(this.frozen * 3);
+                    ctx.strokeStyle = '#fde047';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(-7, -7, 14, 14);
+                    ctx.rotate(Math.PI / 4);
+                    ctx.strokeRect(-7, -7, 14, 14);
+                    ctx.restore();
+                }
+
                 // Bosses get the big bar at the bottom of the screen instead
                 if (this.hp < this.maxHp && this.type !== 'boss') {
                     const barX = snap(this.x - camX);
@@ -2237,7 +2366,7 @@
 
                 if (!player.isDead && overlaps(player, this)) {
                     if (!this.locked) {
-                        nextLevel();
+                        stageClear();
                     } else if (this.hintTimer <= 0) {
                         this.hintTimer = 1.5;
                         floatingTexts.push(new FloatingText('HẠ BOSS ĐỂ MỞ CỔNG', this.x - 80, this.y - 10, '#fca5a5', 10));
@@ -2443,7 +2572,6 @@
         function loadLevel(index) {
             currentLevelIndex = index;
             currentLevel = LEVELS[currentLevelIndex];
-            scoreAtLevelStart = score;
             respawnPoint = { x: 100, y: 350 };
             player.reset(respawnPoint.x, respawnPoint.y);
             camera.snapTo(player, currentLevel.worldWidth);
@@ -2463,24 +2591,86 @@
             buildScenery(currentLevel, theme);
             resetAmbient(theme.ambient);
 
-            save.unlocked = Math.max(save.unlocked, currentLevelIndex);
-            writeSave();
-
             levelIndicator.innerText = `CẢNH ${currentLevelIndex + 1}`;
             levelBanner.text = currentLevel.name;
             levelBanner.timer = BANNER_TIME;
             updateHUD();
         }
 
-        function nextLevel() {
-            if (currentLevelIndex + 1 < LEVELS.length) {
-                loadLevel(currentLevelIndex + 1);
-            } else {
-                gameState = 'VICTORY';
-                writeSave();
-                document.getElementById('victory-score').innerText = score;
-                victoryOverlay.classList.remove('hidden');
+        function releaseKeys() {
+            for (const k in keys) keys[k] = false;
+        }
+
+        // Shows the HTML pieces that belong to each game state
+        function setUiFor(state) {
+            const inStage = ['PLAYING', 'PAUSED', 'CLEAR', 'GAMEOVER'].includes(state);
+            hud.classList.toggle('hidden', !inStage);
+            mobileControls.classList.toggle('hidden', state !== 'PLAYING');
+            mapUi.classList.toggle('hidden', state !== 'MAP');
+        }
+
+        function hideOverlays() {
+            for (const el of [startOverlay, gameOverOverlay, clearOverlay, pauseOverlay, shopOverlay]) el.classList.add('hidden');
+            shopOpen = false;
+        }
+
+        function startRun(levelIndex) {
+            initAudio();
+            startMusic();
+            hideOverlays();
+            releaseKeys();
+            applyUpgrades();
+            gameState = 'PLAYING';
+            lives = maxLives;
+            score = 0;
+            comboCount = 0;
+            runPeaches = 0;
+            player.mp = 0;
+            loadLevel(levelIndex);
+            setUiFor(gameState);
+        }
+
+        function setPaused(paused) {
+            releaseKeys();
+            gameState = paused ? 'PAUSED' : 'PLAYING';
+            pauseOverlay.classList.toggle('hidden', !paused);
+            setUiFor(gameState);
+        }
+
+        // Reached the portal: grade the run, unlock the next stage and any skill this stage teaches
+        function stageClear() {
+            const i = currentLevelIndex;
+            const stars = 1 + (lives === maxLives ? 1 : 0) + (chests.every(c => c.opened) ? 1 : 0);
+            save.stars[i] = Math.max(save.stars[i] || 0, stars);
+            save.bestScores[i] = Math.max(save.bestScores[i] || 0, score);
+            save.unlocked = Math.max(save.unlocked, Math.min(i + 1, LEVELS.length - 1));
+
+            const learned = [];
+            for (const id in SKILLS) {
+                if (SKILLS[id].unlockStage === i && !save.skills[id]) {
+                    save.skills[id] = true;
+                    learned.push(SKILLS[id]);
+                }
             }
+            writeSave();
+
+            const isFinal = i === LEVELS.length - 1;
+            clearOverlay.querySelector('h2').innerText = isFinal ? 'ĐẠI THẮNG!' : 'QUA ẢI!';
+            document.getElementById('clear-stars').innerHTML =
+                `<span class="text-amber-400">${'★'.repeat(stars)}</span><span class="text-slate-600">${'★'.repeat(3 - stars)}</span>`;
+            document.getElementById('clear-score').innerText = score;
+            document.getElementById('clear-peaches').innerText = runPeaches;
+            const unlockBox = document.getElementById('clear-unlock');
+            unlockBox.classList.toggle('hidden', learned.length === 0);
+            unlockBox.innerHTML = learned.map(s =>
+                `Lĩnh ngộ thần thông: <b class="pixel-font text-[10px] text-sky-300">${s.name}</b> (phím ${s.key}, ${s.cost} Pháp Lực)`).join('<br>');
+            document.getElementById('next-stage-btn').classList.toggle('hidden', isFinal);
+
+            playSound('checkpoint');
+            releaseKeys();
+            gameState = 'CLEAR';
+            clearOverlay.classList.remove('hidden');
+            setUiFor(gameState);
         }
 
         // Called when the death animation finishes: respawn at the last checkpoint while lives remain
@@ -2507,17 +2697,7 @@
             document.getElementById('final-score').innerText = score;
             document.getElementById('final-stage').innerText = `Cảnh ${currentLevelIndex + 1}`;
             gameOverOverlay.classList.remove('hidden');
-        }
-
-        function startRun(levelIndex, keepScore) {
-            initAudio();
-            startMusic();
-            gameState = 'PLAYING';
-            lives = MAX_LIVES;
-            if (!keepScore) score = 0;
-            comboCount = 0;
-            player.mp = 0;
-            loadLevel(levelIndex);
+            setUiFor(gameState);
         }
 
         function updateHUD() {
@@ -2536,6 +2716,293 @@
                 setTimeout(() => comboDisplay.classList.remove('scale-125'), 100);
             }
         }
+
+        // Skill slots in the bottom-left corner: locked, not enough mana, or ready
+        function drawSkillSlots(ctx) {
+            let x = 14;
+            const y = GAME_HEIGHT - 58;
+            ctx.save();
+            ctx.textAlign = 'center';
+            for (const id in SKILLS) {
+                const s = SKILLS[id];
+                const learned = save.skills[id];
+                const ready = learned && player.mp >= s.cost;
+                ctx.fillStyle = 'rgba(2, 6, 23, 0.75)';
+                ctx.fillRect(x, y, 48, 44);
+                ctx.strokeStyle = ready ? '#38bdf8' : '#334155';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x + 1, y + 1, 46, 42);
+                ctx.font = "10px 'Press Start 2P', monospace";
+                ctx.fillStyle = !learned ? '#475569' : ready ? '#e0f2fe' : '#64748b';
+                ctx.fillText(learned ? s.key : '?', x + 24, y + 17);
+                ctx.font = "6px 'Press Start 2P', monospace";
+                ctx.fillText(learned ? s.short : 'KHÓA', x + 24, y + 29);
+                ctx.fillStyle = ready ? '#7dd3fc' : '#475569';
+                ctx.fillText(learned ? String(s.cost) : '', x + 24, y + 39);
+                x += 54;
+            }
+            ctx.restore();
+        }
+
+        // --- WORLD MAP (Hành Trình Tây Thiên) ---
+        // Nodes without a `stage` are teasers for stages that do not exist yet
+        const MAP_NODES = [
+            { x: 110, y: 380, stage: 0, title: 'HOA QUẢ SƠN' },
+            { x: 250, y: 285, stage: 1, title: 'HỎA DIỆM SƠN' },
+            { x: 395, y: 355, stage: 2, title: 'BẠCH CỐT ĐỘNG' },
+            { x: 530, y: 250, title: 'LONG CUNG' },
+            { x: 650, y: 330, title: 'BÀN TƠ ĐỘNG' },
+            { x: 735, y: 200, title: 'THIÊN CUNG' }
+        ];
+        const MAP_HERO_SCALE = 3;
+        const mapState = { selected: 0, from: 0, walkT: 1, t: 0 };
+        let shopOpen = false;
+
+        function isPlayable(node) {
+            return node.stage !== undefined && node.stage <= save.unlocked;
+        }
+
+        function goToMap() {
+            hideOverlays();
+            releaseKeys();
+            gameState = 'MAP';
+            // Stand on the stage just played, or the newest unlocked one
+            const stage = Math.min(save.unlocked, Math.max(currentLevelIndex, 0));
+            mapState.selected = mapState.from = MAP_NODES.findIndex(n => n.stage === stage);
+            mapState.walkT = 1;
+            currentLevel = LEVELS[stage];
+            resetAmbient('firefly');
+            updateMapUi();
+            setUiFor(gameState);
+        }
+
+        function selectNode(i) {
+            if (i < 0 || i >= MAP_NODES.length || i === mapState.selected || !isPlayable(MAP_NODES[i])) return;
+            mapState.from = mapState.selected;
+            mapState.selected = i;
+            mapState.walkT = 0;
+            currentLevel = LEVELS[MAP_NODES[i].stage];
+            playSound('jump');
+            updateMapUi();
+        }
+
+        function enterSelectedStage() {
+            const node = MAP_NODES[mapState.selected];
+            if (isPlayable(node)) startRun(node.stage);
+        }
+
+        function handleMapKey(code) {
+            if (shopOpen) {
+                if (code === 'KeyB' || code === 'Escape') closeShop();
+                return;
+            }
+            if (code === 'ArrowLeft' || code === 'KeyA') selectNode(mapState.selected - 1);
+            if (code === 'ArrowRight' || code === 'KeyD') selectNode(mapState.selected + 1);
+            if (code === 'Enter' || code === 'Space' || code === 'KeyJ') enterSelectedStage();
+            if (code === 'KeyB') openShop();
+        }
+
+        function updateMapUi() {
+            document.getElementById('map-peaches').innerText = save.peaches;
+        }
+
+        // Click a node to walk there; click the node you are on to enter it
+        canvas.addEventListener('click', (e) => {
+            if (gameState !== 'MAP' || shopOpen) return;
+            const rect = canvas.getBoundingClientRect();
+            const scale = Math.min(rect.width / GAME_WIDTH, rect.height / GAME_HEIGHT);
+            const x = (e.clientX - rect.left - (rect.width - GAME_WIDTH * scale) / 2) / scale;
+            const y = (e.clientY - rect.top - (rect.height - GAME_HEIGHT * scale) / 2) / scale;
+            const i = MAP_NODES.findIndex(n => Math.hypot(n.x - x, n.y - y) < 32);
+            if (i === -1) return;
+            if (i === mapState.selected && mapState.walkT >= 1) enterSelectedStage();
+            else selectNode(i);
+        });
+
+        // Points along the curved road between two nodes
+        function mapRoadPoint(a, b, i, t) {
+            const bend = i % 2 === 0 ? -40 : 40;
+            const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2 + bend;
+            const u = 1 - t;
+            return { x: u * u * a.x + 2 * u * t * cx + t * t * b.x, y: u * u * a.y + 2 * u * t * cy + t * t * b.y };
+        }
+
+        function drawStars(ctx, x, y, count, size) {
+            ctx.font = `${size}px sans-serif`;
+            ctx.textAlign = 'center';
+            for (let s = 0; s < 3; s++) {
+                ctx.fillStyle = s < count ? '#facc15' : '#334155';
+                ctx.fillText('★', x + (s - 1) * (size + 2), y);
+            }
+        }
+
+        function drawMap(ctx, dt) {
+            mapState.t += dt;
+            if (mapState.walkT < 1) mapState.walkT = Math.min(1, mapState.walkT + dt / 0.4);
+
+            const theme = THEMES.forest;
+            ctx.drawImage(theme.sky, 0, 0, theme.sky.width * 2, theme.sky.height * 2);
+            drawStrip(theme.bgTrees, BG_STRIP.far, mapState.t * 6, GAME_HEIGHT - 40);
+            drawStrip(theme.bgTrees, BG_STRIP.near, mapState.t * 12, GAME_HEIGHT + 70);
+            ctx.fillStyle = 'rgba(8, 12, 24, 0.5)';
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 6;
+            ctx.font = "20px 'Press Start 2P', monospace";
+            ctx.fillStyle = '#fbbf24';
+            ctx.fillText('HÀNH TRÌNH TÂY THIÊN', GAME_WIDTH / 2, 70);
+            ctx.font = "8px 'Press Start 2P', monospace";
+            ctx.fillStyle = '#fde68a';
+            ctx.fillText('VƯỢT 81 KIẾP NẠN', GAME_WIDTH / 2, 92);
+            ctx.restore();
+
+            // Road: gold dots once the stage before it is cleared
+            for (let i = 0; i < MAP_NODES.length - 1; i++) {
+                const a = MAP_NODES[i], b = MAP_NODES[i + 1];
+                const done = a.stage !== undefined && (save.stars[a.stage] || 0) > 0;
+                ctx.fillStyle = done ? '#facc15' : '#475569';
+                for (let t = 0.12; t < 0.9; t += 0.07) {
+                    const p = mapRoadPoint(a, b, i, t);
+                    ctx.fillRect(snap(p.x - 2), snap(p.y - 2), 4, 4);
+                }
+            }
+
+            MAP_NODES.forEach((n, i) => {
+                const real = n.stage !== undefined;
+                const playable = isPlayable(n);
+                const stars = real ? (save.stars[n.stage] || 0) : 0;
+                const fresh = playable && stars === 0;
+                const r = 22 + (fresh ? Math.sin(mapState.t * 4) * 2 : 0);
+
+                ctx.save();
+                if (fresh) {
+                    ctx.shadowColor = '#f87171';
+                    ctx.shadowBlur = 16;
+                }
+                ctx.fillStyle = stars > 0 ? '#b45309' : playable ? '#991b1b' : '#1e293b';
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                ctx.strokeStyle = stars > 0 ? '#facc15' : playable ? '#fca5a5' : '#475569';
+                ctx.lineWidth = 3;
+                if (!real) ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.textAlign = 'center';
+                ctx.font = "12px 'Press Start 2P', monospace";
+                ctx.fillStyle = playable ? '#fff7ed' : '#64748b';
+                ctx.fillText(real ? String(n.stage + 1) : '?', n.x + 1, n.y + 6);
+
+                ctx.font = "7px 'Press Start 2P', monospace";
+                ctx.fillStyle = playable ? '#fde68a' : '#64748b';
+                ctx.shadowColor = 'black';
+                ctx.shadowBlur = 4;
+                ctx.fillText(n.title, n.x, n.y - r - 26);
+                ctx.shadowBlur = 0;
+                if (real) drawStars(ctx, n.x, n.y + r + 14, stars, 10);
+                else {
+                    ctx.font = "6px 'Press Start 2P', monospace";
+                    ctx.fillStyle = '#475569';
+                    ctx.fillText('SẮP RA MẮT', n.x, n.y + r + 14);
+                }
+            });
+
+            // Monkey King walks between nodes
+            const a = MAP_NODES[mapState.from], b = MAP_NODES[mapState.selected];
+            const t = mapState.walkT;
+            const ease = t * t * (3 - 2 * t);
+            const hx = a.x + (b.x - a.x) * ease;
+            const hy = a.y + (b.y - a.y) * ease;
+            const walking = t < 1;
+            const anim = walking ? HERO_ANIMS.run : HERO_ANIMS.idle;
+            const frame = walking ? Math.floor(mapState.t / 0.08) % anim.frames : Math.floor(mapState.t / 0.15) % anim.frames;
+            drawSprite(IMG.hero, anim, frame, hx, hy - 20, b.x < a.x, MAP_HERO_SCALE);
+
+            // Info panel for the selected stage
+            const sel = MAP_NODES[mapState.selected];
+            const level = LEVELS[sel.stage];
+            ctx.save();
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.8)';
+            ctx.fillRect(140, 418, 520, 48);
+            ctx.strokeStyle = '#b45309';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(141, 419, 518, 46);
+            ctx.textAlign = 'center';
+            ctx.font = "9px 'Press Start 2P', monospace";
+            ctx.fillStyle = '#fbbf24';
+            ctx.fillText(level.name, GAME_WIDTH / 2, 437);
+            ctx.font = "7px 'Press Start 2P', monospace";
+            ctx.fillStyle = '#94a3b8';
+            const best = save.bestScores[sel.stage] || 0;
+            ctx.fillText(`ĐIỂM CAO ${best}  ·  ←/→ CHỌN  ·  ENTER VÀO ẢI  ·  B CỬA HÀNG`, GAME_WIDTH / 2, 455);
+            ctx.restore();
+        }
+
+        // --- SHOP ---
+        function openShop() {
+            shopOpen = true;
+            renderShop();
+            shopOverlay.classList.remove('hidden');
+        }
+
+        function closeShop() {
+            shopOpen = false;
+            shopOverlay.classList.add('hidden');
+            updateMapUi();
+        }
+
+        function renderShop() {
+            document.getElementById('shop-peaches').innerText = save.peaches;
+            const rows = UPGRADES.map(u => {
+                const lv = upgradeLevel(u.id);
+                const maxed = lv >= u.cost.length;
+                const price = maxed ? 0 : u.cost[lv];
+                const affordable = !maxed && save.peaches >= price;
+                const pips = u.cost.map((_, i) =>
+                    `<span class="inline-block w-3 h-1.5 rounded-sm ${i < lv ? 'bg-amber-400' : 'bg-slate-700'}"></span>`).join('');
+                return `
+                    <div class="flex items-center gap-3 bg-slate-900/80 border border-slate-700 rounded-xl p-3">
+                        <div class="flex-1">
+                            <div class="pixel-font text-[10px] text-amber-300">${u.name}</div>
+                            <div class="text-xs text-slate-400 mt-1">${u.desc}</div>
+                            <div class="flex gap-1 mt-1.5">${pips}</div>
+                        </div>
+                        <button data-upgrade="${u.id}" ${affordable ? '' : 'disabled'}
+                            class="min-w-[84px] py-2 px-3 rounded-lg pixel-font text-[10px] transition ${maxed ? 'bg-slate-800 text-emerald-400' : affordable ? 'bg-pink-600 hover:bg-pink-500 text-white cursor-pointer' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}">
+                            ${maxed ? 'TỐI ĐA' : `<i class="fa-solid fa-apple-whole"></i> ${price}`}
+                        </button>
+                    </div>`;
+            });
+            const skills = Object.entries(SKILLS).map(([id, s]) => `
+                <div class="flex justify-between text-xs ${save.skills[id] ? 'text-sky-300' : 'text-slate-600'}">
+                    <span>[${s.key}] ${s.name}</span>
+                    <span>${save.skills[id] ? 'Đã lĩnh ngộ' : `Qua ải ${s.unlockStage + 1} để lĩnh ngộ`}</span>
+                </div>`);
+            document.getElementById('shop-list').innerHTML = rows.join('') +
+                `<div class="pt-2 space-y-1 border-t border-slate-700/60"><div class="pixel-font text-[9px] text-slate-400 mb-1">THẦN THÔNG</div>${skills.join('')}</div>`;
+        }
+
+        document.getElementById('shop-list').addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-upgrade]');
+            if (!btn || btn.disabled) return;
+            const u = UPGRADES.find(x => x.id === btn.dataset.upgrade);
+            const lv = upgradeLevel(u.id);
+            const price = u.cost[lv];
+            if (lv >= u.cost.length || save.peaches < price) return;
+            save.peaches -= price;
+            save.upgrades[u.id] = lv + 1;
+            writeSave();
+            playSound('checkpoint');
+            renderShop();
+            updateMapUi();
+        });
 
         // --- TOUCH BINDINGS ---
         function bindTouch(id, keyProp, actionCallback) {
@@ -2567,6 +3034,7 @@
         bindTouch('btn-dash', 'dash');
         bindTouch('btn-skill1', 'skill1', () => player.useSkill('pillar'));
         bindTouch('btn-skill2', 'skill2', () => player.useSkill('clone'));
+        bindTouch('btn-skill3', 'skill3', () => player.useSkill('freeze'));
 
         // --- MAIN GAME LOOP ---
         function updateWorld(dt) {
@@ -2600,6 +3068,7 @@
             for (const c of checkpoints) c.update(dt, player);
 
             portal.update(dt, player);
+            if (gameState !== 'PLAYING') return; // portal reached
             updateShockwaves(dt);
 
             for (let i = particles.length - 1; i >= 0; i--) {
@@ -2623,13 +3092,22 @@
             ctx.imageSmoothingEnabled = false;
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            updateAmbient(dt);
+
+            if (gameState === 'MAP') {
+                drawMap(ctx, dt);
+                drawAmbient(ctx, 0);
+                ctx.fillStyle = vignette;
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+                requestAnimationFrame(gameLoop);
+                return;
+            }
 
             if (gameState === 'PLAYING') {
                 // Hit-stop freezes the world for a few frames to sell heavy impacts
                 if (hitStop > 0) hitStop -= dt;
                 else updateWorld(dt);
             }
-            updateAmbient(dt);
 
             const camX = snap(camera.x);
 
@@ -2673,7 +3151,10 @@
                 ft.draw(ctx, camX);
             }
 
-            if (gameState === 'PLAYING') drawBossBar(ctx);
+            if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+                drawBossBar(ctx);
+                drawSkillSlots(ctx);
+            }
             drawLevelBanner(ctx, dt);
 
             requestAnimationFrame(gameLoop);
@@ -2681,26 +3162,26 @@
 
         // --- BUTTON EVENT LISTENERS ---
         startBtn.addEventListener('click', () => {
-            startOverlay.classList.add('hidden');
-            startRun(0, false);
+            initAudio();
+            startMusic();
+            goToMap();
         });
 
-        continueBtn.addEventListener('click', () => {
-            startOverlay.classList.add('hidden');
-            startRun(save.unlocked, false);
+        resetBtn.addEventListener('click', () => {
+            if (!confirm('Xóa toàn bộ tiến trình, Đào Tiên và nâng cấp?')) return;
+            save = freshSave();
+            writeSave();
+            currentLevelIndex = 0;
+            resetBtn.classList.add('hidden');
         });
 
-        document.getElementById('restart-btn').addEventListener('click', () => {
-            gameOverOverlay.classList.add('hidden');
-            // Retry the stage you lost on, with the score you entered it with
-            score = scoreAtLevelStart;
-            startRun(currentLevelIndex, true);
-        });
-
-        document.getElementById('victory-restart-btn').addEventListener('click', () => {
-            victoryOverlay.classList.add('hidden');
-            startRun(0, false);
-        });
+        document.getElementById('restart-btn').addEventListener('click', () => startRun(currentLevelIndex));
+        document.getElementById('next-stage-btn').addEventListener('click', () => startRun(currentLevelIndex + 1));
+        document.getElementById('resume-btn').addEventListener('click', () => setPaused(false));
+        document.getElementById('map-play-btn').addEventListener('click', enterSelectedStage);
+        document.getElementById('map-shop-btn').addEventListener('click', openShop);
+        document.getElementById('shop-close-btn').addEventListener('click', closeShop);
+        for (const btn of document.querySelectorAll('.to-map-btn')) btn.addEventListener('click', goToMap);
 
         // LOAD ART, THEN ENABLE START
         loadSave();
@@ -2717,11 +3198,8 @@
             drawAvatar();
             updateHUD();
             startBtn.disabled = false;
-            startBtn.innerText = 'BẮT ĐẦU MỚI';
-            if (save.unlocked > 0) {
-                continueBtn.innerText = `CHƠI TIẾP · CẢNH ${save.unlocked + 1}`;
-                continueBtn.classList.remove('hidden');
-            }
+            startBtn.innerText = 'VÀO HÀNH TRÌNH';
+            if (save.unlocked > 0 || save.peaches > 0) resetBtn.classList.remove('hidden');
         });
 
         // START ENGINE LOOP
