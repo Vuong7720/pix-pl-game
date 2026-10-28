@@ -5,3 +5,6 @@ Legacy-Fantasy - High Forest 2.0/
 
 # Local backups
 *.backup.html
+
+# Raw downloads (the game uses the copies in assets/)
+char-and-back/

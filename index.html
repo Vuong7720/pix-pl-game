@@ -329,11 +329,7 @@
             treeRed: 'tree-red.png',
             treeDark: 'tree-dark.png',
             tiles: 'tiles.png',
-            heroIdle: 'hero-idle.png',
-            heroRun: 'hero-run.png',
-            heroAttack: 'hero-attack.png',
-            heroJump: 'hero-jump.png',
-            heroDead: 'hero-dead.png',
+            hero: 'hero-monkey.png',
             boarRun: 'boar-run.png',
             boarRunBlack: 'boar-run-black.png',
             boarRunWhite: 'boar-run-white.png',
@@ -369,17 +365,22 @@
             return c;
         }
 
-        // Frame layouts measured from the sheets: ax = body centre x inside a frame, foot = lowest row of the feet
+        // Frame layouts measured from the sheets: row = sheet row, ax = body centre x inside a frame, foot = lowest row of the feet
+        // Monkey King sheet: 64x32 cells, one animation per row, facing right; the art is tiny so it is drawn at 4x
+        const HERO_SCALE = 4;
         const HERO_ANIMS = {
-            idle:   { img: 'heroIdle',   fw: 64, fh: 80, frames: 4,  ax: 34, foot: 63 },
-            run:    { img: 'heroRun',    fw: 80, fh: 80, frames: 8,  ax: 42, foot: 66 },
-            attack: { img: 'heroAttack', fw: 96, fh: 80, frames: 8,  ax: 50, foot: 63 },
-            jump:   { img: 'heroJump',   fw: 64, fh: 64, frames: 15, ax: 24, foot: 63 },
-            dead:   { img: 'heroDead',   fw: 64, fh: 64, frames: 10, ax: 32, foot: 47 }
+            idle:   { row: 0, fw: 64, fh: 32, frames: 4,  ax: 30, foot: 31 },
+            jump:   { row: 1, fw: 64, fh: 32, frames: 3,  ax: 30, foot: 31 },
+            run:    { row: 2, fw: 64, fh: 32, frames: 6,  ax: 30, foot: 31 },
+            sweep:  { row: 3, fw: 64, fh: 32, frames: 7,  ax: 30, foot: 31 },
+            smash:  { row: 4, fw: 64, fh: 32, frames: 8,  ax: 31, foot: 31 },
+            dash:   { row: 6, fw: 64, fh: 32, frames: 14, ax: 31, foot: 31 },
+            dead:   { row: 7, fw: 64, fh: 32, frames: 10, ax: 31, foot: 31 }
         };
-        // Combo step -> [first frame, frame count] of the attack sheet, and swing duration
-        const ATTACK_FRAMES = { 1: [0, 5], 2: [5, 3], 3: [0, 8] };
-        const ATTACK_TIMINGS = { 1: 0.25, 2: 0.2, 3: 0.34 };
+        // Combo step -> [animation, first frame, frame count], swing duration and hitbox reach
+        const ATTACK_FRAMES = { 1: ['sweep', 0, 7], 2: ['smash', 4, 4], 3: ['smash', 0, 8] };
+        const ATTACK_TIMINGS = { 1: 0.3, 2: 0.24, 3: 0.4 };
+        const ATTACK_REACH = { 1: 80, 2: 90, 3: 120 };
 
         // Mob sheets face LEFT
         const ENEMY_ANIMS = {
@@ -473,7 +474,7 @@
             for (const key of ['boarRun', 'boarRunBlack', 'boarRunWhite', 'snailWalk', 'beeFly', 'beeAttack']) {
                 FLASH[key] = tintImage(IMG[key], '#ffffff', 1);
             }
-            FLASH.dash = tintImage(IMG.heroRun, '#fde68a', 1);
+            FLASH.dash = tintImage(IMG.hero, '#fde68a', 1);
         }
 
         // Rounds to the nearest device pixel so scaled pixel art stays crisp
@@ -487,7 +488,7 @@
             ctx.save();
             ctx.translate(snap(cx), snap(feetY - (a.foot + 1) * scale));
             if (flip) ctx.scale(-1, 1);
-            ctx.drawImage(img, frame * a.fw, 0, a.fw, a.fh, -a.ax * scale, 0, a.fw * scale, a.fh * scale);
+            ctx.drawImage(img, frame * a.fw, (a.row || 0) * a.fh, a.fw, a.fh, -a.ax * scale, 0, a.fw * scale, a.fh * scale);
             ctx.restore();
         }
 
@@ -751,8 +752,8 @@
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
-                this.width = 30;
-                this.height = 66;
+                this.width = 40;
+                this.height = 62;
                 this.vx = 0;
                 this.vy = 0;
                 this.speed = 6;
@@ -881,19 +882,21 @@
                 this.isGrounded = false;
                 this.checkVerticalCollisions(platforms);
 
-                this.attackBox.width = 75;
+                this.attackBox.width = ATTACK_REACH[this.attackCombo] || 75;
                 this.attackBox.height = 55;
                 this.attackBox.y = this.y;
                 this.attackBox.x = this.facing === 'right' ? this.x + this.width : this.x - this.attackBox.width;
 
                 this.updateAnimation(dt);
 
-                if (this.isDashing) {
+                // Leave a faint cloud afterimage every 0.04s while dashing
+                const lastGhost = this.ghosts[this.ghosts.length - 1];
+                if (this.isDashing && (!lastGhost || lastGhost.life < 0.21)) {
                     this.ghosts.push({
                         x: this.x + this.width / 2,
                         feetY: this.y + this.height,
                         flip: this.facing === 'left',
-                        frame: this.currentFrame() % HERO_ANIMS.run.frames,
+                        frame: this.currentFrame(),
                         life: 0.25
                     });
                 }
@@ -908,6 +911,7 @@
             updateAnimation(dt) {
                 let state = 'idle';
                 if (this.isDead) state = 'dead';
+                else if (this.isDashing) state = 'dash';
                 else if (this.isAttacking) state = 'attack';
                 else if (!this.isGrounded) state = 'jump';
                 else if (Math.abs(this.vx) > 0.8) state = 'run';
@@ -922,20 +926,24 @@
             currentFrame() {
                 switch (this.animState) {
                     case 'run':
-                        return Math.floor(this.animTime / 0.07) % 8;
+                        return Math.floor(this.animTime / 0.08) % HERO_ANIMS.run.frames;
+                    case 'dash':
+                        // Spinning-cloud frames 1-12 (Cân Đẩu Vân)
+                        return 1 + Math.floor(this.animTime / 0.03) % 12;
                     case 'dead':
-                        return Math.min(9, Math.floor(this.animTime / 0.1));
+                        return Math.min(HERO_ANIMS.dead.frames - 1, Math.floor(this.animTime / 0.1));
                     case 'attack': {
-                        const [start, len] = ATTACK_FRAMES[this.attackCombo];
+                        const [, start, len] = ATTACK_FRAMES[this.attackCombo];
                         const progress = 1 - this.attackTimer / this.attackDuration;
                         return start + Math.min(len - 1, Math.max(0, Math.floor(progress * len)));
                     }
                     case 'jump':
-                        // Rising uses frames 2-6, falling 7-11
-                        if (this.vy < 0) return 2 + Math.min(4, Math.floor((1 - this.vy / this.jumpForce) * 5));
-                        return 7 + Math.min(4, Math.floor(this.vy / 3));
+                        // Staff raised while rising, neutral at the apex, crouched while falling
+                        if (this.vy < -3) return 1;
+                        if (this.vy > 3) return 2;
+                        return 0;
                     default:
-                        return Math.floor(this.animTime / 0.15) % 4;
+                        return Math.floor(this.animTime / 0.15) % HERO_ANIMS.idle.frames;
                 }
             }
 
@@ -1024,8 +1032,8 @@
 
                 for (const g of this.ghosts) {
                     ctx.save();
-                    ctx.globalAlpha = (g.life / 0.25) * 0.5;
-                    drawSprite(FLASH.dash, HERO_ANIMS.run, g.frame, g.x - camX, g.feetY, g.flip);
+                    ctx.globalAlpha = (g.life / 0.25) * 0.3;
+                    drawSprite(FLASH.dash, HERO_ANIMS.dash, g.frame, g.x - camX, g.feetY, g.flip, HERO_SCALE);
                     ctx.restore();
                 }
 
@@ -1038,8 +1046,8 @@
                     ctx.fill();
                 }
 
-                const a = HERO_ANIMS[this.animState];
-                drawSprite(IMG[a.img], a, this.currentFrame(), cx, feetY, this.facing === 'left');
+                const a = this.animState === 'attack' ? HERO_ANIMS[ATTACK_FRAMES[this.attackCombo][0]] : HERO_ANIMS[this.animState];
+                drawSprite(IMG.hero, a, this.currentFrame(), cx, feetY, this.facing === 'left', HERO_SCALE);
             }
         }
 
@@ -1469,7 +1477,7 @@
             const a = avatarCanvas.getContext('2d');
             a.imageSmoothingEnabled = false;
             a.clearRect(0, 0, avatarCanvas.width, avatarCanvas.height);
-            a.drawImage(IMG.heroIdle, 21, 14, 24, 24, 0, 0, avatarCanvas.width, avatarCanvas.height);
+            a.drawImage(IMG.hero, 24, 15, 14, 14, 0, 0, avatarCanvas.width, avatarCanvas.height);
         }
 
         // --- GAME INSTANCES ---
