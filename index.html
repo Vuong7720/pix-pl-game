@@ -65,6 +65,14 @@
                     <div id="hp-bar" class="h-full bg-gradient-to-r from-red-600 via-amber-500 to-yellow-400 rounded-full transition-all duration-150 shadow-sm shadow-amber-500" style="width: 100%;"></div>
                     <span id="hp-text" class="absolute inset-0 flex items-center justify-center pixel-font text-[9px] text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">100 / 100</span>
                 </div>
+                <!-- Mana (Pháp Lực) Bar -->
+                <div class="w-44 md:w-60 h-2.5 mt-1 bg-slate-950 rounded-full border border-slate-700/60 overflow-hidden">
+                    <div id="mp-bar" class="h-full bg-gradient-to-r from-sky-500 to-cyan-300 rounded-full transition-all duration-150" style="width: 0%;"></div>
+                </div>
+                <div class="flex items-center gap-3 mt-1 pixel-font text-[9px]">
+                    <span id="lives-display" class="text-red-500"></span>
+                    <span class="text-pink-300"><i class="fa-solid fa-apple-whole"></i> <span id="peach-display">0</span></span>
+                </div>
             </div>
         </div>
 
@@ -117,10 +125,25 @@
                         <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">K</kbd> / <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">SHIFT</kbd>
                         <span class="text-slate-400">Cân Đẩu Vân (Lướt)</span>
                     </div>
+                    <div class="flex items-center gap-2">
+                        <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-sky-400 font-mono">U</kbd>
+                        <span class="text-slate-400">Như Ý Trụ Thiên (40 Pháp Lực)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-sky-400 font-mono">I</kbd>
+                        <span class="text-slate-400">Phân Thân Thuật (50 Pháp Lực)</span>
+                    </div>
+                    <div class="flex items-center gap-2 col-span-2">
+                        <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">M</kbd>
+                        <span class="text-slate-400">Bật / tắt nhạc · Đánh trúng quái để nạp Pháp Lực · Chém rương để mở</span>
+                    </div>
                 </div>
 
                 <button id="start-btn" disabled class="w-full py-4 bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-500 hover:to-red-500 text-white pixel-font text-sm rounded-xl shadow-lg shadow-amber-950 hover:scale-[1.02] active:scale-[0.98] transition duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-wait disabled:hover:scale-100">
                     ĐANG TẢI ĐỒ HỌA...
+                </button>
+                <button id="continue-btn" class="hidden w-full py-3 bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-300 pixel-font text-xs rounded-xl transition cursor-pointer">
+                    CHƠI TIẾP
                 </button>
             </div>
         </div>
@@ -130,7 +153,7 @@
             <div class="max-w-md mx-auto space-y-6 animate-bounce-short">
                 <i class="fa-solid fa-skull-crossbones text-6xl text-red-500 mb-2"></i>
                 <h2 class="pixel-font text-3xl text-red-500">TẢI THẢM!</h2>
-                <p class="text-slate-300 text-sm">Yêu ma quá mạnh mẽ, Ngộ Không đã kiệt sức...</p>
+                <p class="text-slate-300 text-sm">Yêu ma quá mạnh mẽ, Ngộ Không đã hết mạng...</p>
 
                 <div class="bg-slate-900/90 p-4 rounded-xl border border-red-900/50 space-y-2">
                     <div class="flex justify-between text-xs text-slate-400">
@@ -144,7 +167,7 @@
                 </div>
 
                 <button id="restart-btn" class="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white pixel-font text-xs rounded-xl shadow-lg hover:scale-105 transition cursor-pointer">
-                    THỬ LẠI LẦN NỮA
+                    CHƠI LẠI CẢNH NÀY
                 </button>
             </div>
         </div>
@@ -186,7 +209,11 @@
             </button>
         </div>
         <!-- Action Buttons -->
-        <div class="flex gap-2 pointer-events-auto">
+        <div class="flex gap-2 pointer-events-auto items-end">
+            <div class="flex flex-col gap-2">
+                <button id="btn-skill1" class="w-11 h-11 bg-sky-900/80 active:bg-sky-600/80 border border-sky-700 rounded-full flex items-center justify-center text-sky-300 pixel-font text-[10px] active:scale-95 transition">U</button>
+                <button id="btn-skill2" class="w-11 h-11 bg-sky-900/80 active:bg-sky-600/80 border border-sky-700 rounded-full flex items-center justify-center text-sky-300 pixel-font text-[10px] active:scale-95 transition">I</button>
+            </div>
             <button id="btn-dash" class="w-12 h-12 bg-slate-800/80 active:bg-amber-600/80 border border-slate-700 rounded-full flex items-center justify-center text-amber-400 text-lg active:scale-95 transition">
                 <i class="fa-solid fa-bolt"></i>
             </button>
@@ -223,7 +250,11 @@
         const comboDisplay = document.getElementById('combo-display');
         const levelIndicator = document.getElementById('level-indicator');
         const startBtn = document.getElementById('start-btn');
+        const continueBtn = document.getElementById('continue-btn');
         const avatarCanvas = document.getElementById('avatar-canvas');
+        const mpBar = document.getElementById('mp-bar');
+        const livesDisplay = document.getElementById('lives-display');
+        const peachDisplay = document.getElementById('peach-display');
 
         // Game State
         let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER', 'VICTORY'
@@ -232,6 +263,35 @@
         let comboCount = 0;
         let comboTimer = 0;
         let lastTime = 0;
+
+        const MAX_LIVES = 3;
+        let lives = MAX_LIVES;
+        let scoreAtLevelStart = 0;
+        let respawnPoint = { x: 100, y: 350 };
+
+        // Game feel: brief freeze on impact and camera shake (in pixels, decays every frame)
+        let hitStop = 0;
+        let shake = 0;
+        function addShake(amount) {
+            shake = Math.max(shake, amount);
+        }
+
+        // --- SAVE DATA (localStorage) ---
+        const SAVE_KEY = 'tay-du-ky-save';
+        const save = { unlocked: 0, peaches: 0, best: 0 };
+
+        function loadSave() {
+            try {
+                Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY)) || {});
+            } catch (e) { /* storage unavailable: play without saving */ }
+        }
+
+        function writeSave() {
+            save.best = Math.max(save.best, score);
+            try {
+                localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+            } catch (e) { /* storage unavailable */ }
+        }
 
         // Keyboard Inputs
         const keys = {
@@ -246,11 +306,16 @@
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
             if (e.code === 'KeyW' || e.code === 'ArrowUp' || e.code === 'Space') {
-                if (!keys.up && gameState === 'PLAYING') player.jump();
+                if (!keys.up && gameState === 'PLAYING') player.queueJump();
                 keys.up = true;
             }
             if (e.code === 'KeyJ') keys.attack = true;
             if (e.code === 'KeyK' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.dash = true;
+            if (!e.repeat && gameState === 'PLAYING') {
+                if (e.code === 'KeyU') player.useSkill('pillar');
+                if (e.code === 'KeyI') player.useSkill('clone');
+            }
+            if (e.code === 'KeyM' && !e.repeat) toggleMusic();
         });
 
         window.addEventListener('keyup', (e) => {
@@ -317,8 +382,114 @@
                     gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
                     osc.start(now);
                     osc.stop(now + 0.2);
+                } else if (type === 'pickup') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(660, now);
+                    osc.frequency.exponentialRampToValueAtTime(1320, now + 0.1);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                } else if (type === 'skill') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.exponentialRampToValueAtTime(900, now + 0.3);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'slam') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(120, now);
+                    osc.frequency.exponentialRampToValueAtTime(30, now + 0.35);
+                    gain.gain.setValueAtTime(0.35, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (type === 'checkpoint') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.setValueAtTime(587, now + 0.1);
+                    osc.frequency.setValueAtTime(880, now + 0.2);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'roar') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(110, now);
+                    osc.frequency.exponentialRampToValueAtTime(45, now + 0.6);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.6);
+                    osc.start(now);
+                    osc.stop(now + 0.6);
                 }
             } catch (e) { console.error(e); }
+        }
+
+        // --- MUSIC (procedural pentatonic loop, one step every `tempo` seconds) ---
+        const PENTATONIC = [0, 2, 4, 7, 9]; // semitones
+        const MUSIC_ROOTS = { forest: 293.66, fire: 261.63, bone: 220 }; // D4, C4, A3
+        const MUSIC = {
+            on: true,
+            timer: null,
+            gain: null,
+            step: 0,
+            nextTime: 0,
+            tempo: 0.18,
+            // Scale degrees (null = rest); negative degrees drop below the root
+            melody: [0, 2, 4, 2, 5, 4, 2, null, 0, 2, 4, 7, 5, null, 4, 2,
+                     4, 5, 7, 5, 4, 2, 0, null, 2, 4, 2, 0, -3, null, 0, null],
+            bass: [0, null, 0, null, -2, null, -2, null, -3, null, -3, null, -2, null, -1, null]
+        };
+
+        function degreeToFreq(degree, root) {
+            const octave = Math.floor(degree / 5);
+            const index = ((degree % 5) + 5) % 5;
+            return root * Math.pow(2, (PENTATONIC[index] + 12 * octave) / 12);
+        }
+
+        function scheduleNote(freq, time, duration, type, volume) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(volume, time);
+            gain.gain.linearRampToValueAtTime(0.0001, time + duration);
+            osc.connect(gain);
+            gain.connect(MUSIC.gain);
+            osc.start(time);
+            osc.stop(time + duration);
+        }
+
+        function musicTick() {
+            // After the tab was in the background, skip ahead instead of playing a burst of late notes
+            if (MUSIC.nextTime < audioCtx.currentTime - 0.5) MUSIC.nextTime = audioCtx.currentTime;
+            while (MUSIC.nextTime < audioCtx.currentTime + 0.25) {
+                const root = MUSIC_ROOTS[currentLevel.theme] || MUSIC_ROOTS.forest;
+                const note = MUSIC.melody[MUSIC.step % MUSIC.melody.length];
+                if (note !== null) scheduleNote(degreeToFreq(note, root), MUSIC.nextTime, MUSIC.tempo * 0.9, 'square', 0.035);
+                if (MUSIC.step % 2 === 0) {
+                    const bass = MUSIC.bass[(MUSIC.step / 2) % MUSIC.bass.length];
+                    if (bass !== null) scheduleNote(degreeToFreq(bass, root / 2), MUSIC.nextTime, MUSIC.tempo * 1.8, 'triangle', 0.08);
+                }
+                MUSIC.nextTime += MUSIC.tempo;
+                MUSIC.step++;
+            }
+        }
+
+        function startMusic() {
+            if (!audioCtx || MUSIC.timer) return;
+            MUSIC.gain = audioCtx.createGain();
+            MUSIC.gain.gain.value = MUSIC.on ? 1 : 0;
+            MUSIC.gain.connect(audioCtx.destination);
+            MUSIC.nextTime = audioCtx.currentTime + 0.1;
+            MUSIC.timer = setInterval(musicTick, 100);
+        }
+
+        function toggleMusic() {
+            MUSIC.on = !MUSIC.on;
+            if (MUSIC.gain) MUSIC.gain.gain.value = MUSIC.on ? 1 : 0;
         }
 
         // --- ASSETS (pixel art: "Legacy Fantasy - High Forest" by Anokolisa) ---
@@ -374,8 +545,18 @@
             run:    { row: 2, fw: 64, fh: 32, frames: 6,  ax: 30, foot: 31 },
             sweep:  { row: 3, fw: 64, fh: 32, frames: 7,  ax: 30, foot: 31 },
             smash:  { row: 4, fw: 64, fh: 32, frames: 8,  ax: 31, foot: 31 },
+            pillar: { row: 5, fw: 64, fh: 32, frames: 17, ax: 31, foot: 31 },
+            // Same row, but anchored at the monkey's feet (row 13) while he rides the growing staff
+            pillarTop: { row: 5, fw: 64, fh: 32, frames: 17, ax: 31, foot: 13 },
             dash:   { row: 6, fw: 64, fh: 32, frames: 14, ax: 31, foot: 31 },
             dead:   { row: 7, fw: 64, fh: 32, frames: 10, ax: 31, foot: 31 }
+        };
+        // Staff x inside the pillar frames, relative to ax (art pixels)
+        const PILLAR_STAFF_X = -2.5;
+
+        const SKILLS = {
+            pillar: { cost: 40 }, // Như Ý Trụ Thiên: staff grows, launching the monkey up, then a ground slam
+            clone:  { cost: 50 }  // Phân Thân Thuật: two clones fight alongside for a few seconds
         };
         // Combo step -> [animation, first frame, frame count], swing duration and hitbox reach
         const ATTACK_FRAMES = { 1: ['sweep', 0, 7], 2: ['smash', 4, 4], 3: ['smash', 0, 8] };
@@ -406,7 +587,9 @@
             lavender: { x: 273, y: 272, w: 15, h: 32 },
             rockA:    { x: 0,   y: 336, w: 80, h: 32 },
             rockB:    { x: 80,  y: 336, w: 80, h: 32 },
-            rockC:    { x: 160, y: 336, w: 80, h: 32 }
+            rockC:    { x: 160, y: 336, w: 80, h: 32 },
+            chest:     { x: 289, y: 277, w: 30, h: 27 },
+            chestOpen: { x: 321, y: 275, w: 30, h: 29 }
         };
         const BUSH = { x: 274, w: 124, h: 43, rowY: 5, rowStep: 48 };
         // Inside the tree sheets (every colour variant shares this layout)
@@ -475,7 +658,40 @@
                 FLASH[key] = tintImage(IMG[key], '#ffffff', 1);
             }
             FLASH.dash = tintImage(IMG.hero, '#fde68a', 1);
+            FLASH.clone = tintImage(IMG.hero, '#fcd34d', 0.35);
+            FLASH.rage = {};
+            for (const key of ['boarRunBlack', 'boarRunWhite']) FLASH.rage[key] = tintImage(IMG[key], '#dc2626', 0.35);
         }
+
+        // Builds a tiny sprite from rows of palette characters ('.' = transparent)
+        function makePixelSprite(rows, palette) {
+            const c = document.createElement('canvas');
+            c.width = rows[0].length;
+            c.height = rows.length;
+            const g = c.getContext('2d');
+            rows.forEach((row, y) => {
+                [...row].forEach((ch, x) => {
+                    if (ch === '.') return;
+                    g.fillStyle = palette[ch];
+                    g.fillRect(x, y, 1, 1);
+                });
+            });
+            return c;
+        }
+
+        // Đào Tiên (immortal peach)
+        const PEACH_SPRITE = makePixelSprite([
+            '....s....',
+            '...ss.ll.',
+            '..pppll..',
+            '.pppppppd',
+            'pHHppppdd',
+            'pHpppppdd',
+            'ppppppddd',
+            '.pppppdd.',
+            '..ppddd..'
+        ], { s: '#78350f', l: '#4ade80', p: '#f9a8d4', H: '#fdf2f8', d: '#db2777' });
+        const PEACH_SCALE = 3;
 
         // Rounds to the nearest device pixel so scaled pixel art stays crisp
         function snap(v) {
@@ -508,6 +724,7 @@
                     { x: 900, y: 360, w: 200, h: 20, type: 'wood' },
                     { x: 1200, y: 270, w: 180, h: 20, type: 'wood' },
                     { x: 1650, y: 350, w: 220, h: 20, type: 'wood' },
+                    { x: 1960, y: 170, w: 150, h: 20, type: 'wood' }, // secret ledge (Trụ Thiên)
                 ],
                 enemies: [
                     { x: 400, y: 420, type: 'slime' },
@@ -515,6 +732,10 @@
                     { x: 1250, y: 210, type: 'slime' },
                     { x: 1750, y: 420, type: 'goblin' },
                 ],
+                // y values are the surface the object stands on
+                checkpoints: [{ x: 1050, y: 480 }],
+                peaches: [{ x: 340, y: 330 }, { x: 580, y: 250 }, { x: 1290, y: 240 }, { x: 1760, y: 320 }],
+                chests: [{ x: 1320, y: 480 }, { x: 2010, y: 170 }],
                 portalX: 2050,
                 portalY: 400
             },
@@ -534,14 +755,20 @@
                     { x: 1000, y: 280, w: 160, h: 20, type: 'stone' },
                     { x: 1300, y: 350, w: 220, h: 20, type: 'stone' },
                     { x: 1850, y: 340, w: 180, h: 20, type: 'stone' },
+                    { x: 1190, y: 140, w: 140, h: 20, type: 'stone' }, // secret ledge (Trụ Thiên)
                 ],
                 enemies: [
                     { x: 300, y: 420, type: 'goblin' },
                     { x: 750, y: 300, type: 'goblin' },
                     { x: 1200, y: 420, type: 'demon' },
                     { x: 1400, y: 280, type: 'slime' },
-                    { x: 1900, y: 420, type: 'boss' },
+                    { x: 2100, y: 400, type: 'boss' },
                 ],
+                bossName: 'NGƯU MA VƯƠNG',
+                bossShot: '#fb923c',
+                checkpoints: [{ x: 1150, y: 480 }, { x: 1740, y: 480 }],
+                peaches: [{ x: 280, y: 320 }, { x: 490, y: 230 }, { x: 1080, y: 250 }, { x: 1410, y: 320 }],
+                chests: [{ x: 860, y: 480 }, { x: 1240, y: 140 }],
                 portalX: 2350,
                 portalY: 400
             },
@@ -560,14 +787,20 @@
                     { x: 1100, y: 240, w: 180, h: 20, type: 'obsidian' },
                     { x: 1500, y: 330, w: 240, h: 20, type: 'obsidian' },
                     { x: 2100, y: 340, w: 200, h: 20, type: 'obsidian' },
+                    { x: 1560, y: 130, w: 140, h: 20, type: 'obsidian' }, // secret ledge (Trụ Thiên)
                 ],
                 enemies: [
                     { x: 400, y: 280, type: 'goblin' },
                     { x: 850, y: 420, type: 'demon' },
                     { x: 1150, y: 180, type: 'demon' },
                     { x: 1600, y: 260, type: 'goblin' },
-                    { x: 2200, y: 420, type: 'boss' },
+                    { x: 2350, y: 400, type: 'boss' },
                 ],
+                bossName: 'BẠCH CỐT TINH',
+                bossShot: '#c4b5fd',
+                checkpoints: [{ x: 780, y: 480 }, { x: 2040, y: 480 }],
+                peaches: [{ x: 400, y: 310 }, { x: 910, y: 310 }, { x: 1190, y: 210 }, { x: 1620, y: 300 }],
+                chests: [{ x: 1420, y: 480 }, { x: 1610, y: 130 }],
                 portalX: 2650,
                 portalY: 400
             }
@@ -579,8 +812,18 @@
             y: 0,
             width: GAME_WIDTH,
             height: GAME_HEIGHT,
-            follow(target, worldWidth) {
+            // Eases toward the player and looks a little ahead in the facing direction
+            follow(target, worldWidth, dt) {
+                const lookAhead = target.facing === 'right' ? 60 : -60;
+                const goal = target.x + target.width / 2 - this.width / 2 + lookAhead;
+                this.x += (goal - this.x) * Math.min(1, dt * 6);
+                this.clamp(worldWidth);
+            },
+            snapTo(target, worldWidth) {
                 this.x = target.x + target.width / 2 - this.width / 2;
+                this.clamp(worldWidth);
+            },
+            clamp(worldWidth) {
                 if (this.x < 0) this.x = 0;
                 if (this.x > worldWidth - this.width) this.x = worldWidth - this.width;
             }
@@ -722,6 +965,248 @@
 
         let floatingTexts = [];
 
+        function overlaps(a, b) {
+            return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+        }
+
+        // --- SHOCKWAVES (ground rings from slams) ---
+        let shockwaves = [];
+
+        function updateShockwaves(dt) {
+            for (const s of shockwaves) s.life -= dt;
+            shockwaves = shockwaves.filter(s => s.life > 0);
+        }
+
+        function drawShockwaves(ctx, camX) {
+            for (const s of shockwaves) {
+                const progress = 1 - s.life / s.maxLife;
+                ctx.save();
+                ctx.globalAlpha = 1 - progress;
+                ctx.strokeStyle = s.color;
+                ctx.lineWidth = 6 * (1 - progress) + 2;
+                ctx.beginPath();
+                ctx.ellipse(s.x - camX, s.y, 20 + progress * s.radius, 6 + progress * 14, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        function addShockwave(x, y, radius, color) {
+            shockwaves.push({ x, y, radius, color, life: 0.4, maxLife: 0.4 });
+        }
+
+        // --- PICKUPS (Đào Tiên) ---
+        class Pickup {
+            // popped = thrown out of a chest/enemy and falls to the ground; otherwise floats in place
+            constructor(x, y, popped = false) {
+                this.x = x;
+                this.y = y; // bottom of the sprite
+                this.vx = popped ? (Math.random() - 0.5) * 5 : 0;
+                this.vy = popped ? -5 - Math.random() * 3 : 0;
+                this.falling = popped;
+                this.t = Math.random() * 6;
+                this.collected = false;
+                this.width = 9 * PEACH_SCALE;
+                this.height = 9 * PEACH_SCALE;
+            }
+
+            update(dt, player, platforms) {
+                this.t += dt;
+                if (this.falling) {
+                    this.vy += 0.4;
+                    this.x += this.vx;
+                    const prevY = this.y;
+                    this.y += this.vy;
+                    for (const p of platforms) {
+                        if (this.x > p.x && this.x < p.x + p.w && prevY <= p.y && this.y >= p.y) {
+                            this.y = p.y;
+                            this.falling = false;
+                        }
+                    }
+                    if (this.y > GAME_HEIGHT + 50) this.collected = true;
+                }
+
+                const box = { x: this.x - this.width / 2, y: this.y - this.height, width: this.width, height: this.height };
+                if (!player.isDead && overlaps(player, box)) this.collect(player);
+            }
+
+            collect(player) {
+                this.collected = true;
+                save.peaches++;
+                score += 50;
+                player.hp = Math.min(player.maxHp, player.hp + 10);
+                playSound('pickup');
+                floatingTexts.push(new FloatingText('+10', this.x - 10, this.y - 30, '#f9a8d4', 10));
+                createHitSparks(this.x, this.y - 14, '#f9a8d4', 6);
+                updateHUD();
+            }
+
+            draw(ctx, camX) {
+                const bob = this.falling ? 0 : Math.sin(this.t * 3) * 3;
+                const x = this.x - this.width / 2 - camX;
+                const y = this.y - this.height - 2 + bob;
+                if (x + this.width < 0 || x > GAME_WIDTH) return;
+                ctx.save();
+                ctx.globalAlpha = 0.3 + Math.sin(this.t * 4) * 0.1;
+                ctx.fillStyle = '#fbcfe8';
+                ctx.beginPath();
+                ctx.arc(x + this.width / 2, y + this.height / 2, this.width * 0.75, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                ctx.drawImage(PEACH_SPRITE, snap(x), snap(y), this.width, this.height);
+            }
+        }
+
+        let pickups = [];
+
+        // --- CHESTS (open with an attack or a slam) ---
+        class Chest {
+            constructor(x, y) {
+                this.x = x;
+                this.width = PROPS.chest.w * ART_SCALE;
+                this.height = PROPS.chest.h * ART_SCALE;
+                this.y = y - this.height;
+                this.opened = false;
+            }
+
+            open() {
+                if (this.opened) return;
+                this.opened = true;
+                score += 200;
+                player.gainMp(30);
+                playSound('kill');
+                addShake(3);
+                for (let i = 0; i < 4; i++) pickups.push(new Pickup(this.x + this.width / 2, this.y + 10, true));
+                createHitSparks(this.x + this.width / 2, this.y + 10, '#facc15', 16);
+                floatingTexts.push(new FloatingText('+200', this.x, this.y - 10, '#facc15', 12));
+                updateHUD();
+            }
+
+            draw(ctx, camX, theme) {
+                const r = this.opened ? PROPS.chestOpen : PROPS.chest;
+                const x = snap(this.x - camX);
+                if (x + this.width < 0 || x > GAME_WIDTH) return;
+                const h = r.h * ART_SCALE;
+                ctx.drawImage(theme.tiles, r.x, r.y, r.w, r.h, x, this.y + this.height - h, r.w * ART_SCALE, h);
+            }
+        }
+
+        let chests = [];
+
+        // --- CHECKPOINTS (Cờ Thổ Địa) ---
+        class Checkpoint {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y; // ground surface
+                this.active = false;
+                this.t = 0;
+            }
+
+            update(dt, player) {
+                this.t += dt;
+                if (this.active || player.isDead) return;
+                if (Math.abs(player.x + player.width / 2 - this.x) < 30 && player.y < this.y && player.y + player.height > this.y - 80) {
+                    this.active = true;
+                    respawnPoint = { x: this.x - player.width / 2, y: this.y - player.height };
+                    player.hp = player.maxHp;
+                    playSound('checkpoint');
+                    floatingTexts.push(new FloatingText('ĐIỂM HỒI SINH', this.x - 60, this.y - 90, '#facc15', 10));
+                    for (let i = 0; i < 16; i++) {
+                        particles.push(new Particle(this.x, this.y - 60, (Math.random() - 0.5) * 6, -Math.random() * 5, '#fde68a', 3, 0.6));
+                    }
+                    updateHUD();
+                }
+            }
+
+            draw(ctx, camX) {
+                const x = snap(this.x - camX);
+                if (x < -40 || x > GAME_WIDTH + 40) return;
+                // stone base + wooden pole
+                ctx.fillStyle = '#57534e';
+                ctx.fillRect(x - 9, this.y - 6, 18, 6);
+                ctx.fillStyle = '#78716c';
+                ctx.fillRect(x - 9, this.y - 6, 18, 2);
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(x - 2, this.y - 72, 4, 66);
+                ctx.fillStyle = '#facc15';
+                ctx.fillRect(x - 3, this.y - 75, 6, 4);
+
+                // waving banner, built from 3px columns
+                const cloth = this.active ? '#dc2626' : '#57534e';
+                const trim = this.active ? '#facc15' : '#a8a29e';
+                for (let i = 0; i < 9; i++) {
+                    const wave = Math.round(Math.sin(this.t * 6 - i * 0.7) * (this.active ? 2 : 1));
+                    ctx.fillStyle = cloth;
+                    ctx.fillRect(x + 2 + i * 3, this.y - 70 + wave, 3, 21 - i);
+                    ctx.fillStyle = trim;
+                    ctx.fillRect(x + 2 + i * 3, this.y - 70 + wave + 20 - i, 3, 2);
+                }
+                if (this.active) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.25 + Math.sin(this.t * 4) * 0.1;
+                    ctx.fillStyle = '#fde68a';
+                    ctx.beginPath();
+                    ctx.arc(x + 12, this.y - 60, 24, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+        }
+
+        let checkpoints = [];
+
+        // --- PROJECTILES (boss fire rain) ---
+        class Projectile {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 1.5;
+                this.vy = 2;
+                this.color = color;
+                this.size = 12;
+                this.dead = false;
+            }
+
+            update(dt, player, platforms) {
+                this.vy = Math.min(this.vy + 0.25, 8);
+                this.x += this.vx;
+                this.y += this.vy;
+                if (Math.random() < 0.5) {
+                    particles.push(new Particle(this.x, this.y, (Math.random() - 0.5), -0.5, this.color, 3, 0.25));
+                }
+                const box = { x: this.x - this.size / 2, y: this.y - this.size / 2, width: this.size, height: this.size };
+                if (overlaps(player, box)) {
+                    player.takeDamage(15);
+                    this.dead = true;
+                }
+                for (const p of platforms) {
+                    if (this.x > p.x && this.x < p.x + p.w && this.y > p.y && this.y < p.y + p.h) {
+                        this.dead = true;
+                        createHitSparks(this.x, p.y, this.color, 6);
+                    }
+                }
+                if (this.y > GAME_HEIGHT + 20) this.dead = true;
+            }
+
+            draw(ctx, camX) {
+                const x = this.x - camX;
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.globalAlpha = 0.35;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                ctx.fillStyle = this.color;
+                ctx.fillRect(snap(x - 5), snap(this.y - 5), 10, 10);
+                ctx.fillStyle = '#fff7ed';
+                ctx.fillRect(snap(x - 2), snap(this.y - 3), 4, 4);
+            }
+        }
+
+        let projectiles = [];
+
         // Stage title shown centred at the start of each level
         const levelBanner = { text: '', timer: 0 };
         const BANNER_TIME = 3;
@@ -782,6 +1267,14 @@
                 this.dashCooldown = 0;
                 this.ghosts = [];
 
+                this.maxMp = 100;
+                this.mp = 0;
+                this.skill = null;       // active skill that takes over movement ('pillar')
+                this.skillPhase = null;
+                this.skillTimer = 0;
+                this.pillarBaseY = 0;
+                this.jumpBuffer = 0;     // a jump pressed slightly too early still fires on landing
+
                 this.animState = 'idle';
                 this.animTime = 0;
             }
@@ -798,10 +1291,96 @@
                 this.isAttacking = false;
                 this.attackCombo = 0;
                 this.isDashing = false;
+                this.skill = null;
+                this.jumpBuffer = 0;
                 this.ghosts = [];
                 this.animState = 'idle';
                 this.animTime = 0;
                 updateHUD();
+            }
+
+            gainMp(amount) {
+                this.mp = Math.min(this.maxMp, this.mp + amount);
+                updateHUD();
+            }
+
+            queueJump() {
+                this.jumpBuffer = 0.12;
+            }
+
+            useSkill(id) {
+                if (this.isDead || this.skill) return;
+                const cost = SKILLS[id].cost;
+                if (this.mp < cost) {
+                    floatingTexts.push(new FloatingText('THIẾU PHÁP LỰC', this.x - 40, this.y - 16, '#7dd3fc', 9));
+                    return;
+                }
+                if (id === 'pillar' && !this.isGrounded) {
+                    floatingTexts.push(new FloatingText('CẦN ĐỨNG TRÊN ĐẤT', this.x - 50, this.y - 16, '#7dd3fc', 9));
+                    return;
+                }
+
+                this.mp -= cost;
+                updateHUD();
+                playSound('skill');
+
+                if (id === 'pillar') {
+                    this.skill = 'pillar';
+                    this.skillPhase = 'plant';
+                    this.skillTimer = 0.18;
+                    this.pillarBaseY = this.y + this.height;
+                    this.isAttacking = false;
+                    this.isDashing = false;
+                    this.vx = 0;
+                    this.vy = 0;
+                } else if (id === 'clone') {
+                    spawnClones(this);
+                }
+            }
+
+            // Như Ý Trụ Thiên: plant the staff, ride it upward, then dive into a ground slam
+            updatePillar(dt, platforms) {
+                this.skillTimer -= dt;
+                if (this.skillPhase === 'plant') {
+                    if (this.skillTimer <= 0) {
+                        this.skillPhase = 'rise';
+                        this.vy = -20;
+                        this.jumpCount = this.maxJumps;
+                    }
+                    return;
+                }
+                if (this.skillPhase === 'land') {
+                    if (this.skillTimer <= 0) this.skill = null;
+                    return;
+                }
+
+                if (this.skillPhase === 'rise') {
+                    this.vy += 0.65;
+                    this.vx = keys.left ? -3 : keys.right ? 3 : 0;
+                    if (this.vy >= 0) {
+                        this.skillPhase = 'slam';
+                        this.vy = 4;
+                    }
+                } else {
+                    this.vy = Math.min(this.vy + 1.5, 18);
+                    this.vx = 0;
+                }
+
+                this.x += this.vx;
+                this.checkHorizontalCollisions(platforms);
+                this.y += this.vy;
+                this.isGrounded = false;
+                this.checkVerticalCollisions(platforms);
+
+                if (this.skillPhase === 'slam' && this.isGrounded) {
+                    this.skillPhase = 'land';
+                    this.skillTimer = 0.3;
+                    groundSlam(this);
+                }
+                if (this.y > GAME_HEIGHT + 100) {
+                    this.skill = null;
+                    this.die();
+                }
             }
 
             update(dt, platforms) {
@@ -819,8 +1398,19 @@
                     this.checkVerticalCollisions(platforms);
                     this.updateAnimation(dt);
                     this.deathTimer -= dt;
-                    if (this.deathTimer <= 0) triggerGameOver();
+                    if (this.deathTimer <= 0) onPlayerDeath();
                     return;
+                }
+
+                if (this.skill === 'pillar') {
+                    this.updatePillar(dt, platforms);
+                    this.updateAnimation(dt);
+                    return;
+                }
+
+                if (this.jumpBuffer > 0) {
+                    this.jumpBuffer -= dt;
+                    if (this.jump()) this.jumpBuffer = 0;
                 }
 
                 if (this.isDashing) {
@@ -887,6 +1477,12 @@
                 this.attackBox.y = this.y;
                 this.attackBox.x = this.facing === 'right' ? this.x + this.width : this.x - this.attackBox.width;
 
+                if (this.isAttacking) {
+                    for (const c of chests) {
+                        if (!c.opened && overlaps(this.attackBox, c)) c.open();
+                    }
+                }
+
                 this.updateAnimation(dt);
 
                 // Leave a faint cloud afterimage every 0.04s while dashing
@@ -911,6 +1507,7 @@
             updateAnimation(dt) {
                 let state = 'idle';
                 if (this.isDead) state = 'dead';
+                else if (this.skill) state = 'pillar';
                 else if (this.isDashing) state = 'dash';
                 else if (this.isAttacking) state = 'attack';
                 else if (!this.isGrounded) state = 'jump';
@@ -932,6 +1529,11 @@
                         return 1 + Math.floor(this.animTime / 0.03) % 12;
                     case 'dead':
                         return Math.min(HERO_ANIMS.dead.frames - 1, Math.floor(this.animTime / 0.1));
+                    case 'pillar':
+                        // spin flash -> riding the staff -> spin dive -> yellow impact splash
+                        if (this.skillPhase === 'plant' || this.skillPhase === 'slam') return 1;
+                        if (this.skillPhase === 'rise') return 3;
+                        return 13 + Math.min(2, Math.floor((1 - this.skillTimer / 0.3) * 3));
                     case 'attack': {
                         const [, start, len] = ATTACK_FRAMES[this.attackCombo];
                         const progress = 1 - this.attackTimer / this.attackDuration;
@@ -978,8 +1580,9 @@
                 }
             }
 
+            // Returns true if the jump happened
             jump() {
-                if (this.isDead) return;
+                if (this.isDead || this.skill) return false;
                 if (this.isGrounded || this.jumpCount < this.maxJumps) {
                     this.vy = this.jumpForce;
                     this.jumpCount++;
@@ -993,11 +1596,13 @@
                             '#fef08a', 3, 0.25
                         ));
                     }
+                    return true;
                 }
+                return false;
             }
 
             takeDamage(amount) {
-                if (this.isDead || this.invulnerableTimer > 0 || this.isDashing) return;
+                if (this.isDead || this.invulnerableTimer > 0 || this.isDashing || this.skill) return;
 
                 this.hp -= amount;
                 if (this.hp < 0) this.hp = 0;
@@ -1007,6 +1612,7 @@
 
                 createHitSparks(this.x + this.width / 2, this.y + this.height / 2, '#ef4444', 15);
                 floatingTexts.push(new FloatingText(`-${amount}`, this.x + 10, this.y - 10, '#ef4444', 16));
+                addShake(5);
 
                 updateHUD();
 
@@ -1015,13 +1621,14 @@
                 }
             }
 
-            // Plays the death animation; the game-over screen follows when deathTimer runs out
+            // Plays the death animation; respawn (or game over) follows when deathTimer runs out
             die() {
                 if (this.isDead) return;
                 this.hp = 0;
                 this.isDead = true;
                 this.isAttacking = false;
                 this.isDashing = false;
+                this.skill = null;
                 this.deathTimer = 1.4;
                 updateHUD();
             }
@@ -1046,9 +1653,171 @@
                     ctx.fill();
                 }
 
+                const flip = this.facing === 'left';
+                if (this.skill === 'pillar' && this.skillPhase === 'rise') {
+                    // The staff reaches from the ground up to the monkey's feet
+                    const staffX = cx + PILLAR_STAFF_X * HERO_SCALE * (flip ? -1 : 1);
+                    ctx.fillStyle = '#7f1d1d';
+                    ctx.fillRect(snap(staffX - 4), snap(feetY), 8, this.pillarBaseY - feetY);
+                    ctx.fillStyle = '#b45309';
+                    ctx.fillRect(snap(staffX - 4), snap(feetY), 2, this.pillarBaseY - feetY);
+                    ctx.fillStyle = '#facc15';
+                    ctx.fillRect(snap(staffX - 5), snap(this.pillarBaseY - 8), 10, 8);
+                    // Hide the part of the sprite's own staff that would poke into the ground
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(0, 0, GAME_WIDTH, this.pillarBaseY);
+                    ctx.clip();
+                    drawSprite(IMG.hero, HERO_ANIMS.pillarTop, this.currentFrame(), cx, feetY, flip, HERO_SCALE);
+                    ctx.restore();
+                    return;
+                }
+
                 const a = this.animState === 'attack' ? HERO_ANIMS[ATTACK_FRAMES[this.attackCombo][0]] : HERO_ANIMS[this.animState];
-                drawSprite(IMG.hero, a, this.currentFrame(), cx, feetY, this.facing === 'left', HERO_SCALE);
+                drawSprite(IMG.hero, a, this.currentFrame(), cx, feetY, flip, HERO_SCALE);
             }
+        }
+
+        // --- SKILL HELPERS ---
+        function groundSlam(p) {
+            const cx = p.x + p.width / 2;
+            const feetY = p.y + p.height;
+            addShake(9);
+            hitStop = Math.max(hitStop, 0.08);
+            playSound('slam');
+            addShockwave(cx, feetY, 170, '#facc15');
+            for (let i = 0; i < 24; i++) {
+                particles.push(new Particle(
+                    cx + (Math.random() - 0.5) * 40, feetY - 4,
+                    (Math.random() - 0.5) * 10, -Math.random() * 5 - 1,
+                    Math.random() < 0.5 ? '#facc15' : '#fde68a', 4, 0.5
+                ));
+            }
+            for (const e of enemies) {
+                if (e.dead) continue;
+                const ex = e.x + e.width / 2;
+                if (Math.abs(ex - cx) < 170 && Math.abs(e.y + e.height - feetY) < 110) {
+                    e.takeDamage(70, ex > cx ? 'right' : 'left');
+                }
+            }
+            for (const c of chests) {
+                if (!c.opened && Math.abs(c.x + c.width / 2 - cx) < 170 && Math.abs(c.y + c.height - feetY) < 60) c.open();
+            }
+        }
+
+        // --- CLONES (Phân Thân Thuật) ---
+        const CLONE_LIFE = 7;
+
+        class Clone {
+            constructor(x, y, offset) {
+                this.x = x;
+                this.y = y;
+                this.width = 40;
+                this.height = 62;
+                this.vx = 0;
+                this.vy = -6;
+                this.offset = offset; // where it idles relative to the player when there is nothing to fight
+                this.life = CLONE_LIFE;
+                this.facing = offset < 0 ? 'left' : 'right';
+                this.isGrounded = false;
+                this.attackTimer = 0;
+                this.cooldown = 0;
+                this.hitDone = false;
+                this.animTime = Math.random();
+            }
+
+            update(dt, platforms) {
+                this.life -= dt;
+                this.animTime += dt;
+                if (this.cooldown > 0) this.cooldown -= dt;
+
+                let target = null;
+                let best = 320;
+                for (const e of enemies) {
+                    if (e.dead) continue;
+                    const d = Math.abs(e.x + e.width / 2 - (this.x + this.width / 2));
+                    if (d < best && Math.abs(e.y - this.y) < 160) {
+                        best = d;
+                        target = e;
+                    }
+                }
+                const goalX = target ? target.x + target.width / 2 : player.x + player.width / 2 + this.offset;
+                const dx = goalX - (this.x + this.width / 2);
+
+                if (this.attackTimer > 0) {
+                    this.attackTimer -= dt;
+                    this.vx = 0;
+                    if (!this.hitDone && this.attackTimer < 0.15) {
+                        this.hitDone = true;
+                        const reach = { x: this.facing === 'right' ? this.x + this.width : this.x - 80, y: this.y, width: 80, height: 55 };
+                        for (const e of enemies) {
+                            if (!e.dead && overlaps(reach, e)) e.takeDamage(18, this.facing);
+                        }
+                    }
+                } else if (target && Math.abs(dx) < 60 && this.cooldown <= 0) {
+                    this.facing = dx < 0 ? 'left' : 'right';
+                    this.attackTimer = 0.3;
+                    this.cooldown = 0.7;
+                    this.hitDone = false;
+                } else if (Math.abs(dx) > 20) {
+                    this.vx = Math.sign(dx) * 4.5;
+                    this.facing = dx < 0 ? 'left' : 'right';
+                } else {
+                    this.vx *= 0.7;
+                }
+
+                // Hop up when whatever it follows is standing higher
+                const goalFeet = target ? target.y + target.height : player.y + player.height;
+                if (this.isGrounded && goalFeet < this.y + this.height - 60) this.vy = -12.5;
+
+                this.vy += 0.65;
+                this.x += this.vx;
+                Player.prototype.checkHorizontalCollisions.call(this, platforms);
+                this.y += this.vy;
+                this.isGrounded = false;
+                Player.prototype.checkVerticalCollisions.call(this, platforms);
+
+                if (this.y > GAME_HEIGHT + 50) {
+                    this.x = player.x;
+                    this.y = player.y - 20;
+                    this.vy = 0;
+                }
+            }
+
+            draw(ctx, camX) {
+                // Flicker during the last second and a half
+                if (this.life < 1.5 && Math.floor(this.life * 10) % 2 === 0) return;
+                let anim = HERO_ANIMS.idle;
+                let frame = Math.floor(this.animTime / 0.15) % anim.frames;
+                if (this.attackTimer > 0) {
+                    anim = HERO_ANIMS.sweep;
+                    frame = Math.min(anim.frames - 1, Math.floor((1 - this.attackTimer / 0.3) * anim.frames));
+                } else if (!this.isGrounded) {
+                    anim = HERO_ANIMS.jump;
+                    frame = this.vy < 0 ? 1 : 2;
+                } else if (Math.abs(this.vx) > 0.8) {
+                    anim = HERO_ANIMS.run;
+                    frame = Math.floor(this.animTime / 0.08) % anim.frames;
+                }
+                ctx.save();
+                ctx.globalAlpha = 0.8;
+                drawSprite(FLASH.clone, anim, frame, this.x + this.width / 2 - camX, this.y + this.height, this.facing === 'left', HERO_SCALE);
+                ctx.restore();
+            }
+        }
+
+        let clones = [];
+
+        function cloudPuff(x, y) {
+            for (let i = 0; i < 12; i++) {
+                particles.push(new Particle(x, y, (Math.random() - 0.5) * 6, -Math.random() * 3, '#fef9c3', 5, 0.4));
+            }
+        }
+
+        function spawnClones(p) {
+            for (const c of clones) cloudPuff(c.x + c.width / 2, c.y + c.height / 2);
+            clones = [new Clone(p.x - 40, p.y, -60), new Clone(p.x + 40, p.y, 60)];
+            for (const c of clones) cloudPuff(c.x + c.width / 2, c.y + c.height / 2);
         }
 
         // --- ENEMY CLASS ---
@@ -1076,15 +1845,30 @@
 
                 this.vx = this.speed;
                 this.vy = 0;
+                this.kvx = 0; // knockback velocity, decays every frame
                 this.facing = 'right';
                 this.patrolLeft = x - 150;
                 this.patrolRight = x + 150;
+                this.isGrounded = false;
                 this.dead = false;
                 this.deathTimer = 0;
                 this.isHit = false;
                 this.hitTimer = 0;
                 this.isLunging = false;
                 this.animTime = Math.random() * 2;
+
+                if (type === 'boss') {
+                    this.awake = false;
+                    this.phase = 1;
+                    this.state = 'walk';
+                    this.stateTimer = 1.5;
+                    this.fireRain = 0;
+                    this.fireTimer = 0;
+                    // The boss never leaves the ground platform it spawns over
+                    const home = currentLevel.platforms.find(p => p.h >= 40 && x >= p.x && x < p.x + p.w);
+                    this.homeLeft = home ? home.x + 10 : x - 300;
+                    this.homeRight = home ? home.x + home.w - this.width - 10 : x + 300;
+                }
             }
 
             update(dt, player, platforms) {
@@ -1099,10 +1883,28 @@
                     if (this.hitTimer <= 0) this.isHit = false;
                 }
 
+                if (this.type === 'boss') this.updateBoss(dt, player, platforms);
+                else this.updateMob(dt, player, platforms);
+
+                // Hit Player check
+                if (overlaps(player, this)) {
+                    player.takeDamage(this.damage);
+                }
+
+                // Attacked by Player
+                if (player.isAttacking && overlaps(player.attackBox, this)) {
+                    if (this.takeDamage(25 + (player.attackCombo * 10), player.facing)) player.gainMp(8);
+                }
+            }
+
+            updateMob(dt, player, platforms) {
                 const distToPlayer = Math.hypot((player.x + player.width / 2) - (this.x + this.width / 2), (player.y + player.height / 2) - (this.y + this.height / 2));
                 const chasing = distToPlayer < 250 && !player.isDead;
+                const stunned = Math.abs(this.kvx) > 1;
 
-                if (chasing) {
+                if (stunned) {
+                    // knocked back: no steering until the push wears off
+                } else if (chasing) {
                     if (player.x < this.x) {
                         this.vx = -this.speed;
                         this.facing = 'left';
@@ -1120,7 +1922,8 @@
                     }
                 }
 
-                this.x += this.vx;
+                this.x += (stunned ? 0 : this.vx) + this.kvx;
+                this.kvx *= 0.85;
 
                 if (this.flying) {
                     const targetY = chasing
@@ -1129,52 +1932,150 @@
                     this.y += Math.max(-2, Math.min(2, (targetY - this.y) * 0.05));
                     this.isLunging = chasing && distToPlayer < 90;
                 } else {
-                    this.vy += 0.65;
-                    this.y += this.vy;
+                    this.applyGravity(platforms);
+                }
+            }
 
-                    for (let p of platforms) {
-                        if (this.x < p.x + p.w &&
-                            this.x + this.width > p.x &&
-                            this.y < p.y + p.h &&
-                            this.y + this.height > p.y) {
-                            if (this.vy > 0) {
-                                this.y = p.y - this.height;
-                                this.vy = 0;
-                            }
+            applyGravity(platforms) {
+                this.vy += 0.65;
+                this.y += this.vy;
+                this.isGrounded = false;
+                for (let p of platforms) {
+                    if (this.x < p.x + p.w &&
+                        this.x + this.width > p.x &&
+                        this.y < p.y + p.h &&
+                        this.y + this.height > p.y) {
+                        if (this.vy > 0) {
+                            this.y = p.y - this.height;
+                            this.vy = 0;
+                            this.isGrounded = true;
                         }
-                    }
-                }
-
-                // Hit Player check
-                if (player.x < this.x + this.width &&
-                    player.x + player.width > this.x &&
-                    player.y < this.y + this.height &&
-                    player.y + player.height > this.y) {
-                    player.takeDamage(this.damage);
-                }
-
-                // Attacked by Player
-                if (player.isAttacking) {
-                    const ab = player.attackBox;
-                    if (ab.x < this.x + this.width &&
-                        ab.x + ab.width > this.x &&
-                        ab.y < this.y + this.height &&
-                        ab.y + ab.height > this.y) {
-
-                        this.takeDamage(25 + (player.attackCombo * 10), player.facing);
                     }
                 }
             }
 
+            // Boss: walk toward the player, then pick a stomp-telegraphed charge or a leap with a shockwave.
+            // Below half HP it enrages: faster, summons boars and calls down fire rain.
+            updateBoss(dt, player, platforms) {
+                const dx = (player.x + player.width / 2) - (this.x + this.width / 2);
+
+                if (!this.awake) {
+                    if (Math.abs(dx) < 450 && !player.isDead) {
+                        this.awake = true;
+                        this.setState('roar', 1.0);
+                        playSound('roar');
+                        addShake(6);
+                    }
+                    this.applyGravity(platforms);
+                    return;
+                }
+
+                if (this.phase === 1 && this.hp <= this.maxHp / 2) {
+                    this.phase = 2;
+                    this.speed *= 1.4;
+                    this.setState('roar', 1.0);
+                    playSound('roar');
+                    addShake(10);
+                    floatingTexts.push(new FloatingText('NỔI GIẬN!', this.x, this.y - 30, '#ef4444', 14));
+                    enemies.push(new Enemy(this.homeLeft + 40, this.y, 'goblin'), new Enemy(this.homeRight - 40, this.y, 'goblin'));
+                }
+
+                this.stateTimer -= dt;
+                switch (this.state) {
+                    case 'walk':
+                        this.facing = dx < 0 ? 'left' : 'right';
+                        this.vx = Math.sign(dx) * this.speed;
+                        if (this.stateTimer <= 0 && !player.isDead) this.pickAttack(dx);
+                        break;
+                    case 'telegraph':
+                        this.vx = 0;
+                        if (this.stateTimer <= 0) {
+                            this.setState('charge', 1.1);
+                            playSound('roar');
+                        }
+                        break;
+                    case 'charge':
+                        this.vx = (this.facing === 'right' ? 1 : -1) * (this.phase === 2 ? 11 : 9);
+                        if (Math.random() < 0.6) {
+                            particles.push(new Particle(this.x + this.width / 2, this.y + this.height, -this.vx * 0.2, -Math.random() * 2, '#a8a29e', 4, 0.4));
+                        }
+                        if (this.stateTimer <= 0 || this.x <= this.homeLeft || this.x >= this.homeRight) {
+                            addShake(4);
+                            this.setState('walk', 1.2 + Math.random());
+                        }
+                        break;
+                    case 'leap':
+                        if (this.isGrounded && this.stateTimer < 0.9) {
+                            addShake(8);
+                            playSound('slam');
+                            addShockwave(this.x + this.width / 2, this.y + this.height, 230, currentLevel.bossShot);
+                            if (player.isGrounded && Math.abs(dx) < 230) player.takeDamage(20);
+                            if (this.phase === 2) this.startFireRain();
+                            this.setState('walk', 1.0);
+                        }
+                        break;
+                    case 'roar':
+                        this.vx = 0;
+                        if (this.stateTimer <= 0) {
+                            if (this.phase === 2) this.startFireRain();
+                            this.setState('walk', 0.8);
+                        }
+                        break;
+                }
+
+                if (this.fireRain > 0) {
+                    this.fireRain -= dt;
+                    this.fireTimer -= dt;
+                    if (this.fireTimer <= 0) {
+                        this.fireTimer = 0.35;
+                        projectiles.push(new Projectile(player.x + player.width / 2 + (Math.random() - 0.5) * 320, -20, currentLevel.bossShot));
+                    }
+                }
+
+                this.x += this.vx + this.kvx;
+                this.kvx *= 0.85;
+                this.x = Math.max(this.homeLeft, Math.min(this.homeRight, this.x));
+                this.applyGravity(platforms);
+            }
+
+            setState(state, time) {
+                this.state = state;
+                this.stateTimer = time;
+            }
+
+            pickAttack(dx) {
+                this.facing = dx < 0 ? 'left' : 'right';
+                if (Math.random() < 0.5) {
+                    this.setState('telegraph', this.phase === 2 ? 0.45 : 0.7);
+                } else {
+                    this.vy = -14;
+                    this.vx = Math.max(-7, Math.min(7, dx / 40));
+                    this.setState('leap', 1.5);
+                }
+            }
+
+            startFireRain() {
+                this.fireRain = 3;
+                this.fireTimer = 0;
+            }
+
+            // Returns true if the hit landed
             takeDamage(amount, knockbackDir) {
-                if (this.isHit || this.dead) return;
+                if (this.isHit || this.dead) return false;
 
                 this.hp -= amount;
                 this.isHit = true;
                 this.hitTimer = 0.2;
 
-                this.x += knockbackDir === 'right' ? 20 : -20;
+                const dir = knockbackDir === 'right' ? 1 : -1;
+                if (this.type === 'boss') {
+                    this.kvx = dir * 2;
+                } else {
+                    this.kvx = dir * 7;
+                    if (!this.flying) this.vy = -4;
+                }
                 playSound('hit');
+                hitStop = Math.max(hitStop, 0.045);
 
                 createHitSparks(this.x + this.width / 2, this.y + this.height / 2, '#fef08a', 8);
                 floatingTexts.push(new FloatingText(`${amount}`, this.x + 10, this.y - 10, '#fef08a', 14));
@@ -1186,10 +2087,22 @@
                     score += this.scoreValue;
                     comboCount++;
                     comboTimer = 3.0;
-                    updateHUD();
 
-                    createHitSparks(this.x + this.width / 2, this.y + this.height / 2, '#f59e0b', 20);
+                    const cx = this.x + this.width / 2;
+                    createHitSparks(cx, this.y + this.height / 2, '#f59e0b', 20);
+                    if (this.type === 'boss') {
+                        hitStop = 0.35;
+                        addShake(12);
+                        this.fireRain = 0;
+                        for (let i = 0; i < 6; i++) pickups.push(new Pickup(cx, this.y + 20, true));
+                        floatingTexts.push(new FloatingText('CỔNG ĐÃ MỞ!', cx - 60, this.y - 40, '#facc15', 14));
+                    } else {
+                        hitStop = Math.max(hitStop, 0.08);
+                        if (Math.random() < 0.35) pickups.push(new Pickup(cx, this.y + 10, true));
+                    }
+                    updateHUD();
                 }
+                return true;
             }
 
             sprite() {
@@ -1201,13 +2114,14 @@
                         : { key: 'beeFly', anim: ENEMY_ANIMS.beeFly, fps: 14, scale: ART_SCALE };
                 }
                 const theme = THEMES[currentLevel.theme];
-                return { key: theme.boss, anim: ENEMY_ANIMS.boar, fps: 10, scale: 3, glow: theme.bossGlow };
+                const fps = this.state === 'charge' ? 22 : this.state === 'telegraph' || this.state === 'roar' ? 0 : 10;
+                return { key: theme.boss, anim: ENEMY_ANIMS.boar, fps, scale: 3, glow: this.phase === 2 ? '#dc2626' : theme.bossGlow };
             }
 
             draw(ctx, camX) {
                 if (this.dead && this.deathTimer <= 0) return;
 
-                const cx = this.x + this.width / 2 - camX;
+                let cx = this.x + this.width / 2 - camX;
                 if (cx < -150 || cx > GAME_WIDTH + 150) return;
                 const feetY = this.y + this.height;
                 const flip = this.facing === 'right'; // mob sheets face left
@@ -1228,6 +2142,10 @@
                     return;
                 }
 
+                // Boss stomps in place before charging
+                const winding = this.type === 'boss' && this.state === 'telegraph';
+                if (winding) cx += Math.sin(this.animTime * 60) * 3;
+
                 if (!this.flying) {
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
                     ctx.beginPath();
@@ -1239,16 +2157,18 @@
                     ctx.shadowColor = glow;
                     ctx.shadowBlur = 18;
                 }
-                drawSprite(IMG[key], anim, frame, cx, feetY, flip, scale);
+                const img = this.type === 'boss' && this.phase === 2 ? FLASH.rage[key] : IMG[key];
+                drawSprite(img, anim, frame, cx, feetY, flip, scale);
                 ctx.shadowBlur = 0;
 
-                if (this.isHit) {
-                    ctx.globalAlpha = 0.85;
+                if (this.isHit || (winding && Math.floor(this.animTime * 12) % 2 === 0)) {
+                    ctx.globalAlpha = this.isHit ? 0.85 : 0.45;
                     drawSprite(FLASH[key], anim, frame, cx, feetY, flip, scale);
                     ctx.globalAlpha = 1;
                 }
 
-                if (this.hp < this.maxHp) {
+                // Bosses get the big bar at the bottom of the screen instead
+                if (this.hp < this.maxHp && this.type !== 'boss') {
                     const barX = snap(this.x - camX);
                     const barY = snap(this.y - this.barLift);
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
@@ -1263,6 +2183,31 @@
             }
         }
 
+        function drawBossBar(ctx) {
+            const boss = enemies.find(e => e.type === 'boss' && e.awake && !e.dead);
+            if (!boss) return;
+            const w = 420, h = 10;
+            const x = (GAME_WIDTH - w) / 2, y = GAME_HEIGHT - 34;
+            ctx.save();
+            ctx.font = "10px 'Press Start 2P', monospace";
+            ctx.textAlign = 'center';
+            ctx.fillStyle = boss.phase === 2 ? '#fca5a5' : '#fde68a';
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 4;
+            ctx.fillText(currentLevel.bossName, GAME_WIDTH / 2, y - 8);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+            ctx.fillStyle = boss.phase === 2 ? '#dc2626' : '#f59e0b';
+            ctx.fillRect(x, y, w * Math.max(0, boss.hp / boss.maxHp), h);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fillRect(x, y, w * Math.max(0, boss.hp / boss.maxHp), 2);
+            // mark the enrage threshold
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(x + w / 2 - 1, y, 2, h);
+            ctx.restore();
+        }
+
         // --- PORTAL ---
         class Portal {
             constructor(x, y) {
@@ -1271,12 +2216,17 @@
                 this.width = 50;
                 this.height = 80;
                 this.rotation = 0;
+                this.locked = false;
+                this.hintTimer = 0;
             }
 
             update(dt, player) {
                 this.rotation += dt * 3;
+                if (this.hintTimer > 0) this.hintTimer -= dt;
+                // On boss stages the portal stays sealed until the boss falls
+                this.locked = enemies.some(e => e.type === 'boss' && !e.dead);
 
-                if (Math.random() < 0.25) {
+                if (!this.locked && Math.random() < 0.25) {
                     particles.push(new Particle(
                         this.x + this.width / 2 + (Math.random() - 0.5) * this.width,
                         this.y + this.height / 2 + (Math.random() - 0.5) * this.height,
@@ -1285,12 +2235,13 @@
                     ));
                 }
 
-                if (!player.isDead &&
-                    player.x < this.x + this.width &&
-                    player.x + player.width > this.x &&
-                    player.y < this.y + this.height &&
-                    player.y + player.height > this.y) {
-                    nextLevel();
+                if (!player.isDead && overlaps(player, this)) {
+                    if (!this.locked) {
+                        nextLevel();
+                    } else if (this.hintTimer <= 0) {
+                        this.hintTimer = 1.5;
+                        floatingTexts.push(new FloatingText('HẠ BOSS ĐỂ MỞ CỔNG', this.x - 80, this.y - 10, '#fca5a5', 10));
+                    }
                 }
             }
 
@@ -1301,19 +2252,22 @@
                 ctx.save();
                 ctx.translate(drawX, drawY);
 
-                const pulse = 1 + Math.sin(this.rotation * 1.5) * 0.06;
-                const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, 70 * pulse);
-                glow.addColorStop(0, 'rgba(254, 240, 138, 0.9)');
-                glow.addColorStop(0.35, 'rgba(245, 158, 11, 0.4)');
-                glow.addColorStop(1, 'rgba(245, 158, 11, 0)');
-                ctx.fillStyle = glow;
-                ctx.beginPath();
-                ctx.ellipse(0, 0, 60 * pulse, 80 * pulse, 0, 0, Math.PI * 2);
-                ctx.fill();
+                if (!this.locked) {
+                    const pulse = 1 + Math.sin(this.rotation * 1.5) * 0.06;
+                    const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, 70 * pulse);
+                    glow.addColorStop(0, 'rgba(254, 240, 138, 0.9)');
+                    glow.addColorStop(0.35, 'rgba(245, 158, 11, 0.4)');
+                    glow.addColorStop(1, 'rgba(245, 158, 11, 0)');
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 60 * pulse, 80 * pulse, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
 
-                ctx.rotate(this.rotation);
+                ctx.rotate(this.locked ? this.rotation * 0.2 : this.rotation);
                 for (let i = 3; i > 0; i--) {
-                    ctx.strokeStyle = i % 2 === 0 ? '#f59e0b' : '#ef4444';
+                    if (this.locked) ctx.strokeStyle = i % 2 === 0 ? '#57534e' : '#78716c';
+                    else ctx.strokeStyle = i % 2 === 0 ? '#f59e0b' : '#ef4444';
                     ctx.lineWidth = 4;
                     ctx.beginPath();
                     ctx.ellipse(0, 0, (this.width / 2) * (i / 3), (this.height / 2) * (i / 3), 0, 0, Math.PI * 2);
@@ -1489,18 +2443,33 @@
         function loadLevel(index) {
             currentLevelIndex = index;
             currentLevel = LEVELS[currentLevelIndex];
-            player.reset(100, 350);
+            scoreAtLevelStart = score;
+            respawnPoint = { x: 100, y: 350 };
+            player.reset(respawnPoint.x, respawnPoint.y);
+            camera.snapTo(player, currentLevel.worldWidth);
 
             enemies = currentLevel.enemies.map(e => new Enemy(e.x, e.y, e.type));
             portal = new Portal(currentLevel.portalX, currentLevel.portalY);
+            checkpoints = (currentLevel.checkpoints || []).map(c => new Checkpoint(c.x, c.y));
+            pickups = (currentLevel.peaches || []).map(p => new Pickup(p.x, p.y));
+            chests = (currentLevel.chests || []).map(c => new Chest(c.x, c.y));
+            clones = [];
+            projectiles = [];
+            shockwaves = [];
+            particles = [];
+            floatingTexts = [];
 
             const theme = THEMES[currentLevel.theme];
             buildScenery(currentLevel, theme);
             resetAmbient(theme.ambient);
 
+            save.unlocked = Math.max(save.unlocked, currentLevelIndex);
+            writeSave();
+
             levelIndicator.innerText = `CẢNH ${currentLevelIndex + 1}`;
             levelBanner.text = currentLevel.name;
             levelBanner.timer = BANNER_TIME;
+            updateHUD();
         }
 
         function nextLevel() {
@@ -1508,22 +2477,56 @@
                 loadLevel(currentLevelIndex + 1);
             } else {
                 gameState = 'VICTORY';
+                writeSave();
                 document.getElementById('victory-score').innerText = score;
                 victoryOverlay.classList.remove('hidden');
             }
         }
 
+        // Called when the death animation finishes: respawn at the last checkpoint while lives remain
+        function onPlayerDeath() {
+            lives--;
+            if (lives <= 0) {
+                updateHUD();
+                triggerGameOver();
+                return;
+            }
+            player.reset(respawnPoint.x, respawnPoint.y);
+            player.invulnerableTimer = 1.5;
+            camera.snapTo(player, currentLevel.worldWidth);
+            clones = [];
+            projectiles = [];
+            for (const e of enemies) if (e.type === 'boss') e.fireRain = 0;
+            floatingTexts.push(new FloatingText(`CÒN ${lives} MẠNG`, player.x - 30, player.y - 20, '#fca5a5', 12));
+            updateHUD();
+        }
+
         function triggerGameOver() {
             gameState = 'GAMEOVER';
+            writeSave();
             document.getElementById('final-score').innerText = score;
             document.getElementById('final-stage').innerText = `Cảnh ${currentLevelIndex + 1}`;
             gameOverOverlay.classList.remove('hidden');
+        }
+
+        function startRun(levelIndex, keepScore) {
+            initAudio();
+            startMusic();
+            gameState = 'PLAYING';
+            lives = MAX_LIVES;
+            if (!keepScore) score = 0;
+            comboCount = 0;
+            player.mp = 0;
+            loadLevel(levelIndex);
         }
 
         function updateHUD() {
             const hpPercent = Math.max(0, (player.hp / player.maxHp) * 100);
             hpBar.style.width = `${hpPercent}%`;
             hpText.innerText = `${Math.ceil(player.hp)} / ${player.maxHp}`;
+            mpBar.style.width = `${(player.mp / player.maxMp) * 100}%`;
+            livesDisplay.innerHTML = '<i class="fa-solid fa-heart"></i> '.repeat(Math.max(0, lives));
+            peachDisplay.innerText = save.peaches;
 
             scoreDisplay.innerText = String(score).padStart(5, '0');
             comboDisplay.innerText = `${comboCount}x`;
@@ -1542,7 +2545,7 @@
             const handleStart = (e) => {
                 e.preventDefault();
                 keys[keyProp] = true;
-                if (actionCallback && player) actionCallback();
+                if (actionCallback && player && gameState === 'PLAYING') actionCallback();
             };
 
             const handleEnd = (e) => {
@@ -1559,68 +2562,108 @@
 
         bindTouch('btn-left', 'left');
         bindTouch('btn-right', 'right');
-        bindTouch('btn-jump', 'jump', () => player.jump());
+        bindTouch('btn-jump', 'jump', () => player.queueJump());
         bindTouch('btn-attack', 'attack');
         bindTouch('btn-dash', 'dash');
+        bindTouch('btn-skill1', 'skill1', () => player.useSkill('pillar'));
+        bindTouch('btn-skill2', 'skill2', () => player.useSkill('clone'));
 
         // --- MAIN GAME LOOP ---
+        function updateWorld(dt) {
+            if (comboCount > 0) {
+                comboTimer -= dt;
+                if (comboTimer <= 0) {
+                    comboCount = 0;
+                    updateHUD();
+                }
+            }
+
+            const platforms = currentLevel.platforms;
+            player.update(dt, platforms);
+            // A finished death animation may have ended the run (game over overlay)
+            if (gameState !== 'PLAYING') return;
+            camera.follow(player, currentLevel.worldWidth, dt);
+
+            for (let enemy of enemies) {
+                enemy.update(dt, player, platforms);
+            }
+            for (const c of clones) c.update(dt, platforms);
+            clones = clones.filter(c => {
+                if (c.life > 0) return true;
+                cloudPuff(c.x + c.width / 2, c.y + c.height / 2);
+                return false;
+            });
+            for (const p of pickups) p.update(dt, player, platforms);
+            pickups = pickups.filter(p => !p.collected);
+            for (const p of projectiles) p.update(dt, player, platforms);
+            projectiles = projectiles.filter(p => !p.dead);
+            for (const c of checkpoints) c.update(dt, player);
+
+            portal.update(dt, player);
+            updateShockwaves(dt);
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update(dt);
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                floatingTexts[i].update(dt);
+                if (floatingTexts[i].life <= 0) floatingTexts.splice(i, 1);
+            }
+        }
+
         function gameLoop(timestamp) {
             if (!lastTime) lastTime = timestamp;
-            const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+            const dt = Math.max(0, Math.min((timestamp - lastTime) / 1000, 0.1));
             lastTime = timestamp;
 
             // All drawing uses logical 800x540 coordinates
             ctx.setTransform(RENDER_SCALE, 0, 0, RENDER_SCALE, 0, 0);
             ctx.imageSmoothingEnabled = false;
-            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
             if (gameState === 'PLAYING') {
-                if (comboCount > 0) {
-                    comboTimer -= dt;
-                    if (comboTimer <= 0) {
-                        comboCount = 0;
-                        updateHUD();
-                    }
-                }
-
-                player.update(dt, currentLevel.platforms);
-                camera.follow(player, currentLevel.worldWidth);
-
-                for (let enemy of enemies) {
-                    enemy.update(dt, player, currentLevel.platforms);
-                }
-
-                portal.update(dt, player);
-
-                for (let i = particles.length - 1; i >= 0; i--) {
-                    particles[i].update(dt);
-                    if (particles[i].life <= 0) particles.splice(i, 1);
-                }
-
-                for (let i = floatingTexts.length - 1; i >= 0; i--) {
-                    floatingTexts[i].update(dt);
-                    if (floatingTexts[i].life <= 0) floatingTexts.splice(i, 1);
-                }
+                // Hit-stop freezes the world for a few frames to sell heavy impacts
+                if (hitStop > 0) hitStop -= dt;
+                else updateWorld(dt);
             }
             updateAmbient(dt);
 
             const camX = snap(camera.x);
 
+            ctx.save();
+            if (shake > 0.3) {
+                ctx.translate(snap((Math.random() - 0.5) * 2 * shake), snap((Math.random() - 0.5) * 2 * shake));
+                shake *= 0.88;
+            } else {
+                shake = 0;
+            }
+
             drawEnvironment(ctx, currentLevel, camX);
 
-            if (THEMES[currentLevel.theme]) {
+            const theme = THEMES[currentLevel.theme];
+            if (theme) {
+                for (const c of checkpoints) c.draw(ctx, camX);
+                for (const c of chests) c.draw(ctx, camX, theme);
                 portal.draw(ctx, camX);
+                for (const p of pickups) p.draw(ctx, camX);
 
                 for (let enemy of enemies) {
                     enemy.draw(ctx, camX);
                 }
 
+                for (const c of clones) c.draw(ctx, camX);
                 player.draw(ctx, camX);
+                for (const p of projectiles) p.draw(ctx, camX);
+                drawShockwaves(ctx, camX);
             }
 
             for (let p of particles) {
                 p.draw(ctx, camX);
             }
+            ctx.restore();
 
             drawAmbient(ctx, camX);
             ctx.fillStyle = vignette;
@@ -1630,6 +2673,7 @@
                 ft.draw(ctx, camX);
             }
 
+            if (gameState === 'PLAYING') drawBossBar(ctx);
             drawLevelBanner(ctx, dt);
 
             requestAnimationFrame(gameLoop);
@@ -1637,31 +2681,29 @@
 
         // --- BUTTON EVENT LISTENERS ---
         startBtn.addEventListener('click', () => {
-            initAudio();
             startOverlay.classList.add('hidden');
-            gameState = 'PLAYING';
-            score = 0;
-            comboCount = 0;
-            loadLevel(0);
+            startRun(0, false);
+        });
+
+        continueBtn.addEventListener('click', () => {
+            startOverlay.classList.add('hidden');
+            startRun(save.unlocked, false);
         });
 
         document.getElementById('restart-btn').addEventListener('click', () => {
             gameOverOverlay.classList.add('hidden');
-            gameState = 'PLAYING';
-            score = 0;
-            comboCount = 0;
-            loadLevel(0);
+            // Retry the stage you lost on, with the score you entered it with
+            score = scoreAtLevelStart;
+            startRun(currentLevelIndex, true);
         });
 
         document.getElementById('victory-restart-btn').addEventListener('click', () => {
             victoryOverlay.classList.add('hidden');
-            gameState = 'PLAYING';
-            score = 0;
-            comboCount = 0;
-            loadLevel(0);
+            startRun(0, false);
         });
 
         // LOAD ART, THEN ENABLE START
+        loadSave();
         loadAssets().then(() => {
             const missing = Object.keys(ASSET_FILES).filter(k => !IMG[k]);
             if (missing.length) {
@@ -1673,8 +2715,13 @@
             buildScenery(currentLevel, THEMES[currentLevel.theme]);
             resetAmbient(THEMES[currentLevel.theme].ambient);
             drawAvatar();
+            updateHUD();
             startBtn.disabled = false;
-            startBtn.innerText = 'BẮT ĐẦU TRUYỀN KỲ';
+            startBtn.innerText = 'BẮT ĐẦU MỚI';
+            if (save.unlocked > 0) {
+                continueBtn.innerText = `CHƠI TIẾP · CẢNH ${save.unlocked + 1}`;
+                continueBtn.classList.remove('hidden');
+            }
         });
 
         // START ENGINE LOOP
