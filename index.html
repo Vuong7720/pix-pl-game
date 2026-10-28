@@ -207,6 +207,25 @@
             <button id="map-shop-btn" class="px-6 py-3 bg-slate-900/90 hover:bg-slate-800 border border-pink-400/50 text-pink-200 pixel-font text-xs rounded-xl shadow-lg transition cursor-pointer">CỬA HÀNG <i class="fa-solid fa-apple-whole"></i> <span id="map-peaches">0</span></button>
         </div>
 
+        <!-- DEV PANEL (open the game with ?dev in the URL; toggle with the ` key) -->
+        <div id="dev-panel" class="hidden fixed bottom-3 right-3 z-40 w-60 glass-panel rounded-xl p-3 text-xs text-slate-200 space-y-2">
+            <div class="flex justify-between items-center">
+                <span class="pixel-font text-[9px] text-emerald-400">DEV MODE</span>
+                <span class="text-slate-500">ẩn/hiện: phím `</span>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="dev-god" checked> Bất tử (không mất máu, rơi vực thì về điểm hồi sinh)</label>
+            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="dev-mp" checked> Pháp Lực vô hạn</label>
+            <div class="pixel-font text-[8px] text-slate-400 pt-1">VÀO ẢI</div>
+            <div id="dev-stages" class="grid grid-cols-4 gap-1"></div>
+            <div class="grid grid-cols-2 gap-1">
+                <button data-dev="boss" class="py-1.5 rounded bg-slate-800 hover:bg-slate-700 cursor-pointer">Hạ boss</button>
+                <button data-dev="portal" class="py-1.5 rounded bg-slate-800 hover:bg-slate-700 cursor-pointer">Tới cổng</button>
+                <button data-dev="peach" class="py-1.5 rounded bg-slate-800 hover:bg-slate-700 cursor-pointer">+100 Đào Tiên</button>
+                <button data-dev="map" class="py-1.5 rounded bg-slate-800 hover:bg-slate-700 cursor-pointer">Bản đồ</button>
+            </div>
+            <div class="text-[10px] text-slate-500">Mọi ải và kỹ năng đều mở. Tiến trình không được lưu khi bật dev.</div>
+        </div>
+
         <!-- SHOP OVERLAY (Cửa Hàng Thổ Địa) -->
         <div id="shop-overlay" class="hidden absolute inset-0 z-30 flex items-center justify-center bg-slate-950/80 p-4">
             <div class="glass-panel rounded-2xl w-full max-w-lg p-5 space-y-4">
@@ -301,10 +320,19 @@
         let respawnPoint = { x: 100, y: 350 };
 
         // Game feel: brief freeze on impact and camera shake (in pixels, decays every frame)
+        let worldTime = 0; // seconds, drives looping effects (kelp sway, currents, light rays)
         let hitStop = 0;
         let shake = 0;
         function addShake(amount) {
             shake = Math.max(shake, amount);
+        }
+
+        // --- DEV MODE: open with ?dev in the URL. Everything is unlocked and nothing is saved ---
+        const DEV = new URLSearchParams(location.search).has('dev');
+        const dev = { god: true, infiniteMp: true };
+
+        function isSkillLearned(id) {
+            return DEV || !!save.skills[id];
         }
 
         // --- SAVE DATA (localStorage) ---
@@ -332,6 +360,7 @@
         }
 
         function writeSave() {
+            if (DEV) return; // keep the real progress untouched while testing
             try {
                 localStorage.setItem(SAVE_KEY, JSON.stringify(save));
             } catch (e) { /* storage unavailable */ }
@@ -381,6 +410,7 @@
                 handleMapKey(e.code);
             }
             if (e.code === 'KeyM') toggleMusic();
+            if (e.code === 'Backquote' && DEV) document.getElementById('dev-panel').classList.toggle('hidden');
         });
 
         window.addEventListener('keyup', (e) => {
@@ -494,7 +524,7 @@
 
         // --- MUSIC (procedural pentatonic loop, one step every `tempo` seconds) ---
         const PENTATONIC = [0, 2, 4, 7, 9]; // semitones
-        const MUSIC_ROOTS = { forest: 293.66, fire: 261.63, bone: 220 }; // D4, C4, A3
+        const MUSIC_ROOTS = { forest: 293.66, fire: 261.63, bone: 220, sea: 246.94 }; // D4, C4, A3, B3
         const MUSIC = {
             on: true,
             timer: null,
@@ -637,7 +667,12 @@
             snailDead: { fw: 48, fh: 32, frames: 8, ax: 24, foot: 31 },
             boar:      { fw: 48, fh: 32, frames: 6, ax: 23, foot: 31 },
             beeFly:    { fw: 64, fh: 64, frames: 4, ax: 30, foot: 44 },
-            beeAttack: { fw: 64, fh: 64, frames: 4, ax: 30, foot: 45 }
+            beeAttack: { fw: 64, fh: 64, frames: 4, ax: 30, foot: 45 },
+            // Code-drawn sea creatures (see SEA_SPRITES), drawn at 3x; the boss at 4x
+            fish:      { fw: 16, fh: 9,  frames: 2, ax: 8, foot: 8 },
+            crab:      { fw: 16, fh: 10, frames: 2, ax: 8, foot: 9 },
+            jelly:     { fw: 12, fh: 11, frames: 2, ax: 6, foot: 10 },
+            dragon:    { fw: 24, fh: 24, frames: 2, ax: 9, foot: 23 }
         };
 
         // Source rectangles inside tiles.png (16px grid)
@@ -721,18 +756,36 @@
                 boss: 'boarRunWhite',
                 bossGlow: '#a855f7'
             };
+            // Underwater: the forest pack recoloured into a sea floor
+            THEMES.sea = {
+                sky: tintImage(IMG.sky, '#0c4a6e', 0.78),
+                bgTrees: tintImage(IMG.bgTrees, '#083344', 0.62),
+                trees: tintImage(IMG.treeDark, '#134e4a', 0.55),
+                treesMid: tintImage(IMG.treeGreen, '#042f2e', 0.6),
+                tiles: tintImage(IMG.tiles, '#0e7490', 0.38),
+                ground: 'stone',
+                ledge: 'moss',
+                bushRow: 1,
+                props: ['kelp', 'coral', 'kelp', 'rockA', 'rockC'],
+                fog: 'rgba(56, 189, 248, 0.25)',
+                ambient: 'bubble',
+                boss: 'dragonKing',
+                bossAnim: ENEMY_ANIMS.dragon,
+                bossScale: 4,
+                bossGlow: '#22d3ee'
+            };
 
-            for (const key of ['boarRun', 'boarRunBlack', 'boarRunWhite', 'snailWalk', 'beeFly', 'beeAttack']) {
+            const enemySheets = ['boarRun', 'boarRunBlack', 'boarRunWhite', 'snailWalk', 'beeFly', 'beeAttack',
+                'fishSwim', 'crabWalk', 'jellyFloat', 'dragonKing'];
+            FLASH.gold = {};
+            for (const key of enemySheets) {
                 FLASH[key] = tintImage(IMG[key], '#ffffff', 1);
+                FLASH.gold[key] = tintImage(IMG[key], '#fde047', 1);
             }
             FLASH.dash = tintImage(IMG.hero, '#fde68a', 1);
             FLASH.clone = tintImage(IMG.hero, '#fcd34d', 0.35);
-            FLASH.gold = {};
-            for (const key of ['boarRun', 'boarRunBlack', 'boarRunWhite', 'snailWalk', 'beeFly', 'beeAttack']) {
-                FLASH.gold[key] = tintImage(IMG[key], '#fde047', 1);
-            }
             FLASH.rage = {};
-            for (const key of ['boarRunBlack', 'boarRunWhite']) FLASH.rage[key] = tintImage(IMG[key], '#dc2626', 0.35);
+            for (const key of ['boarRunBlack', 'boarRunWhite', 'dragonKing']) FLASH.rage[key] = tintImage(IMG[key], '#dc2626', 0.35);
         }
 
         // Builds a tiny sprite from rows of palette characters ('.' = transparent)
@@ -764,6 +817,182 @@
             '..ppddd..'
         ], { s: '#78350f', l: '#4ade80', p: '#f9a8d4', H: '#fdf2f8', d: '#db2777' });
         const PEACH_SCALE = 3;
+
+        // Lays several equally sized frames side by side into one sprite sheet
+        function makeSheet(frames, palette) {
+            const first = makePixelSprite(frames[0], palette);
+            const sheet = document.createElement('canvas');
+            sheet.width = first.width * frames.length;
+            sheet.height = first.height;
+            const g = sheet.getContext('2d');
+            frames.forEach((rows, i) => g.drawImage(makePixelSprite(rows, palette), i * first.width, 0));
+            return sheet;
+        }
+
+        // --- CODE-DRAWN SEA SPRITES (all face left, like the forest mobs) ---
+        const SEA_SPRITES = {
+            fishSwim: {
+                palette: { o: '#1e1b4b', b: '#f97316', B: '#fdba74', f: '#ea580c', w: '#ffffff', p: '#000000', t: '#fef3c7' },
+                frames: [[
+                    '......ooooo.....',
+                    '....oofffffoo.oo',
+                    '..oobbbbbbbbbofo',
+                    '.obwpbbbbbbbbbfo',
+                    'otbbbbbbbbbbbbo.',
+                    '.oBBBBBBBBBBbo..',
+                    '..ooBBBBBBBoo...',
+                    '....oofffoo.....',
+                    '......ooo.......'
+                ], [
+                    '......ooooo.....',
+                    '....oofffffoo...',
+                    '..oobbbbbbbbbo..',
+                    '.obwpbbbbbbbbbo.',
+                    'otbbbbbbbbbbbbfo',
+                    '.oBBBBBBBBBBbofo',
+                    '..ooBBBBBBBoo.oo',
+                    '.....offfo......',
+                    '......ooo.......'
+                ]]
+            },
+            crabWalk: {
+                palette: { o: '#450a0a', r: '#dc2626', R: '#f87171', p: '#111827', l: '#991b1b' },
+                frames: [[
+                    '.oo..........oo.',
+                    'oRro.p....p.oRro',
+                    '.oro.o....o.oro.',
+                    '..oooooooooooo..',
+                    '.oRRRRRRRRRRRRo.',
+                    '.orrrrrrrrrrrro.',
+                    '..orrrrrrrrrro..',
+                    '...oooooooooo...',
+                    '..l.l.l..l.l.l..',
+                    '.l.l.l....l.l.l.'
+                ], [
+                    'oo............oo',
+                    'oRro.p....p.oRro',
+                    '.oro.o....o.oro.',
+                    '..oooooooooooo..',
+                    '.oRRRRRRRRRRRRo.',
+                    '.orrrrrrrrrrrro.',
+                    '..orrrrrrrrrro..',
+                    '...oooooooooo...',
+                    '...l.l.l..l.l.l.',
+                    '..l.l.l....l.l.l'
+                ]]
+            },
+            jellyFloat: {
+                palette: { o: '#86198f', j: '#f0abfc', J: '#fdf4ff', t: '#e879f9' },
+                frames: [[
+                    '...oooooo...',
+                    '..ojjjjjjo..',
+                    '.ojJJjjjjjo.',
+                    'ojJjjjjjjjjo',
+                    'ojjjjjjjjjjo',
+                    'oooooooooooo',
+                    '.t.t..t.t.t.',
+                    '.t..t.t..t..',
+                    '..t.t..t.t..',
+                    '..t..t.t..t.',
+                    '.t..t..t.t..'
+                ], [
+                    '............',
+                    '..oooooooo..',
+                    '.ojJJjjjjjo.',
+                    'ojJjjjjjjjjo',
+                    'oooooooooooo',
+                    '.t.t.t..t.t.',
+                    't..t..t.t..t',
+                    '.t..t..t..t.',
+                    '..t..t..t...',
+                    '.t..t..t..t.',
+                    '............'
+                ]]
+            },
+            // Đông Hải Long Vương: dragon head, golden horns, red robe, trident behind
+            dragonKing: {
+                palette: { o: '#052e16', g: '#16a34a', G: '#4ade80', h: '#facc15', e: '#ef4444', w: '#ffffff',
+                           r: '#b91c1c', R: '#ef4444', s: '#a16207', c: '#e5e7eb' },
+                frames: [[
+                    '......h.....h.....s.s.s.',
+                    '.....hh....hh.....sssss.',
+                    '......hoooooh.......s...',
+                    '....oogggggggo......s...',
+                    '..oogGGgggggggo.....s...',
+                    '.ogggwegggggggo.....s...',
+                    'oggggggggggggo......s...',
+                    'owgggggggggggo......s...',
+                    'c.oogggggggoo.......s...',
+                    'cc..occcccco........s...',
+                    'c...orrhhrro.......os...',
+                    '...orrRhhRrro.....ogso..',
+                    '..orrRRhhRRrrooooggso...',
+                    '..orrRRhhRRrrro.....s...',
+                    '..orrrRhhRrrrro.....s...',
+                    '..orrrrhhrrrrro.....s...',
+                    '..ohhhhhhhhhhho.....s...',
+                    '..orrrrrrrrrrro.....s...',
+                    '...orrrRRrrrro......s...',
+                    '...orrrRRrrrro......s...',
+                    '....orrrrrrro.......s...',
+                    '....oggo.oggo.......s...',
+                    '...ogggo.ogggo......s...',
+                    '...oooo...oooo......s...'
+                ], [
+                    '......h.....h.....s.s.s.',
+                    '.....hh....hh.....sssss.',
+                    '......hoooooh.......s...',
+                    '....oogggggggo......s...',
+                    '..oogGGgggggggo.....s...',
+                    '.ogggwegggggggo.....s...',
+                    'oggggggggggggo......s...',
+                    'owgggggggggggo......s...',
+                    'c.oogggggggoo.......s...',
+                    'cc..occcccco........s...',
+                    'c...orrhhrro.......os...',
+                    '...orrRhhRrro.....ogso..',
+                    '..orrRRhhRRrrooooggso...',
+                    '..orrRRhhRRrrro.....s...',
+                    '..orrrRhhRrrrro.....s...',
+                    '..orrrrhhrrrrro.....s...',
+                    '..ohhhhhhhhhhho.....s...',
+                    '..orrrrrrrrrrro.....s...',
+                    '...orrrRRrrrro......s...',
+                    '...orrrRRrrrro......s...',
+                    '....orrrrrrro.......s...',
+                    '.....oggo.oggo......s...',
+                    '....ogggo..ogggo....s...',
+                    '....oooo...oooo.....s...'
+                ]]
+            }
+        };
+
+        // Cầu gai (sea urchin) hazard and decorative coral
+        const URCHIN_SPRITE = makePixelSprite([
+            '...s..s...',
+            '.s.ssss.s.',
+            '..ooooooo.',
+            'sooddddoos',
+            '.oddddddo.',
+            's.oooooo.s',
+            '..s....s..'
+        ], { s: '#c4b5fd', o: '#2e1065', d: '#6d28d9' });
+        const CORAL_SPRITE = makePixelSprite([
+            '..c....c....',
+            '.cC..c.cC.c.',
+            '.cc.cc..ccc.',
+            '..cccc.cCc..',
+            '...cCcccc...',
+            '....cccc....',
+            '.....cc.....',
+            '.....cc.....',
+            '....oooo....',
+            '...oooooo...'
+        ], { c: '#fb7185', C: '#fda4af', o: '#9f1239' });
+
+        function buildProceduralSprites() {
+            for (const [key, def] of Object.entries(SEA_SPRITES)) IMG[key] = makeSheet(def.frames, def.palette);
+        }
 
         // Rounds to the nearest device pixel so scaled pixel art stays crisp
         function snap(v) {
@@ -875,6 +1104,48 @@
                 chests: [{ x: 1420, y: 480 }, { x: 1610, y: 130 }],
                 portalX: 2650,
                 portalY: 400
+            },
+            {
+                name: "CẢNH 4: LONG CUNG ĐÔNG HẢI - LONG VƯƠNG",
+                theme: 'sea',
+                water: true, // slow falls, swim upward any number of times
+                worldWidth: 3000,
+                bgGradient: ['#082f49', '#0c4a6e', '#020617'],
+                platforms: [
+                    { x: 0, y: 480, w: 600, h: 60, type: 'stone' },
+                    { x: 760, y: 480, w: 520, h: 60, type: 'stone' },
+                    { x: 1460, y: 480, w: 520, h: 60, type: 'stone' },
+                    { x: 2160, y: 480, w: 840, h: 60, type: 'stone' },
+                    { x: 300, y: 330, w: 160, h: 20, type: 'stone' },
+                    { x: 620, y: 250, w: 140, h: 20, type: 'stone' },
+                    { x: 1000, y: 320, w: 180, h: 20, type: 'stone' },
+                    { x: 1300, y: 200, w: 140, h: 20, type: 'stone' },
+                    { x: 1700, y: 300, w: 180, h: 20, type: 'stone' },
+                    { x: 1130, y: 100, w: 120, h: 20, type: 'stone' }, // secret ledge
+                ],
+                // Hải lưu: zones that push the player (fx per frame, fy added to vertical speed)
+                currents: [
+                    { x: 1280, y: 260, w: 180, h: 220, fx: -1.6, fy: 0 },
+                    { x: 1980, y: 0, w: 180, h: 540, fx: 0, fy: 0.25 },
+                ],
+                hazards: [{ x: 900, y: 480 }, { x: 940, y: 480 }, { x: 1600, y: 480 }, { x: 1640, y: 480 }, { x: 2300, y: 480 }],
+                enemies: [
+                    { x: 450, y: 420, type: 'crab' },
+                    { x: 680, y: 300, type: 'jelly' },
+                    { x: 1100, y: 380, type: 'fish' },
+                    { x: 1370, y: 330, type: 'jelly' },
+                    { x: 1800, y: 420, type: 'crab' },
+                    { x: 1750, y: 200, type: 'fish' },
+                    { x: 2070, y: 300, type: 'jelly' },
+                    { x: 2600, y: 400, type: 'boss' },
+                ],
+                bossName: 'ĐÔNG HẢI LONG VƯƠNG',
+                bossShot: '#7dd3fc',
+                checkpoints: [{ x: 1050, y: 480 }, { x: 2220, y: 480 }],
+                peaches: [{ x: 380, y: 300 }, { x: 690, y: 220 }, { x: 1370, y: 170 }, { x: 1790, y: 270 }, { x: 2070, y: 200 }],
+                chests: [{ x: 1160, y: 100 }, { x: 1850, y: 480 }],
+                portalX: 2880,
+                portalY: 400
             }
         ];
 
@@ -950,7 +1221,7 @@
         }
 
         // --- AMBIENT PARTICLES (fireflies / embers / wisps, screen space) ---
-        const AMBIENT_COLORS = { firefly: '#d9f99d', ember: '#fb923c', wisp: '#c4b5fd' };
+        const AMBIENT_COLORS = { firefly: '#d9f99d', ember: '#fb923c', wisp: '#c4b5fd', bubble: '#bae6fd' };
         let ambient = [];
         let ambientType = 'firefly';
 
@@ -968,6 +1239,10 @@
             } else if (type === 'firefly') {
                 a.vx = (Math.random() - 0.5) * 16;
                 a.vy = (Math.random() - 0.5) * 16;
+            } else if (type === 'bubble') {
+                a.vx = (Math.random() - 0.5) * 6;
+                a.vy = -(25 + Math.random() * 45);
+                a.size = 2 + Math.floor(Math.random() * 3);
             } else {
                 a.vx = (Math.random() - 0.5) * 10;
                 a.vy = -(6 + Math.random() * 12);
@@ -997,6 +1272,16 @@
             ctx.fillStyle = AMBIENT_COLORS[ambientType];
             for (const a of ambient) {
                 const x = (((a.x - camX * a.depth * 0.6) % GAME_WIDTH) + GAME_WIDTH) % GAME_WIDTH;
+                if (ambientType === 'bubble') {
+                    // hollow square bubbles with a highlight pixel
+                    const s = a.size * 2;
+                    ctx.globalAlpha = 0.5 * a.depth;
+                    ctx.strokeStyle = AMBIENT_COLORS.bubble;
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(snap(x), snap(a.y), s, s);
+                    ctx.fillRect(snap(x + 1), snap(a.y + 1), 1, 1);
+                    continue;
+                }
                 const flicker = 0.35 + 0.65 * Math.abs(Math.sin(a.t * 2.2));
                 ctx.globalAlpha = flicker * 0.25 * a.depth;
                 ctx.fillRect(snap(x - a.size), snap(a.y - a.size), a.size * 3, a.size * 3);
@@ -1280,6 +1565,102 @@
 
         let projectiles = [];
 
+        // --- HAZARDS (cầu gai: spiky sea urchins on the sea floor) ---
+        const URCHIN_SCALE = 3;
+
+        class Hazard {
+            constructor(x, y) {
+                this.width = URCHIN_SPRITE.width * URCHIN_SCALE;
+                this.height = URCHIN_SPRITE.height * URCHIN_SCALE;
+                this.x = x;
+                this.y = y - this.height;
+            }
+
+            update(player) {
+                // Slightly smaller hitbox than the sprite so the spikes feel fair
+                const box = { x: this.x + 4, y: this.y + 6, width: this.width - 8, height: this.height - 6 };
+                if (!player.isDead && overlaps(player, box) && player.invulnerableTimer <= 0 && !player.isDashing && !player.skill) {
+                    player.takeDamage(15);
+                    player.vy = -7;
+                }
+            }
+
+            draw(ctx, camX) {
+                const x = snap(this.x - camX);
+                if (x + this.width < 0 || x > GAME_WIDTH) return;
+                ctx.drawImage(URCHIN_SPRITE, x, this.y, this.width, this.height);
+            }
+        }
+
+        let hazards = [];
+
+        // Streaks drifting through each current zone show which way it pushes
+        function drawCurrents(ctx, camX) {
+            ctx.save();
+            ctx.fillStyle = '#e0f2fe';
+            for (const c of currentLevel.currents || []) {
+                if (c.x - camX > GAME_WIDTH || c.x + c.w - camX < 0) continue;
+                const horizontal = Math.abs(c.fx) > Math.abs(c.fy);
+                for (let k = 0; k < 18; k++) {
+                    const seedX = (k * 53) % c.w, seedY = (k * 97) % c.h;
+                    const travel = worldTime * 90;
+                    let px, py;
+                    if (horizontal) {
+                        px = c.x + ((seedX + travel * Math.sign(c.fx)) % c.w + c.w) % c.w;
+                        py = c.y + seedY;
+                    } else {
+                        px = c.x + seedX;
+                        py = c.y + ((seedY + travel * Math.sign(c.fy)) % c.h + c.h) % c.h;
+                    }
+                    ctx.globalAlpha = 0.25;
+                    ctx.fillRect(snap(px - camX), snap(py), horizontal ? 14 : 2, horizontal ? 2 : 14);
+                }
+            }
+            ctx.restore();
+        }
+
+        // Underwater: blue tint, slanted light rays and a rippling surface line
+        function drawWaterOverlay(ctx, camX) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(14, 116, 144, 0.16)';
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.fillStyle = 'rgba(186, 230, 253, 0.05)';
+            for (let i = 0; i < 6; i++) {
+                const x0 = (((i * 170 - camX * 0.3 + worldTime * 12) % 1020) + 1020) % 1020 - 120;
+                ctx.beginPath();
+                ctx.moveTo(x0, 0);
+                ctx.lineTo(x0 + 40, 0);
+                ctx.lineTo(x0 + 150, GAME_HEIGHT);
+                ctx.lineTo(x0 + 70, GAME_HEIGHT);
+                ctx.fill();
+            }
+            ctx.fillStyle = 'rgba(224, 242, 254, 0.35)';
+            for (let x = 0; x < GAME_WIDTH; x += 8) {
+                ctx.fillRect(x, snap(8 + Math.sin(x * 0.04 + worldTime * 2) * 3), 8, 2);
+            }
+            ctx.restore();
+        }
+
+        // Code-drawn sea floor props: swaying kelp and coral
+        function drawSeaProp(ctx, name, x, y) {
+            if (name === 'coral') {
+                const w = CORAL_SPRITE.width * 3, h = CORAL_SPRITE.height * 3;
+                if (x + w < 0 || x > GAME_WIDTH) return;
+                ctx.drawImage(CORAL_SPRITE, x, y + 2 - h, w, h);
+                return;
+            }
+            if (x + 30 < 0 || x > GAME_WIDTH + 30) return;
+            for (let s = 0; s < 3; s++) {
+                const segments = 8 + ((x + s * 13) % 4 + 4) % 4;
+                for (let seg = 0; seg < segments; seg++) {
+                    const sway = Math.sin(worldTime * 2 + seg * 0.5 + s + x * 0.01) * seg * 0.8;
+                    ctx.fillStyle = seg % 2 === 0 ? '#166534' : '#15803d';
+                    ctx.fillRect(snap(x + s * 8 + sway), y - (seg + 1) * 7, 4, 7);
+                }
+            }
+        }
+
         // Stage title shown centred at the start of each level
         const levelBanner = { text: '', timer: 0 };
         const BANNER_TIME = 3;
@@ -1347,6 +1728,7 @@
                 this.skillTimer = 0;
                 this.pillarBaseY = 0;
                 this.jumpBuffer = 0;     // a jump pressed slightly too early still fires on landing
+                this.swimCooldown = 0;
 
                 this.animState = 'idle';
                 this.animTime = 0;
@@ -1383,7 +1765,7 @@
 
             useSkill(id) {
                 if (this.isDead || this.skill) return;
-                if (!save.skills[id]) {
+                if (!isSkillLearned(id)) {
                     floatingTexts.push(new FloatingText('CHƯA LĨNH NGỘ', this.x - 30, this.y - 16, '#94a3b8', 9));
                     return;
                 }
@@ -1423,7 +1805,8 @@
                 if (this.skillPhase === 'plant') {
                     if (this.skillTimer <= 0) {
                         this.skillPhase = 'rise';
-                        this.vy = -20;
+                        // Same ~300px launch height whatever the gravity
+                        this.vy = -Math.sqrt(2 * this.gravity() * 307);
                         this.jumpCount = this.maxJumps;
                     }
                     return;
@@ -1434,7 +1817,7 @@
                 }
 
                 if (this.skillPhase === 'rise') {
-                    this.vy += 0.65;
+                    this.vy += this.gravity();
                     this.vx = keys.left ? -3 : keys.right ? 3 : 0;
                     if (this.vy >= 0) {
                         this.skillPhase = 'slam';
@@ -1462,15 +1845,21 @@
                 }
             }
 
+            // Underwater stages are floaty
+            gravity() {
+                return currentLevel.water ? 0.32 : 0.65;
+            }
+
             update(dt, platforms) {
                 if (this.invulnerableTimer > 0) this.invulnerableTimer -= dt;
                 if (this.dashCooldown > 0) this.dashCooldown -= dt;
                 if (this.attackCooldown > 0) this.attackCooldown -= dt;
                 if (this.comboWindow > 0) this.comboWindow -= dt;
+                if (this.swimCooldown > 0) this.swimCooldown -= dt;
 
                 if (this.isDead) {
                     this.vx *= 0.9;
-                    this.vy += 0.65;
+                    this.vy += this.gravity();
                     this.x += this.vx;
                     this.y += this.vy;
                     this.isGrounded = false;
@@ -1499,16 +1888,19 @@
                         this.isDashing = false;
                     }
                 } else {
+                    const speed = currentLevel.water ? this.speed * 0.85 : this.speed;
                     if (keys.left) {
-                        this.vx = -this.speed;
+                        this.vx = -speed;
                         this.facing = 'left';
                     } else if (keys.right) {
-                        this.vx = this.speed;
+                        this.vx = speed;
                         this.facing = 'right';
                     } else {
                         this.vx *= 0.7;
                     }
-                    this.vy += 0.65;
+                    this.vy += this.gravity();
+                    if (currentLevel.water) this.vy = Math.min(this.vy, 5);
+                    this.applyCurrents();
                 }
 
                 if (keys.dash && this.dashCooldown <= 0 && !this.isDashing) {
@@ -1579,7 +1971,13 @@
                 this.ghosts = this.ghosts.filter(g => g.life > 0);
 
                 if (this.y > GAME_HEIGHT + 100) {
-                    this.die();
+                    if (DEV && dev.god) {
+                        this.x = respawnPoint.x;
+                        this.y = respawnPoint.y;
+                        this.vy = 0;
+                    } else {
+                        this.die();
+                    }
                 }
             }
 
@@ -1657,11 +2055,42 @@
                         }
                     }
                 }
+                // The sea surface acts as a ceiling
+                if (currentLevel.water && this.y < 0) {
+                    this.y = 0;
+                    if (this.vy < 0) this.vy = 0;
+                }
+            }
+
+            // Hải lưu: currents push the player while inside their zone
+            applyCurrents() {
+                for (const c of currentLevel.currents || []) {
+                    if (overlaps(this, { x: c.x, y: c.y, width: c.w, height: c.h })) {
+                        this.x += c.fx;
+                        this.vy += c.fy;
+                    }
+                }
             }
 
             // Returns true if the jump happened
             jump() {
                 if (this.isDead || this.skill) return false;
+                if (currentLevel.water) {
+                    // Swim stroke: unlimited, but with a short cooldown
+                    if (this.swimCooldown > 0) return false;
+                    this.vy = -8.5;
+                    this.swimCooldown = 0.25;
+                    this.isGrounded = false;
+                    playSound('jump');
+                    for (let i = 0; i < 5; i++) {
+                        particles.push(new Particle(
+                            this.x + this.width / 2 + (Math.random() - 0.5) * 20, this.y + this.height,
+                            (Math.random() - 0.5) * 2, -Math.random() * 2,
+                            '#bae6fd', 3, 0.4
+                        ));
+                    }
+                    return true;
+                }
                 if (this.isGrounded || this.jumpCount < this.maxJumps) {
                     this.vy = this.jumpForce;
                     this.jumpCount++;
@@ -1682,6 +2111,7 @@
 
             takeDamage(amount) {
                 if (this.isDead || this.invulnerableTimer > 0 || this.isDashing || this.skill) return;
+                if (DEV && dev.god) return;
 
                 this.hp -= amount;
                 if (this.hp < 0) this.hp = 0;
@@ -1930,7 +2360,10 @@
             slime:  { width: 36,  height: 30, hp: 30,  speed: 1.8, damage: 10, scoreValue: 100,  barLift: 10 },
             goblin: { width: 54,  height: 42, hp: 60,  speed: 2.5, damage: 15, scoreValue: 200,  barLift: 10 },
             demon:  { width: 34,  height: 40, hp: 100, speed: 2.2, damage: 25, scoreValue: 350,  barLift: 28 },
-            boss:   { width: 100, height: 84, hp: 350, speed: 2.0, damage: 35, scoreValue: 1000, barLift: 14 }
+            boss:   { width: 100, height: 84, hp: 350, speed: 2.0, damage: 35, scoreValue: 1000, barLift: 14 },
+            fish:   { width: 44,  height: 26, hp: 50,  speed: 2.4, damage: 15, scoreValue: 250,  barLift: 10 },
+            crab:   { width: 44,  height: 28, hp: 70,  speed: 1.6, damage: 15, scoreValue: 200,  barLift: 10 },
+            jelly:  { width: 32,  height: 32, hp: 40,  speed: 0,   damage: 20, scoreValue: 150,  barLift: 10 }
         };
         const ENEMY_DEATH_TIME = 0.6;
 
@@ -1942,9 +2375,9 @@
                 Object.assign(this, ENEMY_STATS[type]);
                 this.maxHp = this.hp;
 
-                // Demons are flying bees that hover around their spawn point
-                this.flying = type === 'demon';
-                this.baseY = y - 50;
+                // Bees (demon) and fish hover around their spawn point and chase; jellyfish just drift up and down
+                this.flying = type === 'demon' || type === 'fish' || type === 'jelly';
+                this.baseY = type === 'jelly' ? y : y - 50;
                 if (this.flying) this.y = this.baseY;
 
                 this.vx = this.speed;
@@ -2010,6 +2443,12 @@
             }
 
             updateMob(dt, player, platforms) {
+                if (this.type === 'jelly') {
+                    this.y = this.baseY + Math.sin(this.animTime * 1.2) * 70;
+                    this.x += this.kvx;
+                    this.kvx *= 0.85;
+                    return;
+                }
                 const distToPlayer = Math.hypot((player.x + player.width / 2) - (this.x + this.width / 2), (player.y + player.height / 2) - (this.y + this.height / 2));
                 const chasing = distToPlayer < 250 && !player.isDead;
                 const stunned = Math.abs(this.kvx) > 1;
@@ -2220,6 +2659,9 @@
             sprite() {
                 if (this.type === 'slime') return { key: 'snailWalk', anim: ENEMY_ANIMS.snail, fps: 10, scale: ART_SCALE };
                 if (this.type === 'goblin') return { key: 'boarRun', anim: ENEMY_ANIMS.boar, fps: 12, scale: ART_SCALE };
+                if (this.type === 'fish') return { key: 'fishSwim', anim: ENEMY_ANIMS.fish, fps: this.isLunging ? 12 : 6, scale: 3 };
+                if (this.type === 'crab') return { key: 'crabWalk', anim: ENEMY_ANIMS.crab, fps: 6, scale: 3 };
+                if (this.type === 'jelly') return { key: 'jellyFloat', anim: ENEMY_ANIMS.jelly, fps: 2, scale: 3 };
                 if (this.type === 'demon') {
                     return this.isLunging
                         ? { key: 'beeAttack', anim: ENEMY_ANIMS.beeAttack, fps: 14, scale: ART_SCALE }
@@ -2227,7 +2669,13 @@
                 }
                 const theme = THEMES[currentLevel.theme];
                 const fps = this.state === 'charge' ? 22 : this.state === 'telegraph' || this.state === 'roar' ? 0 : 10;
-                return { key: theme.boss, anim: ENEMY_ANIMS.boar, fps, scale: 3, glow: this.phase === 2 ? '#dc2626' : theme.bossGlow };
+                return {
+                    key: theme.boss,
+                    anim: theme.bossAnim || ENEMY_ANIMS.boar,
+                    fps: theme.bossAnim ? fps / 2 : fps, // the dragon has only two frames
+                    scale: theme.bossScale || 3,
+                    glow: this.phase === 2 ? '#dc2626' : theme.bossGlow
+                };
             }
 
             draw(ctx, camX) {
@@ -2502,6 +2950,8 @@
                 if (x + w < 0 || x > GAME_WIDTH) return;
                 const sy = BUSH.rowY + theme.bushRow * BUSH.rowStep;
                 ctx.drawImage(theme.tiles, BUSH.x, sy, BUSH.w, BUSH.h, x, item.y + 12 - h, w, h);
+            } else if (!PROPS[item.name]) {
+                drawSeaProp(ctx, item.name, x, item.y);
             } else {
                 const r = PROPS[item.name];
                 const w = r.w * S, h = r.h * S;
@@ -2581,6 +3031,7 @@
             checkpoints = (currentLevel.checkpoints || []).map(c => new Checkpoint(c.x, c.y));
             pickups = (currentLevel.peaches || []).map(p => new Pickup(p.x, p.y));
             chests = (currentLevel.chests || []).map(c => new Chest(c.x, c.y));
+            hazards = (currentLevel.hazards || []).map(h => new Hazard(h.x, h.y));
             clones = [];
             projectiles = [];
             shockwaves = [];
@@ -2725,7 +3176,7 @@
             ctx.textAlign = 'center';
             for (const id in SKILLS) {
                 const s = SKILLS[id];
-                const learned = save.skills[id];
+                const learned = isSkillLearned(id);
                 const ready = learned && player.mp >= s.cost;
                 ctx.fillStyle = 'rgba(2, 6, 23, 0.75)';
                 ctx.fillRect(x, y, 48, 44);
@@ -2750,7 +3201,7 @@
             { x: 110, y: 380, stage: 0, title: 'HOA QUẢ SƠN' },
             { x: 250, y: 285, stage: 1, title: 'HỎA DIỆM SƠN' },
             { x: 395, y: 355, stage: 2, title: 'BẠCH CỐT ĐỘNG' },
-            { x: 530, y: 250, title: 'LONG CUNG' },
+            { x: 530, y: 250, stage: 3, title: 'LONG CUNG' },
             { x: 650, y: 330, title: 'BÀN TƠ ĐỘNG' },
             { x: 735, y: 200, title: 'THIÊN CUNG' }
         ];
@@ -2759,7 +3210,7 @@
         let shopOpen = false;
 
         function isPlayable(node) {
-            return node.stage !== undefined && node.stage <= save.unlocked;
+            return node.stage !== undefined && (DEV || node.stage <= save.unlocked);
         }
 
         function goToMap() {
@@ -3066,6 +3517,11 @@
             for (const p of projectiles) p.update(dt, player, platforms);
             projectiles = projectiles.filter(p => !p.dead);
             for (const c of checkpoints) c.update(dt, player);
+            if (DEV && dev.infiniteMp && player.mp < player.maxMp) {
+                player.mp = player.maxMp;
+                updateHUD();
+            }
+            for (const h of hazards) h.update(player);
 
             portal.update(dt, player);
             if (gameState !== 'PLAYING') return; // portal reached
@@ -3093,6 +3549,7 @@
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
             updateAmbient(dt);
+            worldTime += dt;
 
             if (gameState === 'MAP') {
                 drawMap(ctx, dt);
@@ -3123,8 +3580,10 @@
 
             const theme = THEMES[currentLevel.theme];
             if (theme) {
+                drawCurrents(ctx, camX);
                 for (const c of checkpoints) c.draw(ctx, camX);
                 for (const c of chests) c.draw(ctx, camX, theme);
+                for (const h of hazards) h.draw(ctx, camX);
                 portal.draw(ctx, camX);
                 for (const p of pickups) p.draw(ctx, camX);
 
@@ -3143,6 +3602,7 @@
             }
             ctx.restore();
 
+            if (currentLevel.water && theme) drawWaterOverlay(ctx, camX);
             drawAmbient(ctx, camX);
             ctx.fillStyle = vignette;
             ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
@@ -3183,6 +3643,56 @@
         document.getElementById('shop-close-btn').addEventListener('click', closeShop);
         for (const btn of document.querySelectorAll('.to-map-btn')) btn.addEventListener('click', goToMap);
 
+        // --- DEV PANEL ---
+        function setupDevPanel() {
+            const panel = document.getElementById('dev-panel');
+            panel.classList.remove('hidden');
+            document.getElementById('dev-stages').innerHTML = LEVELS.map((_, i) =>
+                `<button data-stage="${i}" class="py-1.5 rounded bg-amber-700 hover:bg-amber-600 pixel-font text-[9px] cursor-pointer">${i + 1}</button>`).join('');
+
+            for (const [id, prop] of [['dev-god', 'god'], ['dev-mp', 'infiniteMp']]) {
+                const box = document.getElementById(id);
+                box.addEventListener('change', () => {
+                    dev[prop] = box.checked;
+                    box.blur(); // so Space keeps jumping instead of toggling the box
+                });
+            }
+
+            panel.addEventListener('click', (e) => {
+                const btn = e.target.closest('button');
+                if (!btn) return;
+                btn.blur();
+                if (btn.dataset.stage !== undefined) {
+                    if (startBtn.disabled) return; // art still loading
+                    startRun(+btn.dataset.stage);
+                    return;
+                }
+                const action = btn.dataset.dev;
+                if (action === 'peach') {
+                    save.peaches += 100;
+                    updateHUD();
+                    updateMapUi();
+                    if (shopOpen) renderShop();
+                } else if (action === 'map') {
+                    if (!startBtn.disabled) goToMap();
+                } else if (gameState === 'PLAYING') {
+                    if (action === 'boss') {
+                        const boss = enemies.find(en => en.type === 'boss' && !en.dead);
+                        if (boss) {
+                            boss.isHit = false;
+                            boss.takeDamage(boss.hp, 'right');
+                        }
+                    } else if (action === 'portal') {
+                        player.x = portal.x - 100;
+                        player.y = portal.y - 40;
+                        player.vy = 0;
+                        camera.snapTo(player, currentLevel.worldWidth);
+                    }
+                }
+            });
+        }
+        if (DEV) setupDevPanel();
+
         // LOAD ART, THEN ENABLE START
         loadSave();
         loadAssets().then(() => {
@@ -3192,6 +3702,7 @@
                 startBtn.innerText = 'THIẾU FILE TRONG THƯ MỤC assets/';
                 return;
             }
+            buildProceduralSprites();
             buildThemes();
             buildScenery(currentLevel, THEMES[currentLevel.theme]);
             resetAmbient(THEMES[currentLevel.theme].ambient);
