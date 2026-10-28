@@ -1,0 +1,7 @@
+# Original asset packs (not redistributed; the game only needs assets/)
+*.zip
+Legacy Fantasy - Debug Map/
+Legacy-Fantasy - High Forest 2.0/
+
+# Local backups
+*.backup.html

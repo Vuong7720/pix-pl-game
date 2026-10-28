@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tây Du Ký: Tề Thiên Đại Thánh Truyền Kỳ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Anek+Malayalam:wght@600;700&display=swap');
+
+        body {
+            background-color: #0d0f12;
+            font-family: 'Anek Malayalam', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        .pixel-font {
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        .pixelated {
+            image-rendering: pixelated;
+        }
+
+        /* Glassmorphism containers */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        /* Custom scrollbar for HUD panels */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #e11d48;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-center items-center relative select-none">
+
+    <!-- Game Header / TOP HUD -->
+    <div class="fixed top-2 left-0 right-0 z-20 px-4 max-w-6xl mx-auto flex justify-between items-center pointer-events-none">
+        <!-- Player Info -->
+        <div class="glass-panel rounded-xl p-3 flex items-center gap-4 pointer-events-auto shadow-lg border-l-4 border-amber-500">
+            <div class="relative w-12 h-12 rounded-lg bg-slate-800 border-2 border-amber-500/50 flex items-center justify-center overflow-hidden">
+                <canvas id="avatar-canvas" width="48" height="48" class="w-full h-full pixelated"></canvas>
+            </div>
+            <div>
+                <div class="flex items-center justify-between gap-2 mb-1">
+                    <span class="pixel-font text-xs text-amber-400 font-bold tracking-wider">TÔN NGỘ KHÔNG</span>
+                    <span id="level-indicator" class="pixel-font text-[10px] bg-amber-950 text-amber-300 px-2 py-0.5 rounded border border-amber-800">CẢNH 1</span>
+                </div>
+                <!-- Health Bar -->
+                <div class="w-44 md:w-60 h-4 bg-slate-950 rounded-full border border-slate-700/60 overflow-hidden relative p-0.5">
+                    <div id="hp-bar" class="h-full bg-gradient-to-r from-red-600 via-amber-500 to-yellow-400 rounded-full transition-all duration-150 shadow-sm shadow-amber-500" style="width: 100%;"></div>
+                    <span id="hp-text" class="absolute inset-0 flex items-center justify-center pixel-font text-[9px] text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">100 / 100</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Score / Combo Display -->
+        <div class="glass-panel rounded-xl px-5 py-2 flex items-center gap-6 pointer-events-auto border-r-4 border-red-500">
+            <div class="text-right">
+                <div class="pixel-font text-[9px] text-slate-400">ĐIỂM SỐ</div>
+                <div id="score-display" class="pixel-font text-lg text-amber-400 drop-shadow">00000</div>
+            </div>
+            <div class="h-8 w-px bg-slate-700"></div>
+            <div class="text-center min-w-[50px]">
+                <div class="pixel-font text-[9px] text-slate-400">COMBO</div>
+                <div id="combo-display" class="pixel-font text-xl text-red-500 transition-transform duration-75">0x</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN GAME CANVAS CONTAINER -->
+    <div class="relative w-full h-full flex items-center justify-center bg-black">
+        <canvas id="gameCanvas" class="w-full h-full object-contain block"></canvas>
+
+        <!-- START SCREEN OVERLAY -->
+        <div id="start-overlay" class="absolute inset-0 z-30 flex flex-col items-center justify-center glass-panel bg-slate-950/90 p-6 text-center">
+            <div class="max-w-xl mx-auto space-y-6">
+                <div class="inline-block p-3 rounded-2xl bg-amber-950/50 border border-amber-500/30 mb-2">
+                    <i class="fa-solid fa-dragon text-5xl text-amber-500 animate-pulse"></i>
+                </div>
+                <h1 class="pixel-font text-2xl md:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-red-600 tracking-wider">
+                    TÂY DU KÝ: NGỘ KHÔNG
+                </h1>
+                <p class="text-slate-300 text-sm md:text-base font-medium leading-relaxed max-w-md mx-auto">
+                    Thiên Cung dậy sóng, Yêu ma quấy nhiễu! Hãy cầm Gậy Như Ý tiêu diệt yêu ma, vượt qua các kiếp nạn để bảo vệ chúng sinh!
+                </p>
+
+                <!-- Controls Guide -->
+                <div class="grid grid-cols-2 gap-3 text-left bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-xs">
+                    <div class="flex items-center gap-2">
+                        <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">A</kbd> / <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">D</kbd> hoặc <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">←</kbd><kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">→</kbd>
+                        <span class="text-slate-400">Di chuyển Trai / Phải</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">W</kbd> hoặc <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">SPACE</kbd>
+                        <span class="text-slate-400">Nhảy / Nhảy Kép</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">J</kbd> hoặc <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">CLICK</kbd>
+                        <span class="text-slate-400">Vung Gậy Như Ý</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">K</kbd> / <kbd class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-amber-400 font-mono">SHIFT</kbd>
+                        <span class="text-slate-400">Cân Đẩu Vân (Lướt)</span>
+                    </div>
+                </div>
+
+                <button id="start-btn" disabled class="w-full py-4 bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-500 hover:to-red-500 text-white pixel-font text-sm rounded-xl shadow-lg shadow-amber-950 hover:scale-[1.02] active:scale-[0.98] transition duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-wait disabled:hover:scale-100">
+                    ĐANG TẢI ĐỒ HỌA...
+                </button>
+            </div>
+        </div>
+
+        <!-- GAME OVER OVERLAY -->
+        <div id="gameover-overlay" class="hidden absolute inset-0 z-30 flex flex-col items-center justify-center glass-panel bg-red-950/90 p-6 text-center">
+            <div class="max-w-md mx-auto space-y-6 animate-bounce-short">
+                <i class="fa-solid fa-skull-crossbones text-6xl text-red-500 mb-2"></i>
+                <h2 class="pixel-font text-3xl text-red-500">TẢI THẢM!</h2>
+                <p class="text-slate-300 text-sm">Yêu ma quá mạnh mẽ, Ngộ Không đã kiệt sức...</p>
+
+                <div class="bg-slate-900/90 p-4 rounded-xl border border-red-900/50 space-y-2">
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>Điểm Số:</span>
+                        <span id="final-score" class="pixel-font text-amber-400">0</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>Kiếp Nạn:</span>
+                        <span id="final-stage" class="pixel-font text-red-400">Cảnh 1</span>
+                    </div>
+                </div>
+
+                <button id="restart-btn" class="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white pixel-font text-xs rounded-xl shadow-lg hover:scale-105 transition cursor-pointer">
+                    THỬ LẠI LẦN NỮA
+                </button>
+            </div>
+        </div>
+
+        <!-- STAGE CLEAR / VICTORY OVERLAY -->
+        <div id="victory-overlay" class="hidden absolute inset-0 z-30 flex flex-col items-center justify-center glass-panel bg-slate-950/95 p-6 text-center">
+            <div class="max-w-md mx-auto space-y-6">
+                <i class="fa-solid fa-crown text-6xl text-amber-400 animate-bounce"></i>
+                <h2 class="pixel-font text-3xl text-amber-400">ĐẠI THẮNG!</h2>
+                <p class="text-slate-300 text-sm">Ngộ Không đã quét sạch yêu quái, thu phục bình an cho nhân gian!</p>
+
+                <div class="bg-slate-900 p-4 rounded-xl border border-amber-500/30 space-y-2">
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>Tổng Điểm:</span>
+                        <span id="victory-score" class="pixel-font text-amber-400">0</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>Danh Hệu:</span>
+                        <span class="pixel-font text-emerald-400">ĐẤU CHIẾN THẮNG PHẬT</span>
+                    </div>
+                </div>
+
+                <button id="victory-restart-btn" class="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold pixel-font text-xs rounded-xl shadow-lg hover:scale-105 transition cursor-pointer">
+                    CHƠI LẠI TỪ ĐẦU
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOUCH CONTROLS (For mobile & touch tablets) -->
+    <div id="mobile-controls" class="fixed bottom-3 left-3 right-3 z-20 flex justify-between items-end pointer-events-none md:hidden">
+        <!-- Directional D-Pad -->
+        <div class="flex gap-2 pointer-events-auto">
+            <button id="btn-left" class="w-14 h-14 bg-slate-900/80 active:bg-rose-600/80 border border-slate-700 rounded-2xl flex items-center justify-center text-white text-2xl active:scale-95 transition">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <button id="btn-right" class="w-14 h-14 bg-slate-900/80 active:bg-rose-600/80 border border-slate-700 rounded-2xl flex items-center justify-center text-white text-2xl active:scale-95 transition">
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+        <!-- Action Buttons -->
+        <div class="flex gap-2 pointer-events-auto">
+            <button id="btn-dash" class="w-12 h-12 bg-slate-800/80 active:bg-amber-600/80 border border-slate-700 rounded-full flex items-center justify-center text-amber-400 text-lg active:scale-95 transition">
+                <i class="fa-solid fa-bolt"></i>
+            </button>
+            <button id="btn-jump" class="w-14 h-14 bg-slate-900/80 active:bg-sky-600/80 border border-slate-700 rounded-2xl flex items-center justify-center text-sky-400 text-xl active:scale-95 transition">
+                <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <button id="btn-attack" class="w-16 h-16 bg-rose-600/90 active:bg-rose-500 border-2 border-rose-400 rounded-2xl flex items-center justify-center text-white text-2xl active:scale-95 shadow-lg shadow-rose-950 transition">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN GAME ENGINE SCRIPT -->
+    <script>
+        // --- GAME CANVAS & SETUP ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const GAME_WIDTH = 800;
+        const GAME_HEIGHT = 540;
+        // The backing store is 2x the logical size, so pixel art drawn at 1.5x lands on whole device pixels (3px per art pixel)
+        const RENDER_SCALE = 2;
+        const ART_SCALE = 1.5;
+        canvas.width = GAME_WIDTH * RENDER_SCALE;
+        canvas.height = GAME_HEIGHT * RENDER_SCALE;
+
+        // UI Elements
+        const startOverlay = document.getElementById('start-overlay');
+        const gameOverOverlay = document.getElementById('gameover-overlay');
+        const victoryOverlay = document.getElementById('victory-overlay');
+        const hpBar = document.getElementById('hp-bar');
+        const hpText = document.getElementById('hp-text');
+        const scoreDisplay = document.getElementById('score-display');
+        const comboDisplay = document.getElementById('combo-display');
+        const levelIndicator = document.getElementById('level-indicator');
+        const startBtn = document.getElementById('start-btn');
+        const avatarCanvas = document.getElementById('avatar-canvas');
+
+        // Game State
+        let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER', 'VICTORY'
+        let currentLevelIndex = 0;
+        let score = 0;
+        let comboCount = 0;
+        let comboTimer = 0;
+        let lastTime = 0;
+
+        // Keyboard Inputs
+        const keys = {
+            left: false,
+            right: false,
+            up: false,
+            attack: false,
+            dash: false
+        };
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
+            if (e.code === 'KeyW' || e.code === 'ArrowUp' || e.code === 'Space') {
+                if (!keys.up && gameState === 'PLAYING') player.jump();
+                keys.up = true;
+            }
+            if (e.code === 'KeyJ') keys.attack = true;
+            if (e.code === 'KeyK' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.dash = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
+            if (e.code === 'KeyW' || e.code === 'ArrowUp' || e.code === 'Space') keys.up = false;
+            if (e.code === 'KeyJ') keys.attack = false;
+            if (e.code === 'KeyK' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.dash = false;
+        });
+
+        window.addEventListener('mousedown', (e) => {
+            if (e.button === 0 && gameState === 'PLAYING') keys.attack = true;
+        });
+        window.addEventListener('mouseup', (e) => {
+            if (e.button === 0) keys.attack = false;
+        });
+
+        // --- AUDIO SYSTEM (Web Audio API) ---
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+
+                if (type === 'slash') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'hit') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.12);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                } else if (type === 'jump') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.exponentialRampToValueAtTime(450, now + 0.15);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'kill') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.exponentialRampToValueAtTime(600, now + 0.2);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        // --- ASSETS (pixel art: "Legacy Fantasy - High Forest" by Anokolisa) ---
+        const ASSET_FILES = {
+            sky: 'sky.png',
+            bgTrees: 'bg-trees.png',
+            treeGreen: 'tree-green.png',
+            treeRed: 'tree-red.png',
+            treeDark: 'tree-dark.png',
+            tiles: 'tiles.png',
+            heroIdle: 'hero-idle.png',
+            heroRun: 'hero-run.png',
+            heroAttack: 'hero-attack.png',
+            heroJump: 'hero-jump.png',
+            heroDead: 'hero-dead.png',
+            boarRun: 'boar-run.png',
+            boarRunBlack: 'boar-run-black.png',
+            boarRunWhite: 'boar-run-white.png',
+            snailWalk: 'snail-walk.png',
+            snailDead: 'snail-dead.png',
+            beeFly: 'bee-fly.png',
+            beeAttack: 'bee-attack.png'
+        };
+        const IMG = {};
+        const FLASH = {}; // solid-colour silhouettes for hit flashes and dash trails
+
+        function loadAssets() {
+            const jobs = Object.entries(ASSET_FILES).map(([key, file]) => new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => { IMG[key] = img; resolve(); };
+                img.onerror = () => { console.error(`Không tải được assets/${file}`); resolve(); };
+                img.src = `assets/${file}`;
+            }));
+            return Promise.all(jobs);
+        }
+
+        // Shifts an image toward `color` by `amount` (0..1) while keeping its transparency
+        function tintImage(img, color, amount) {
+            const c = document.createElement('canvas');
+            c.width = img.width;
+            c.height = img.height;
+            const g = c.getContext('2d');
+            g.drawImage(img, 0, 0);
+            g.globalCompositeOperation = 'source-atop';
+            g.globalAlpha = amount;
+            g.fillStyle = color;
+            g.fillRect(0, 0, c.width, c.height);
+            return c;
+        }
+
+        // Frame layouts measured from the sheets: ax = body centre x inside a frame, foot = lowest row of the feet
+        const HERO_ANIMS = {
+            idle:   { img: 'heroIdle',   fw: 64, fh: 80, frames: 4,  ax: 34, foot: 63 },
+            run:    { img: 'heroRun',    fw: 80, fh: 80, frames: 8,  ax: 42, foot: 66 },
+            attack: { img: 'heroAttack', fw: 96, fh: 80, frames: 8,  ax: 50, foot: 63 },
+            jump:   { img: 'heroJump',   fw: 64, fh: 64, frames: 15, ax: 24, foot: 63 },
+            dead:   { img: 'heroDead',   fw: 64, fh: 64, frames: 10, ax: 32, foot: 47 }
+        };
+        // Combo step -> [first frame, frame count] of the attack sheet, and swing duration
+        const ATTACK_FRAMES = { 1: [0, 5], 2: [5, 3], 3: [0, 8] };
+        const ATTACK_TIMINGS = { 1: 0.25, 2: 0.2, 3: 0.34 };
+
+        // Mob sheets face LEFT
+        const ENEMY_ANIMS = {
+            snail:     { fw: 48, fh: 32, frames: 8, ax: 24, foot: 31 },
+            snailDead: { fw: 48, fh: 32, frames: 8, ax: 24, foot: 31 },
+            boar:      { fw: 48, fh: 32, frames: 6, ax: 23, foot: 31 },
+            beeFly:    { fw: 64, fh: 64, frames: 4, ax: 30, foot: 44 },
+            beeAttack: { fw: 64, fh: 64, frames: 4, ax: 30, foot: 45 }
+        };
+
+        // Source rectangles inside tiles.png (16px grid)
+        const TILE = {
+            grass: { sx: 0, sw: 80, left: 16, right: 16, topY: 8, topH: 24, fillY: 32, fillH: 32, surface: 10 },
+            stone: { sx: 0, sw: 80, left: 16, right: 16, topY: 88, topH: 24, fillY: 112, fillH: 32, surface: 8 },
+            plank: { sx: 81, sw: 46, left: 16, right: 16, sy: 96, sh: 10, surface: 0 },
+            moss:  { sx: 178, sw: 45, left: 14, right: 15, sy: 238, sh: 17, surface: 2 }
+        };
+        const PROPS = {
+            mushA:    { x: 257, y: 247, w: 30, h: 25 },
+            mushB:    { x: 290, y: 240, w: 28, h: 32 },
+            mushC:    { x: 321, y: 251, w: 14, h: 21 },
+            flower:   { x: 259, y: 271, w: 12, h: 17 },
+            lavender: { x: 273, y: 272, w: 15, h: 32 },
+            rockA:    { x: 0,   y: 336, w: 80, h: 32 },
+            rockB:    { x: 80,  y: 336, w: 80, h: 32 },
+            rockC:    { x: 160, y: 336, w: 80, h: 32 }
+        };
+        const BUSH = { x: 274, w: 124, h: 43, rowY: 5, rowStep: 48 };
+        // Inside the tree sheets (every colour variant shares this layout)
+        const TREES = {
+            tall:       { x: 0,   y: 0,   w: 107, h: 368 },
+            mid:        { x: 2,   y: 391, w: 108, h: 313 },
+            small:      { x: 4,   y: 720, w: 88,  h: 208 },
+            shadowTall: { x: 225, y: 0,   w: 106, h: 368 },
+            shadowMid:  { x: 226, y: 391, w: 108, h: 313 }
+        };
+        // Seamless forest strips inside bg-trees.png
+        const BG_STRIP = {
+            far:  { x: 800, y: 16, w: 96, h: 240 },
+            near: { x: 704, y: 16, w: 96, h: 240 }
+        };
+
+        const THEMES = {};
+        function buildThemes() {
+            THEMES.forest = {
+                sky: IMG.sky,
+                bgTrees: IMG.bgTrees,
+                trees: IMG.treeGreen,
+                treesMid: tintImage(IMG.treeGreen, '#0b2018', 0.3),
+                tiles: IMG.tiles,
+                ground: 'grass',
+                ledge: 'plank',
+                bushRow: 0,
+                props: ['mushA', 'mushB', 'mushC', 'flower', 'lavender', 'flower'],
+                fog: 'rgba(220, 255, 235, 0.18)',
+                ambient: 'firefly',
+                boss: 'boarRunBlack',
+                bossGlow: '#ef4444'
+            };
+            THEMES.fire = {
+                sky: tintImage(IMG.sky, '#c2410c', 0.7),
+                bgTrees: tintImage(IMG.bgTrees, '#3b0a0a', 0.55),
+                trees: IMG.treeRed,
+                treesMid: tintImage(IMG.treeRed, '#1a0505', 0.35),
+                tiles: tintImage(IMG.tiles, '#7c2d12', 0.3),
+                ground: 'stone',
+                ledge: 'moss',
+                bushRow: 2,
+                props: ['rockA', 'rockB', 'rockC'],
+                fog: 'rgba(255, 110, 40, 0.22)',
+                ambient: 'ember',
+                boss: 'boarRunBlack',
+                bossGlow: '#ef4444'
+            };
+            THEMES.bone = {
+                sky: tintImage(IMG.sky, '#1e1b4b', 0.82),
+                bgTrees: tintImage(IMG.bgTrees, '#0f0c29', 0.6),
+                trees: IMG.treeDark,
+                treesMid: tintImage(IMG.treeDark, '#1e1b4b', 0.35),
+                tiles: tintImage(IMG.tiles, '#312e81', 0.35),
+                ground: 'stone',
+                ledge: 'moss',
+                bushRow: 4,
+                props: ['rockA', 'rockB', 'rockC', 'lavender'],
+                fog: 'rgba(168, 85, 247, 0.2)',
+                ambient: 'wisp',
+                boss: 'boarRunWhite',
+                bossGlow: '#a855f7'
+            };
+
+            for (const key of ['boarRun', 'boarRunBlack', 'boarRunWhite', 'snailWalk', 'beeFly', 'beeAttack']) {
+                FLASH[key] = tintImage(IMG[key], '#ffffff', 1);
+            }
+            FLASH.dash = tintImage(IMG.heroRun, '#fde68a', 1);
+        }
+
+        // Rounds to the nearest device pixel so scaled pixel art stays crisp
+        function snap(v) {
+            return Math.round(v * RENDER_SCALE) / RENDER_SCALE;
+        }
+
+        // Draws one frame with its feet at (cx, feetY); flip mirrors it horizontally around cx
+        function drawSprite(img, a, frame, cx, feetY, flip, scale = ART_SCALE) {
+            if (!img) return;
+            ctx.save();
+            ctx.translate(snap(cx), snap(feetY - (a.foot + 1) * scale));
+            if (flip) ctx.scale(-1, 1);
+            ctx.drawImage(img, frame * a.fw, 0, a.fw, a.fh, -a.ax * scale, 0, a.fw * scale, a.fh * scale);
+            ctx.restore();
+        }
+
+        // --- LEVEL DEFINITIONS (TÂY DU KÝ THEME) ---
+        const LEVELS = [
+            {
+                name: "CẢNH 1: HOA QUẢ SƠN - TIỂU YÊU QUẤY RỐI",
+                theme: 'forest',
+                worldWidth: 2200,
+                bgGradient: ['#0f380f', '#306230', '#8bac0f'],
+                platforms: [
+                    { x: 0, y: 480, w: 700, h: 60, type: 'grass' },
+                    { x: 800, y: 480, w: 600, h: 60, type: 'grass' },
+                    { x: 1500, y: 480, w: 700, h: 60, type: 'grass' },
+                    { x: 250, y: 360, w: 180, h: 20, type: 'wood' },
+                    { x: 500, y: 280, w: 160, h: 20, type: 'wood' },
+                    { x: 900, y: 360, w: 200, h: 20, type: 'wood' },
+                    { x: 1200, y: 270, w: 180, h: 20, type: 'wood' },
+                    { x: 1650, y: 350, w: 220, h: 20, type: 'wood' },
+                ],
+                enemies: [
+                    { x: 400, y: 420, type: 'slime' },
+                    { x: 950, y: 420, type: 'goblin' },
+                    { x: 1250, y: 210, type: 'slime' },
+                    { x: 1750, y: 420, type: 'goblin' },
+                ],
+                portalX: 2050,
+                portalY: 400
+            },
+            {
+                name: "CẢNH 2: HỎA DIỆM SƠN - NGƯU MA VƯƠNG",
+                theme: 'fire',
+                worldWidth: 2500,
+                bgGradient: ['#450a0a', '#7f1d1d', '#180202'],
+                platforms: [
+                    { x: 0, y: 480, w: 500, h: 60, type: 'stone' },
+                    { x: 600, y: 480, w: 400, h: 60, type: 'stone' },
+                    { x: 1100, y: 480, w: 500, h: 60, type: 'stone' },
+                    { x: 1700, y: 480, w: 800, h: 60, type: 'stone' },
+                    { x: 200, y: 350, w: 160, h: 20, type: 'stone' },
+                    { x: 420, y: 260, w: 140, h: 20, type: 'stone' },
+                    { x: 700, y: 360, w: 200, h: 20, type: 'stone' },
+                    { x: 1000, y: 280, w: 160, h: 20, type: 'stone' },
+                    { x: 1300, y: 350, w: 220, h: 20, type: 'stone' },
+                    { x: 1850, y: 340, w: 180, h: 20, type: 'stone' },
+                ],
+                enemies: [
+                    { x: 300, y: 420, type: 'goblin' },
+                    { x: 750, y: 300, type: 'goblin' },
+                    { x: 1200, y: 420, type: 'demon' },
+                    { x: 1400, y: 280, type: 'slime' },
+                    { x: 1900, y: 420, type: 'boss' },
+                ],
+                portalX: 2350,
+                portalY: 400
+            },
+            {
+                name: "CẢNH 3: BẠCH CỐT ĐỘNG - BẠCH CỐT TINH",
+                theme: 'bone',
+                worldWidth: 2800,
+                bgGradient: ['#1e1b4b', '#312e81', '#030712'],
+                platforms: [
+                    { x: 0, y: 480, w: 600, h: 60, type: 'obsidian' },
+                    { x: 720, y: 480, w: 500, h: 60, type: 'obsidian' },
+                    { x: 1300, y: 480, w: 600, h: 60, type: 'obsidian' },
+                    { x: 2000, y: 480, w: 800, h: 60, type: 'obsidian' },
+                    { x: 300, y: 340, w: 200, h: 20, type: 'obsidian' },
+                    { x: 800, y: 340, w: 220, h: 20, type: 'obsidian' },
+                    { x: 1100, y: 240, w: 180, h: 20, type: 'obsidian' },
+                    { x: 1500, y: 330, w: 240, h: 20, type: 'obsidian' },
+                    { x: 2100, y: 340, w: 200, h: 20, type: 'obsidian' },
+                ],
+                enemies: [
+                    { x: 400, y: 280, type: 'goblin' },
+                    { x: 850, y: 420, type: 'demon' },
+                    { x: 1150, y: 180, type: 'demon' },
+                    { x: 1600, y: 260, type: 'goblin' },
+                    { x: 2200, y: 420, type: 'boss' },
+                ],
+                portalX: 2650,
+                portalY: 400
+            }
+        ];
+
+        // --- CAMERA SYSTEM ---
+        const camera = {
+            x: 0,
+            y: 0,
+            width: GAME_WIDTH,
+            height: GAME_HEIGHT,
+            follow(target, worldWidth) {
+                this.x = target.x + target.width / 2 - this.width / 2;
+                if (this.x < 0) this.x = 0;
+                if (this.x > worldWidth - this.width) this.x = worldWidth - this.width;
+            }
+        };
+
+        // --- PARTICLE SYSTEM ---
+        class Particle {
+            constructor(x, y, vx, vy, color, size, life) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.color = color;
+                this.size = size;
+                this.maxLife = life;
+                this.life = life;
+            }
+
+            update(dt) {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.2;
+                this.life -= dt;
+            }
+
+            draw(ctx, camX) {
+                if (this.life <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+                ctx.fillStyle = this.color;
+                // Square "pixels" to match the art style
+                ctx.fillRect(snap(this.x - camX - this.size / 2), snap(this.y - this.size / 2), this.size, this.size);
+                ctx.restore();
+            }
+        }
+
+        let particles = [];
+
+        function createHitSparks(x, y, color = '#f43f5e', count = 12) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 6 + 2;
+                particles.push(new Particle(
+                    x, y,
+                    Math.cos(angle) * speed,
+                    Math.sin(angle) * speed - 2,
+                    color,
+                    Math.random() * 3 + 2,
+                    Math.random() * 0.3 + 0.2
+                ));
+            }
+        }
+
+        // --- AMBIENT PARTICLES (fireflies / embers / wisps, screen space) ---
+        const AMBIENT_COLORS = { firefly: '#d9f99d', ember: '#fb923c', wisp: '#c4b5fd' };
+        let ambient = [];
+        let ambientType = 'firefly';
+
+        function spawnAmbient(type) {
+            const a = {
+                x: Math.random() * GAME_WIDTH,
+                y: Math.random() * GAME_HEIGHT,
+                t: Math.random() * 10,
+                size: Math.random() < 0.3 ? 3 : 2,
+                depth: 0.3 + Math.random() * 0.7
+            };
+            if (type === 'ember') {
+                a.vx = (Math.random() - 0.5) * 20;
+                a.vy = -(30 + Math.random() * 50);
+            } else if (type === 'firefly') {
+                a.vx = (Math.random() - 0.5) * 16;
+                a.vy = (Math.random() - 0.5) * 16;
+            } else {
+                a.vx = (Math.random() - 0.5) * 10;
+                a.vy = -(6 + Math.random() * 12);
+            }
+            return a;
+        }
+
+        function resetAmbient(type) {
+            ambientType = type;
+            ambient = [];
+            for (let i = 0; i < 45; i++) ambient.push(spawnAmbient(type));
+        }
+
+        function updateAmbient(dt) {
+            for (const a of ambient) {
+                a.t += dt;
+                a.x += (a.vx + Math.sin(a.t * 1.3) * 8) * dt;
+                a.y += a.vy * dt;
+                if (a.y < -10) a.y = GAME_HEIGHT + 10;
+                if (a.y > GAME_HEIGHT + 10) a.y = -10;
+            }
+        }
+
+        function drawAmbient(ctx, camX) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.fillStyle = AMBIENT_COLORS[ambientType];
+            for (const a of ambient) {
+                const x = (((a.x - camX * a.depth * 0.6) % GAME_WIDTH) + GAME_WIDTH) % GAME_WIDTH;
+                const flicker = 0.35 + 0.65 * Math.abs(Math.sin(a.t * 2.2));
+                ctx.globalAlpha = flicker * 0.25 * a.depth;
+                ctx.fillRect(snap(x - a.size), snap(a.y - a.size), a.size * 3, a.size * 3);
+                ctx.globalAlpha = flicker * a.depth;
+                ctx.fillRect(snap(x), snap(a.y), a.size, a.size);
+            }
+            ctx.restore();
+        }
+
+        // --- FLOATING TEXT SYSTEM ---
+        class FloatingText {
+            constructor(text, x, y, color = '#ffffff', fontSize = 16) {
+                this.text = text;
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.fontSize = fontSize;
+                this.life = 0.8;
+                this.vy = -2;
+            }
+
+            update(dt) {
+                this.y += this.vy;
+                this.life -= dt;
+            }
+
+            draw(ctx, camX) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life / 0.8);
+                ctx.font = `bold ${this.fontSize}px 'Press Start 2P', monospace`;
+                ctx.fillStyle = this.color;
+                ctx.shadowColor = 'black';
+                ctx.shadowBlur = 4;
+                ctx.fillText(this.text, this.x - camX, this.y);
+                ctx.restore();
+            }
+        }
+
+        let floatingTexts = [];
+
+        // Stage title shown centred at the start of each level
+        const levelBanner = { text: '', timer: 0 };
+        const BANNER_TIME = 3;
+
+        function drawLevelBanner(ctx, dt) {
+            if (levelBanner.timer <= 0) return;
+            levelBanner.timer -= dt;
+            const alpha = Math.min(1, levelBanner.timer / 0.5, (BANNER_TIME - levelBanner.timer) / 0.4);
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, alpha);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+            ctx.fillRect(0, 150, GAME_WIDTH, 56);
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(0, 150, GAME_WIDTH, 2);
+            ctx.fillRect(0, 204, GAME_WIDTH, 2);
+            ctx.font = "14px 'Press Start 2P', monospace";
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#fbbf24';
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 4;
+            ctx.fillText(levelBanner.text, GAME_WIDTH / 2, 179);
+            ctx.restore();
+        }
+
+        // --- PLAYER CLASS ---
+        class Player {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 30;
+                this.height = 66;
+                this.vx = 0;
+                this.vy = 0;
+                this.speed = 6;
+                this.jumpForce = -12.5;
+                this.isGrounded = false;
+                this.jumpCount = 0;
+                this.maxJumps = 2;
+                this.facing = 'right';
+
+                this.maxHp = 100;
+                this.hp = 100;
+                this.invulnerableTimer = 0;
+                this.isDead = false;
+                this.deathTimer = 0;
+
+                this.isAttacking = false;
+                this.attackCombo = 0;
+                this.attackTimer = 0;
+                this.attackDuration = ATTACK_TIMINGS[1];
+                this.attackCooldown = 0;
+                this.comboWindow = 0;
+                this.attackBox = { x: 0, y: 0, width: 75, height: 50 };
+
+                this.isDashing = false;
+                this.dashTimer = 0;
+                this.dashCooldown = 0;
+                this.ghosts = [];
+
+                this.animState = 'idle';
+                this.animTime = 0;
+            }
+
+            reset(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.hp = this.maxHp;
+                this.facing = 'right';
+                this.invulnerableTimer = 0;
+                this.isDead = false;
+                this.isAttacking = false;
+                this.attackCombo = 0;
+                this.isDashing = false;
+                this.ghosts = [];
+                this.animState = 'idle';
+                this.animTime = 0;
+                updateHUD();
+            }
+
+            update(dt, platforms) {
+                if (this.invulnerableTimer > 0) this.invulnerableTimer -= dt;
+                if (this.dashCooldown > 0) this.dashCooldown -= dt;
+                if (this.attackCooldown > 0) this.attackCooldown -= dt;
+                if (this.comboWindow > 0) this.comboWindow -= dt;
+
+                if (this.isDead) {
+                    this.vx *= 0.9;
+                    this.vy += 0.65;
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.isGrounded = false;
+                    this.checkVerticalCollisions(platforms);
+                    this.updateAnimation(dt);
+                    this.deathTimer -= dt;
+                    if (this.deathTimer <= 0) triggerGameOver();
+                    return;
+                }
+
+                if (this.isDashing) {
+                    this.dashTimer -= dt;
+                    this.vy = 0;
+                    if (this.dashTimer <= 0) {
+                        this.isDashing = false;
+                    }
+                } else {
+                    if (keys.left) {
+                        this.vx = -this.speed;
+                        this.facing = 'left';
+                    } else if (keys.right) {
+                        this.vx = this.speed;
+                        this.facing = 'right';
+                    } else {
+                        this.vx *= 0.7;
+                    }
+                    this.vy += 0.65;
+                }
+
+                if (keys.dash && this.dashCooldown <= 0 && !this.isDashing) {
+                    this.isDashing = true;
+                    this.dashTimer = 0.22;
+                    this.dashCooldown = 0.8;
+                    this.vx = (this.facing === 'right' ? 1 : -1) * 16;
+                    playSound('slash');
+                    for (let i = 0; i < 8; i++) {
+                        particles.push(new Particle(
+                            this.x + this.width / 2, this.y + this.height / 2,
+                            (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4,
+                            '#fef08a', 4, 0.3
+                        ));
+                    }
+                }
+
+                if (keys.attack && this.attackCooldown <= 0 && !this.isAttacking) {
+                    // Chain into the next swing only if the previous one was recent
+                    this.attackCombo = this.comboWindow > 0 ? (this.attackCombo % 3) + 1 : 1;
+                    this.attackDuration = ATTACK_TIMINGS[this.attackCombo];
+                    this.isAttacking = true;
+                    this.attackTimer = this.attackDuration;
+                    this.attackCooldown = this.attackDuration + 0.08;
+                    this.comboWindow = this.attackDuration + 0.5;
+                    playSound('slash');
+                }
+
+                if (this.isAttacking) {
+                    this.attackTimer -= dt;
+                    if (this.attackTimer <= 0) {
+                        this.isAttacking = false;
+                    }
+                }
+
+                this.x += this.vx;
+                this.checkHorizontalCollisions(platforms);
+
+                this.y += this.vy;
+                this.isGrounded = false;
+                this.checkVerticalCollisions(platforms);
+
+                this.attackBox.width = 75;
+                this.attackBox.height = 55;
+                this.attackBox.y = this.y;
+                this.attackBox.x = this.facing === 'right' ? this.x + this.width : this.x - this.attackBox.width;
+
+                this.updateAnimation(dt);
+
+                if (this.isDashing) {
+                    this.ghosts.push({
+                        x: this.x + this.width / 2,
+                        feetY: this.y + this.height,
+                        flip: this.facing === 'left',
+                        frame: this.currentFrame() % HERO_ANIMS.run.frames,
+                        life: 0.25
+                    });
+                }
+                for (const g of this.ghosts) g.life -= dt;
+                this.ghosts = this.ghosts.filter(g => g.life > 0);
+
+                if (this.y > GAME_HEIGHT + 100) {
+                    this.die();
+                }
+            }
+
+            updateAnimation(dt) {
+                let state = 'idle';
+                if (this.isDead) state = 'dead';
+                else if (this.isAttacking) state = 'attack';
+                else if (!this.isGrounded) state = 'jump';
+                else if (Math.abs(this.vx) > 0.8) state = 'run';
+
+                if (state !== this.animState) {
+                    this.animState = state;
+                    this.animTime = 0;
+                }
+                this.animTime += dt;
+            }
+
+            currentFrame() {
+                switch (this.animState) {
+                    case 'run':
+                        return Math.floor(this.animTime / 0.07) % 8;
+                    case 'dead':
+                        return Math.min(9, Math.floor(this.animTime / 0.1));
+                    case 'attack': {
+                        const [start, len] = ATTACK_FRAMES[this.attackCombo];
+                        const progress = 1 - this.attackTimer / this.attackDuration;
+                        return start + Math.min(len - 1, Math.max(0, Math.floor(progress * len)));
+                    }
+                    case 'jump':
+                        // Rising uses frames 2-6, falling 7-11
+                        if (this.vy < 0) return 2 + Math.min(4, Math.floor((1 - this.vy / this.jumpForce) * 5));
+                        return 7 + Math.min(4, Math.floor(this.vy / 3));
+                    default:
+                        return Math.floor(this.animTime / 0.15) % 4;
+                }
+            }
+
+            checkHorizontalCollisions(platforms) {
+                for (let p of platforms) {
+                    if (this.x < p.x + p.w &&
+                        this.x + this.width > p.x &&
+                        this.y < p.y + p.h &&
+                        this.y + this.height > p.y) {
+                        if (this.vx > 0) this.x = p.x - this.width;
+                        else if (this.vx < 0) this.x = p.x + p.w;
+                    }
+                }
+            }
+
+            checkVerticalCollisions(platforms) {
+                for (let p of platforms) {
+                    if (this.x < p.x + p.w &&
+                        this.x + this.width > p.x &&
+                        this.y < p.y + p.h &&
+                        this.y + this.height > p.y) {
+                        if (this.vy > 0) {
+                            this.y = p.y - this.height;
+                            this.vy = 0;
+                            this.isGrounded = true;
+                            this.jumpCount = 0;
+                        } else if (this.vy < 0) {
+                            this.y = p.y + p.h;
+                            this.vy = 0;
+                        }
+                    }
+                }
+            }
+
+            jump() {
+                if (this.isDead) return;
+                if (this.isGrounded || this.jumpCount < this.maxJumps) {
+                    this.vy = this.jumpForce;
+                    this.jumpCount++;
+                    this.isGrounded = false;
+                    playSound('jump');
+
+                    for (let i = 0; i < 6; i++) {
+                        particles.push(new Particle(
+                            this.x + this.width / 2, this.y + this.height,
+                            (Math.random() - 0.5) * 4, Math.random() * -2,
+                            '#fef08a', 3, 0.25
+                        ));
+                    }
+                }
+            }
+
+            takeDamage(amount) {
+                if (this.isDead || this.invulnerableTimer > 0 || this.isDashing) return;
+
+                this.hp -= amount;
+                if (this.hp < 0) this.hp = 0;
+
+                this.invulnerableTimer = 1.0;
+                playSound('hit');
+
+                createHitSparks(this.x + this.width / 2, this.y + this.height / 2, '#ef4444', 15);
+                floatingTexts.push(new FloatingText(`-${amount}`, this.x + 10, this.y - 10, '#ef4444', 16));
+
+                updateHUD();
+
+                if (this.hp <= 0) {
+                    this.die();
+                }
+            }
+
+            // Plays the death animation; the game-over screen follows when deathTimer runs out
+            die() {
+                if (this.isDead) return;
+                this.hp = 0;
+                this.isDead = true;
+                this.isAttacking = false;
+                this.isDashing = false;
+                this.deathTimer = 1.4;
+                updateHUD();
+            }
+
+            draw(ctx, camX) {
+                const cx = this.x + this.width / 2 - camX;
+                const feetY = this.y + this.height;
+
+                for (const g of this.ghosts) {
+                    ctx.save();
+                    ctx.globalAlpha = (g.life / 0.25) * 0.5;
+                    drawSprite(FLASH.dash, HERO_ANIMS.run, g.frame, g.x - camX, g.feetY, g.flip);
+                    ctx.restore();
+                }
+
+                if (!this.isDead && this.invulnerableTimer > 0 && Math.floor(Date.now() / 80) % 2 === 0) return;
+
+                if (this.isGrounded) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    ctx.beginPath();
+                    ctx.ellipse(cx, feetY, 16, 4, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                const a = HERO_ANIMS[this.animState];
+                drawSprite(IMG[a.img], a, this.currentFrame(), cx, feetY, this.facing === 'left');
+            }
+        }
+
+        // --- ENEMY CLASS ---
+        // barLift = how far above the hitbox the HP bar sits (clears wings / tall sprites)
+        const ENEMY_STATS = {
+            slime:  { width: 36,  height: 30, hp: 30,  speed: 1.8, damage: 10, scoreValue: 100,  barLift: 10 },
+            goblin: { width: 54,  height: 42, hp: 60,  speed: 2.5, damage: 15, scoreValue: 200,  barLift: 10 },
+            demon:  { width: 34,  height: 40, hp: 100, speed: 2.2, damage: 25, scoreValue: 350,  barLift: 28 },
+            boss:   { width: 100, height: 84, hp: 350, speed: 2.0, damage: 35, scoreValue: 1000, barLift: 14 }
+        };
+        const ENEMY_DEATH_TIME = 0.6;
+
+        class Enemy {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                Object.assign(this, ENEMY_STATS[type]);
+                this.maxHp = this.hp;
+
+                // Demons are flying bees that hover around their spawn point
+                this.flying = type === 'demon';
+                this.baseY = y - 50;
+                if (this.flying) this.y = this.baseY;
+
+                this.vx = this.speed;
+                this.vy = 0;
+                this.facing = 'right';
+                this.patrolLeft = x - 150;
+                this.patrolRight = x + 150;
+                this.dead = false;
+                this.deathTimer = 0;
+                this.isHit = false;
+                this.hitTimer = 0;
+                this.isLunging = false;
+                this.animTime = Math.random() * 2;
+            }
+
+            update(dt, player, platforms) {
+                this.animTime += dt;
+                if (this.dead) {
+                    this.deathTimer -= dt;
+                    return;
+                }
+
+                if (this.isHit) {
+                    this.hitTimer -= dt;
+                    if (this.hitTimer <= 0) this.isHit = false;
+                }
+
+                const distToPlayer = Math.hypot((player.x + player.width / 2) - (this.x + this.width / 2), (player.y + player.height / 2) - (this.y + this.height / 2));
+                const chasing = distToPlayer < 250 && !player.isDead;
+
+                if (chasing) {
+                    if (player.x < this.x) {
+                        this.vx = -this.speed;
+                        this.facing = 'left';
+                    } else {
+                        this.vx = this.speed;
+                        this.facing = 'right';
+                    }
+                } else {
+                    if (this.x <= this.patrolLeft) {
+                        this.vx = this.speed;
+                        this.facing = 'right';
+                    } else if (this.x >= this.patrolRight) {
+                        this.vx = -this.speed;
+                        this.facing = 'left';
+                    }
+                }
+
+                this.x += this.vx;
+
+                if (this.flying) {
+                    const targetY = chasing
+                        ? player.y + player.height / 2 - this.height / 2
+                        : this.baseY + Math.sin(this.animTime * 2.5) * 16;
+                    this.y += Math.max(-2, Math.min(2, (targetY - this.y) * 0.05));
+                    this.isLunging = chasing && distToPlayer < 90;
+                } else {
+                    this.vy += 0.65;
+                    this.y += this.vy;
+
+                    for (let p of platforms) {
+                        if (this.x < p.x + p.w &&
+                            this.x + this.width > p.x &&
+                            this.y < p.y + p.h &&
+                            this.y + this.height > p.y) {
+                            if (this.vy > 0) {
+                                this.y = p.y - this.height;
+                                this.vy = 0;
+                            }
+                        }
+                    }
+                }
+
+                // Hit Player check
+                if (player.x < this.x + this.width &&
+                    player.x + player.width > this.x &&
+                    player.y < this.y + this.height &&
+                    player.y + player.height > this.y) {
+                    player.takeDamage(this.damage);
+                }
+
+                // Attacked by Player
+                if (player.isAttacking) {
+                    const ab = player.attackBox;
+                    if (ab.x < this.x + this.width &&
+                        ab.x + ab.width > this.x &&
+                        ab.y < this.y + this.height &&
+                        ab.y + ab.height > this.y) {
+
+                        this.takeDamage(25 + (player.attackCombo * 10), player.facing);
+                    }
+                }
+            }
+
+            takeDamage(amount, knockbackDir) {
+                if (this.isHit || this.dead) return;
+
+                this.hp -= amount;
+                this.isHit = true;
+                this.hitTimer = 0.2;
+
+                this.x += knockbackDir === 'right' ? 20 : -20;
+                playSound('hit');
+
+                createHitSparks(this.x + this.width / 2, this.y + this.height / 2, '#fef08a', 8);
+                floatingTexts.push(new FloatingText(`${amount}`, this.x + 10, this.y - 10, '#fef08a', 14));
+
+                if (this.hp <= 0) {
+                    this.dead = true;
+                    this.deathTimer = ENEMY_DEATH_TIME;
+                    playSound('kill');
+                    score += this.scoreValue;
+                    comboCount++;
+                    comboTimer = 3.0;
+                    updateHUD();
+
+                    createHitSparks(this.x + this.width / 2, this.y + this.height / 2, '#f59e0b', 20);
+                }
+            }
+
+            sprite() {
+                if (this.type === 'slime') return { key: 'snailWalk', anim: ENEMY_ANIMS.snail, fps: 10, scale: ART_SCALE };
+                if (this.type === 'goblin') return { key: 'boarRun', anim: ENEMY_ANIMS.boar, fps: 12, scale: ART_SCALE };
+                if (this.type === 'demon') {
+                    return this.isLunging
+                        ? { key: 'beeAttack', anim: ENEMY_ANIMS.beeAttack, fps: 14, scale: ART_SCALE }
+                        : { key: 'beeFly', anim: ENEMY_ANIMS.beeFly, fps: 14, scale: ART_SCALE };
+                }
+                const theme = THEMES[currentLevel.theme];
+                return { key: theme.boss, anim: ENEMY_ANIMS.boar, fps: 10, scale: 3, glow: theme.bossGlow };
+            }
+
+            draw(ctx, camX) {
+                if (this.dead && this.deathTimer <= 0) return;
+
+                const cx = this.x + this.width / 2 - camX;
+                if (cx < -150 || cx > GAME_WIDTH + 150) return;
+                const feetY = this.y + this.height;
+                const flip = this.facing === 'right'; // mob sheets face left
+                const { key, anim, fps, scale, glow } = this.sprite();
+                const frame = Math.floor(this.animTime * fps) % anim.frames;
+
+                ctx.save();
+                if (this.dead) {
+                    const elapsed = ENEMY_DEATH_TIME - this.deathTimer;
+                    if (this.type === 'slime') {
+                        drawSprite(IMG.snailDead, ENEMY_ANIMS.snailDead, Math.min(7, Math.floor(elapsed / 0.075)), cx, feetY, flip);
+                    } else {
+                        // Flash white and fade upward
+                        ctx.globalAlpha = this.deathTimer / ENEMY_DEATH_TIME;
+                        drawSprite(FLASH[key], anim, frame, cx, feetY - elapsed * 40, flip, scale);
+                    }
+                    ctx.restore();
+                    return;
+                }
+
+                if (!this.flying) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    ctx.beginPath();
+                    ctx.ellipse(cx, feetY, this.width * 0.45, 4, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                if (glow) {
+                    ctx.shadowColor = glow;
+                    ctx.shadowBlur = 18;
+                }
+                drawSprite(IMG[key], anim, frame, cx, feetY, flip, scale);
+                ctx.shadowBlur = 0;
+
+                if (this.isHit) {
+                    ctx.globalAlpha = 0.85;
+                    drawSprite(FLASH[key], anim, frame, cx, feetY, flip, scale);
+                    ctx.globalAlpha = 1;
+                }
+
+                if (this.hp < this.maxHp) {
+                    const barX = snap(this.x - camX);
+                    const barY = snap(this.y - this.barLift);
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                    ctx.fillRect(barX - 1, barY - 1, this.width + 2, 6);
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillRect(barX, barY, (this.hp / this.maxHp) * this.width, 4);
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+                    ctx.fillRect(barX, barY, (this.hp / this.maxHp) * this.width, 1);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // --- PORTAL ---
+        class Portal {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 50;
+                this.height = 80;
+                this.rotation = 0;
+            }
+
+            update(dt, player) {
+                this.rotation += dt * 3;
+
+                if (Math.random() < 0.25) {
+                    particles.push(new Particle(
+                        this.x + this.width / 2 + (Math.random() - 0.5) * this.width,
+                        this.y + this.height / 2 + (Math.random() - 0.5) * this.height,
+                        (Math.random() - 0.5) * 1.5, -Math.random() * 3,
+                        Math.random() < 0.5 ? '#fde68a' : '#f97316', 2, 0.5
+                    ));
+                }
+
+                if (!player.isDead &&
+                    player.x < this.x + this.width &&
+                    player.x + player.width > this.x &&
+                    player.y < this.y + this.height &&
+                    player.y + player.height > this.y) {
+                    nextLevel();
+                }
+            }
+
+            draw(ctx, camX) {
+                const drawX = this.x - camX + this.width / 2;
+                const drawY = this.y + this.height / 2;
+
+                ctx.save();
+                ctx.translate(drawX, drawY);
+
+                const pulse = 1 + Math.sin(this.rotation * 1.5) * 0.06;
+                const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, 70 * pulse);
+                glow.addColorStop(0, 'rgba(254, 240, 138, 0.9)');
+                glow.addColorStop(0.35, 'rgba(245, 158, 11, 0.4)');
+                glow.addColorStop(1, 'rgba(245, 158, 11, 0)');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 60 * pulse, 80 * pulse, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.rotate(this.rotation);
+                for (let i = 3; i > 0; i--) {
+                    ctx.strokeStyle = i % 2 === 0 ? '#f59e0b' : '#ef4444';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, (this.width / 2) * (i / 3), (this.height / 2) * (i / 3), 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // --- SCENERY (background trees and ground props, generated per level) ---
+        let scenery = { shadows: [], mids: [], decor: [] };
+
+        function seededRandom(seed) {
+            return () => {
+                seed = (seed * 16807) % 2147483647;
+                return (seed - 1) / 2147483646;
+            };
+        }
+
+        function buildScenery(level, theme) {
+            const rand = seededRandom(level.worldWidth);
+            scenery = { shadows: [], mids: [], decor: [] };
+
+            for (let x = -60; x < level.worldWidth * 0.45 + GAME_WIDTH; x += 140 + rand() * 140) {
+                scenery.shadows.push({ x, kind: rand() < 0.5 ? 'shadowTall' : 'shadowMid' });
+            }
+            for (let x = 60; x < level.worldWidth * 0.7 + GAME_WIDTH; x += 300 + rand() * 260) {
+                scenery.mids.push({ x, kind: rand() < 0.6 ? 'small' : 'mid' });
+            }
+
+            const bushW = BUSH.w * ART_SCALE;
+            for (const p of level.platforms) {
+                if (p.h < 40) continue;
+                for (let x = p.x + 20; x < p.x + p.w - 60; x += 70 + rand() * 110) {
+                    const r = rand();
+                    if (r < 0.3 && x + bushW < p.x + p.w - 10) {
+                        scenery.decor.push({ type: 'bush', x, y: p.y });
+                        x += bushW * 0.6;
+                    } else if (r < 0.75) {
+                        scenery.decor.push({ type: 'prop', name: theme.props[Math.floor(rand() * theme.props.length)], x, y: p.y });
+                    }
+                }
+            }
+        }
+
+        // --- ENVIRONMENT RENDERING ---
+        // Tiles a horizontally seamless strip with parallax, bottom-aligned
+        function drawStrip(img, r, offset, bottom) {
+            const w = r.w * ART_SCALE, h = r.h * ART_SCALE;
+            const start = -snap(((offset % w) + w) % w);
+            for (let x = start; x < GAME_WIDTH; x += w) {
+                ctx.drawImage(img, r.x, r.y, r.w, r.h, x, bottom - h, w, h);
+            }
+        }
+
+        function drawTree(img, r, x, bottom, scale) {
+            const w = r.w * scale, h = r.h * scale;
+            if (x + w < 0 || x > GAME_WIDTH) return;
+            ctx.drawImage(img, r.x, r.y, r.w, r.h, snap(x), snap(bottom - h), w, h);
+        }
+
+        // One tile row cut into left cap / repeating middle / right cap, stretched to width w
+        function drawRowSlices(img, d, sy, sh, x, w, dy) {
+            const S = ART_SCALE;
+            const L = d.left * S, R = d.right * S, dh = sh * S;
+            const midSx = d.sx + d.left, midSw = d.sw - d.left - d.right, midW = midSw * S;
+            ctx.drawImage(img, d.sx, sy, d.left, sh, x, dy, L, dh);
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x + L, dy, w - L - R, dh);
+            ctx.clip();
+            for (let mx = x + L; mx < x + w - R; mx += midW) {
+                ctx.drawImage(img, midSx, sy, midSw, sh, mx, dy, midW, dh);
+            }
+            ctx.restore();
+            ctx.drawImage(img, d.sx + d.sw - d.right, sy, d.right, sh, x + w - R, dy, R, dh);
+        }
+
+        function drawPlatform(theme, p, drawX) {
+            const S = ART_SCALE;
+            if (p.h >= 40) {
+                // Solid ground: top edge row, then fill rows down to the bottom of the platform
+                const d = TILE[theme.ground];
+                let dy = p.y - d.surface * S;
+                drawRowSlices(theme.tiles, d, d.topY, d.topH, drawX, p.w, dy);
+                dy += d.topH * S;
+                while (dy < p.y + p.h) {
+                    drawRowSlices(theme.tiles, d, d.fillY, d.fillH, drawX, p.w, dy);
+                    dy += d.fillH * S;
+                }
+            } else {
+                const d = TILE[theme.ledge];
+                drawRowSlices(theme.tiles, d, d.sy, d.sh, drawX, p.w, p.y - d.surface * S);
+            }
+        }
+
+        function drawDecor(theme, item, camX) {
+            const S = ART_SCALE;
+            const x = snap(item.x - camX);
+            if (item.type === 'bush') {
+                const w = BUSH.w * S, h = BUSH.h * S;
+                if (x + w < 0 || x > GAME_WIDTH) return;
+                const sy = BUSH.rowY + theme.bushRow * BUSH.rowStep;
+                ctx.drawImage(theme.tiles, BUSH.x, sy, BUSH.w, BUSH.h, x, item.y + 12 - h, w, h);
+            } else {
+                const r = PROPS[item.name];
+                const w = r.w * S, h = r.h * S;
+                if (x + w < 0 || x > GAME_WIDTH) return;
+                const sink = item.name.startsWith('rock') ? 10 : 2;
+                ctx.drawImage(theme.tiles, r.x, r.y, r.w, r.h, x, item.y + sink - h, w, h);
+            }
+        }
+
+        function drawEnvironment(ctx, level, camX) {
+            const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+            grad.addColorStop(0, level.bgGradient[0]);
+            grad.addColorStop(0.5, level.bgGradient[1]);
+            grad.addColorStop(1, level.bgGradient[2]);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            const theme = THEMES[level.theme];
+            if (!theme) return; // assets still loading
+
+            // Parallax layers, far to near
+            ctx.drawImage(theme.sky, snap(-camX * 0.03), 0, theme.sky.width * 2, theme.sky.height * 2);
+            drawStrip(theme.bgTrees, BG_STRIP.far, camX * 0.12, GAME_HEIGHT - 70);
+            drawStrip(theme.bgTrees, BG_STRIP.near, camX * 0.25, GAME_HEIGHT + 20);
+
+            for (const t of scenery.shadows) {
+                drawTree(theme.trees, TREES[t.kind], t.x - camX * 0.45, GAME_HEIGHT + 30, 1);
+            }
+
+            const haze = ctx.createLinearGradient(0, 200, 0, GAME_HEIGHT);
+            haze.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            haze.addColorStop(1, theme.fog);
+            ctx.fillStyle = haze;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            for (const t of scenery.mids) {
+                drawTree(theme.treesMid, TREES[t.kind], t.x - camX * 0.7, GAME_HEIGHT + 40, ART_SCALE);
+            }
+
+            for (const item of scenery.decor) {
+                drawDecor(theme, item, camX);
+            }
+
+            for (let p of level.platforms) {
+                const drawX = p.x - camX;
+                if (drawX + p.w < -100 || drawX > GAME_WIDTH + 100) continue;
+                drawPlatform(theme, p, drawX);
+            }
+        }
+
+        const vignette = ctx.createRadialGradient(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_HEIGHT * 0.35, GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_HEIGHT * 0.95);
+        vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        vignette.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
+
+        function drawAvatar() {
+            const a = avatarCanvas.getContext('2d');
+            a.imageSmoothingEnabled = false;
+            a.clearRect(0, 0, avatarCanvas.width, avatarCanvas.height);
+            a.drawImage(IMG.heroIdle, 21, 14, 24, 24, 0, 0, avatarCanvas.width, avatarCanvas.height);
+        }
+
+        // --- GAME INSTANCES ---
+        let player = new Player(100, 350);
+        let currentLevel = LEVELS[0];
+        let enemies = [];
+        let portal = new Portal(currentLevel.portalX, currentLevel.portalY);
+
+        function loadLevel(index) {
+            currentLevelIndex = index;
+            currentLevel = LEVELS[currentLevelIndex];
+            player.reset(100, 350);
+
+            enemies = currentLevel.enemies.map(e => new Enemy(e.x, e.y, e.type));
+            portal = new Portal(currentLevel.portalX, currentLevel.portalY);
+
+            const theme = THEMES[currentLevel.theme];
+            buildScenery(currentLevel, theme);
+            resetAmbient(theme.ambient);
+
+            levelIndicator.innerText = `CẢNH ${currentLevelIndex + 1}`;
+            levelBanner.text = currentLevel.name;
+            levelBanner.timer = BANNER_TIME;
+        }
+
+        function nextLevel() {
+            if (currentLevelIndex + 1 < LEVELS.length) {
+                loadLevel(currentLevelIndex + 1);
+            } else {
+                gameState = 'VICTORY';
+                document.getElementById('victory-score').innerText = score;
+                victoryOverlay.classList.remove('hidden');
+            }
+        }
+
+        function triggerGameOver() {
+            gameState = 'GAMEOVER';
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('final-stage').innerText = `Cảnh ${currentLevelIndex + 1}`;
+            gameOverOverlay.classList.remove('hidden');
+        }
+
+        function updateHUD() {
+            const hpPercent = Math.max(0, (player.hp / player.maxHp) * 100);
+            hpBar.style.width = `${hpPercent}%`;
+            hpText.innerText = `${Math.ceil(player.hp)} / ${player.maxHp}`;
+
+            scoreDisplay.innerText = String(score).padStart(5, '0');
+            comboDisplay.innerText = `${comboCount}x`;
+
+            if (comboCount > 1) {
+                comboDisplay.classList.add('scale-125');
+                setTimeout(() => comboDisplay.classList.remove('scale-125'), 100);
+            }
+        }
+
+        // --- TOUCH BINDINGS ---
+        function bindTouch(id, keyProp, actionCallback) {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+
+            const handleStart = (e) => {
+                e.preventDefault();
+                keys[keyProp] = true;
+                if (actionCallback && player) actionCallback();
+            };
+
+            const handleEnd = (e) => {
+                e.preventDefault();
+                keys[keyProp] = false;
+            };
+
+            btn.addEventListener('touchstart', handleStart, { passive: false });
+            btn.addEventListener('touchend', handleEnd, { passive: false });
+            btn.addEventListener('mousedown', handleStart);
+            btn.addEventListener('mouseup', handleEnd);
+            btn.addEventListener('mouseleave', handleEnd);
+        }
+
+        bindTouch('btn-left', 'left');
+        bindTouch('btn-right', 'right');
+        bindTouch('btn-jump', 'jump', () => player.jump());
+        bindTouch('btn-attack', 'attack');
+        bindTouch('btn-dash', 'dash');
+
+        // --- MAIN GAME LOOP ---
+        function gameLoop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+            lastTime = timestamp;
+
+            // All drawing uses logical 800x540 coordinates
+            ctx.setTransform(RENDER_SCALE, 0, 0, RENDER_SCALE, 0, 0);
+            ctx.imageSmoothingEnabled = false;
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            if (gameState === 'PLAYING') {
+                if (comboCount > 0) {
+                    comboTimer -= dt;
+                    if (comboTimer <= 0) {
+                        comboCount = 0;
+                        updateHUD();
+                    }
+                }
+
+                player.update(dt, currentLevel.platforms);
+                camera.follow(player, currentLevel.worldWidth);
+
+                for (let enemy of enemies) {
+                    enemy.update(dt, player, currentLevel.platforms);
+                }
+
+                portal.update(dt, player);
+
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    particles[i].update(dt);
+                    if (particles[i].life <= 0) particles.splice(i, 1);
+                }
+
+                for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                    floatingTexts[i].update(dt);
+                    if (floatingTexts[i].life <= 0) floatingTexts.splice(i, 1);
+                }
+            }
+            updateAmbient(dt);
+
+            const camX = snap(camera.x);
+
+            drawEnvironment(ctx, currentLevel, camX);
+
+            if (THEMES[currentLevel.theme]) {
+                portal.draw(ctx, camX);
+
+                for (let enemy of enemies) {
+                    enemy.draw(ctx, camX);
+                }
+
+                player.draw(ctx, camX);
+            }
+
+            for (let p of particles) {
+                p.draw(ctx, camX);
+            }
+
+            drawAmbient(ctx, camX);
+            ctx.fillStyle = vignette;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            for (let ft of floatingTexts) {
+                ft.draw(ctx, camX);
+            }
+
+            drawLevelBanner(ctx, dt);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- BUTTON EVENT LISTENERS ---
+        startBtn.addEventListener('click', () => {
+            initAudio();
+            startOverlay.classList.add('hidden');
+            gameState = 'PLAYING';
+            score = 0;
+            comboCount = 0;
+            loadLevel(0);
+        });
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            gameOverOverlay.classList.add('hidden');
+            gameState = 'PLAYING';
+            score = 0;
+            comboCount = 0;
+            loadLevel(0);
+        });
+
+        document.getElementById('victory-restart-btn').addEventListener('click', () => {
+            victoryOverlay.classList.add('hidden');
+            gameState = 'PLAYING';
+            score = 0;
+            comboCount = 0;
+            loadLevel(0);
+        });
+
+        // LOAD ART, THEN ENABLE START
+        loadAssets().then(() => {
+            const missing = Object.keys(ASSET_FILES).filter(k => !IMG[k]);
+            if (missing.length) {
+                console.error('Thiếu sprite:', missing.map(k => ASSET_FILES[k]));
+                startBtn.innerText = 'THIẾU FILE TRONG THƯ MỤC assets/';
+                return;
+            }
+            buildThemes();
+            buildScenery(currentLevel, THEMES[currentLevel.theme]);
+            resetAmbient(THEMES[currentLevel.theme].ambient);
+            drawAvatar();
+            startBtn.disabled = false;
+            startBtn.innerText = 'BẮT ĐẦU TRUYỀN KỲ';
+        });
+
+        // START ENGINE LOOP
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
