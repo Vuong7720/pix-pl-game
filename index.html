@@ -663,7 +663,8 @@
             treeRed: 'tree-red.png',
             treeDark: 'tree-dark.png',
             tiles: 'tiles.png',
-            hero: 'hero-monkey.png',
+            hero: 'hero-wukong.png',
+            wukongEyes: 'wukong-eyes.png',
             boarRun: 'boar-run.png',
             boarRunBlack: 'boar-run-black.png',
             boarRunWhite: 'boar-run-white.png',
@@ -699,23 +700,28 @@
             return c;
         }
 
-        // Frame layouts measured from the sheets: row = sheet row, ax = body centre x inside a frame, foot = lowest row of the feet
-        // Monkey King sheet: 64x32 cells, one animation per row, facing right; the art is tiny so it is drawn at 4x
-        const HERO_SCALE = 4;
+        // Frame layouts: row = sheet row, ax = body centre x inside a frame, foot = lowest row of the feet
+        // Monkey King sheet (hero-wukong.png): 240x170 cells, one animation per row, facing right.
+        // The art is high resolution, so it is drawn at 0.5: one sheet pixel per device pixel.
+        const HERO_SCALE = 0.5;
+        const wukongCell = (row, frames) => ({ row, fw: 240, fh: 170, frames, ax: 100, foot: 165 });
         const HERO_ANIMS = {
-            idle:   { row: 0, fw: 64, fh: 32, frames: 4,  ax: 30, foot: 31 },
-            jump:   { row: 1, fw: 64, fh: 32, frames: 3,  ax: 30, foot: 31 },
-            run:    { row: 2, fw: 64, fh: 32, frames: 6,  ax: 30, foot: 31 },
-            sweep:  { row: 3, fw: 64, fh: 32, frames: 7,  ax: 30, foot: 31 },
-            smash:  { row: 4, fw: 64, fh: 32, frames: 8,  ax: 31, foot: 31 },
-            pillar: { row: 5, fw: 64, fh: 32, frames: 17, ax: 31, foot: 31 },
-            // Same row, but anchored at the monkey's feet (row 13) while he rides the growing staff
-            pillarTop: { row: 5, fw: 64, fh: 32, frames: 17, ax: 31, foot: 13 },
-            dash:   { row: 6, fw: 64, fh: 32, frames: 14, ax: 31, foot: 31 },
-            dead:   { row: 7, fw: 64, fh: 32, frames: 10, ax: 31, foot: 31 }
+            idle:   wukongCell(0, 2),
+            run:    wukongCell(1, 7),
+            jump:   wukongCell(2, 4),  // rising, apex, falling, somersault
+            atk1:   wukongCell(3, 3),  // thrust
+            atk2:   wukongCell(4, 2),  // sweeping arc
+            atk3:   wukongCell(5, 3),  // spin and ground smash
+            cast:   wukongCell(6, 1),  // palms together
+            dead:   wukongCell(7, 2),
+            leap:   wukongCell(8, 2),  // staff raised, overhead slam
+            forms:  wukongCell(9, 3),  // eagle, mouse, fish (72 transformations)
+            stance: wukongCell(10, 1)
         };
-        // Staff x inside the pillar frames, relative to ax (art pixels)
-        const PILLAR_STAFF_X = -2.5;
+        // The code-drawn party characters use small 24px frames drawn at 4x
+        const PARTY_SCALE = 4;
+        // Staff x under the monkey while Như Ý Trụ Thiên lifts him (relative to ax, sheet pixels)
+        const PILLAR_STAFF_X = 0;
 
         // Every skill a character can have. `leap` skills take over movement (see LEAPS); the rest `cast` instantly.
         const SKILLS = {
@@ -750,7 +756,8 @@
         };
         const FREEZE_TIME = 3;
         // Monkey King combo step -> [animation, first frame, frame count]
-        const ATTACK_FRAMES = { 1: ['sweep', 0, 7], 2: ['smash', 4, 4], 3: ['smash', 0, 8] };
+        // Monkey King combo step -> attack animation row
+        const ATTACK_ROWS = { 1: 'atk1', 2: 'atk2', 3: 'atk3' };
 
         // Playable characters. Sheets are attached in buildCharacters() once the art is ready.
         const CHARACTERS = {
@@ -1621,7 +1628,7 @@
             for (const [id, spec] of Object.entries(PARTY_SPRITES)) {
                 const sheet = buildPartySheet(spec);
                 Object.assign(CHARACTERS[id], {
-                    sheet, scale: HERO_SCALE, animFor: partyAnim,
+                    sheet, scale: PARTY_SCALE, animFor: partyAnim,
                     dashSheet: tintImage(sheet, '#fde68a', 1),
                     guestSheet: tintImage(sheet, '#3b82f6', 0.4)
                 });
@@ -1635,27 +1642,29 @@
                 case 'run':
                     return [A.run, Math.floor(p.animTime / 0.08) % A.run.frames];
                 case 'dash':
-                    // Spinning-cloud frames 1-12 (Cân Đẩu Vân)
-                    return [A.dash, 1 + Math.floor(p.animTime / 0.03) % 12];
+                    // somersault on the cloud (Cân Đẩu Vân, the cloud is drawn under him)
+                    return [A.jump, 3];
                 case 'dead':
-                    return [A.dead, Math.min(A.dead.frames - 1, Math.floor(p.animTime / 0.1))];
+                    return [A.dead, Math.min(A.dead.frames - 1, Math.floor(p.animTime / 0.3))];
                 case 'leap':
-                    // spin flash -> riding the staff -> spin dive -> yellow impact splash
-                    if (p.skillPhase === 'plant' || p.skillPhase === 'slam') return [A.pillar, 1];
-                    if (p.skillPhase === 'rise') return [A.pillarTop, 3];
-                    return [A.pillar, 13 + Math.min(2, Math.floor((1 - p.skillTimer / 0.3) * 3))];
+                    // staff raised while it grows -> overhead slam -> ground smash
+                    if (p.skillPhase === 'plant' || p.skillPhase === 'rise') return [A.leap, 0];
+                    if (p.skillPhase === 'slam') return [A.leap, 1];
+                    return [A.atk3, 2];
                 case 'attack': {
-                    const [anim, start, len] = ATTACK_FRAMES[p.attackCombo];
+                    const anim = A[ATTACK_ROWS[p.attackCombo]];
                     const progress = 1 - p.attackTimer / p.attackDuration;
-                    return [A[anim], start + Math.min(len - 1, Math.max(0, Math.floor(progress * len)))];
+                    return [anim, Math.min(anim.frames - 1, Math.max(0, Math.floor(progress * anim.frames)))];
                 }
                 case 'cast':
-                    return [A.jump, 1];
+                case 'sleep':
+                    return [A.cast, 0];
                 case 'jump':
-                    // Staff raised while rising, neutral at the apex, crouched while falling
-                    return [A.jump, p.vy < -3 ? 1 : p.vy > 3 ? 2 : 0];
+                    // a somersault on the extra air jumps, otherwise rising / apex / falling
+                    if (p.vy < 0 && p.jumpCount >= 2) return [A.jump, 3];
+                    return [A.jump, p.vy < -3 ? 0 : p.vy > 3 ? 2 : 1];
                 default:
-                    return [A.idle, Math.floor(p.animTime / 0.15) % A.idle.frames];
+                    return [A.idle, Math.floor(p.animTime / 0.4) % A.idle.frames];
             }
         }
 
@@ -3171,6 +3180,19 @@
 
                 const flip = this.facing === 'left';
                 const [anim, frame] = this.animFrame();
+                if (this.charId === 'wukong' && this.animState === 'dash') {
+                    // Cân Đẩu Vân: a golden cloud carries the somersaulting monkey
+                    ctx.save();
+                    ctx.fillStyle = '#fde68a';
+                    for (const [ox, oy, r] of [[-18, 2, 9], [-6, -2, 11], [8, 0, 10], [20, 3, 8]]) {
+                        ctx.beginPath();
+                        ctx.arc(cx + (flip ? -ox : ox), feetY + oy - 4, r, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.fillStyle = '#fffbeb';
+                    ctx.fillRect(snap(cx - 16), snap(feetY - 10), 26, 3);
+                    ctx.restore();
+                }
                 if (this.skill === 'leap' && this.skillPhase === 'rise' && this.leap.staff) {
                     // The staff reaches from the ground up to the monkey's feet
                     const staffX = cx + PILLAR_STAFF_X * scale * (flip ? -1 : 1);
@@ -3707,13 +3729,13 @@
                 // Flicker during the last second and a half
                 if (this.life < 1.5 && Math.floor(this.life * 10) % 2 === 0) return;
                 let anim = HERO_ANIMS.idle;
-                let frame = Math.floor(this.animTime / 0.15) % anim.frames;
+                let frame = Math.floor(this.animTime / 0.4) % anim.frames;
                 if (this.attackTimer > 0) {
-                    anim = HERO_ANIMS.sweep;
+                    anim = HERO_ANIMS.atk2;
                     frame = Math.min(anim.frames - 1, Math.floor((1 - this.attackTimer / 0.3) * anim.frames));
                 } else if (!this.isGrounded) {
                     anim = HERO_ANIMS.jump;
-                    frame = this.vy < 0 ? 1 : 2;
+                    frame = this.vy < 0 ? 0 : 2;
                 } else if (Math.abs(this.vx) > 0.8) {
                     anim = HERO_ANIMS.run;
                     frame = Math.floor(this.animTime / 0.08) % anim.frames;
@@ -4481,7 +4503,7 @@
         vignette.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
 
         // Face crop from the first idle frame of each sheet
-        const AVATAR_CROPS = { wukong: [24, 15, 14, 14], party: [5, 4, 14, 14] };
+        const AVATAR_CROPS = { wukong: [88, 50, 40, 40], party: [5, 4, 14, 14] };
 
         function drawCharacterFace(canvasEl, charId) {
             const a = canvasEl.getContext('2d');
@@ -4694,7 +4716,7 @@
             { x: 650, y: 330, stage: 4, title: 'BÀN TƠ ĐỘNG' },
             { x: 735, y: 200, stage: 5, title: 'THIÊN CUNG' }
         ];
-        const MAP_HERO_SCALE = 3;
+        const MAP_HERO_SCALE = 0.75; // relative to the in-game size
         const mapState = { selected: 0, from: 0, walkT: 1, t: 0 };
         let shopOpen = false;
 
@@ -4870,7 +4892,7 @@
             // The chosen character walks the map
             const hero = CHARACTERS[save.character];
             const [anim, frame] = hero.animFor({ animState: walking ? 'run' : 'idle', animTime: mapState.t, vy: 0 });
-            drawSprite(hero.sheet, anim, frame, hx, hy - 20, b.x < a.x, MAP_HERO_SCALE);
+            drawSprite(hero.sheet, anim, frame, hx, hy - 20, b.x < a.x, hero.scale * MAP_HERO_SCALE);
 
             // Info panel for the selected stage
             const sel = MAP_NODES[mapState.selected];
