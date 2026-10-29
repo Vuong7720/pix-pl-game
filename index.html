@@ -674,6 +674,10 @@
             tiles: 'tiles.png',
             hero: 'hero-wukong.png',
             wukongEyes: 'wukong-eyes.png',
+            heroNezha: 'hero-nezha.png',
+            heroBajie: 'hero-bajie.png',
+            heroSha: 'hero-sha.png',
+            heroTang: 'hero-tang.png',
             boarRun: 'boar-run.png',
             boarRunBlack: 'boar-run-black.png',
             boarRunWhite: 'boar-run-white.png',
@@ -727,36 +731,47 @@
             forms:  { ...wukongCell(9, 3), scale: 0.9 },  // eagle, mouse, fish (72 transformations), small so drawn larger
             stance: wukongCell(10, 1)
         };
-        // The code-drawn party characters use small 24px frames drawn at 4x
-        const PARTY_SCALE = 4;
         // Staff x under the monkey while Như Ý Trụ Thiên lifts him (relative to ax, sheet pixels)
         const PILLAR_STAFF_X = 0;
 
         // Every skill a character can have. `leap` skills take over movement (see LEAPS); the rest `cast` instantly.
+        // `pose` names the casting pose on the character's sheet; `cutIn` shows the eye portrait first.
         const SKILLS = {
             // Tôn Ngộ Không
             pillar:    { cost: 40, name: 'NHƯ Ý TRỤ THIÊN', short: 'TRỤ', desc: 'Gậy mọc dài hất lên cao rồi đập đất', leap: 'pillar' },
             hundred:   { cost: 55, name: 'BÁCH PHÂN THÂN', short: 'BÁCH', desc: 'Ba phân thân vàng đánh cùng trong 7 giây', cast: p => spawnClones(p, 3) },
             freeze:    { cost: 60, name: 'ĐỊNH THÂN PHÁP', short: 'ĐỊNH', desc: 'Đóng băng kẻ địch xung quanh', cast: p => castFreeze(p) },
-            eyes:      { cost: 70, name: 'HỎA NHÃN KIM TINH', short: 'NHÃN', desc: 'Mắt lửa phóng tia thiêu mọi kẻ địch phía trước', cast: p => castEyes(p) },
+            eyes:      { cost: 70, name: 'HỎA NHÃN KIM TINH', short: 'NHÃN', desc: 'Mắt lửa phóng tia thiêu mọi kẻ địch phía trước', cast: p => castEyes(p), cutIn: true },
             circle:    { cost: 50, name: 'VÒNG TRÒN KIM CÔ', short: 'VÒNG', desc: 'Vòng vàng 4 giây: đứng trong vòng không bị thương, kẻ địch bị đẩy ra', cast: p => castCircle(p) },
             transform: { cost: 45, name: '72 BIẾN HÓA', short: 'BIẾN', desc: 'Hóa đại bàng bay lượn 5 giây (dưới nước hóa cá), không bị trúng đòn', cast: p => castTransform(p) },
             // Trư Bát Giới
             bellyslam: { cost: 40, name: 'BỤNG ĐÈ THÁI SƠN', short: 'ĐÈ', desc: 'Nhảy lên rồi lấy bụng đè, sóng chấn rất rộng', leap: 'belly' },
-            feast:     { cost: 45, name: 'ĂN NO CHIẾN TIẾP', short: 'ĂN', desc: 'Hồi 35 máu và miễn sát thương chốc lát', cast: p => castFeast(p) },
+            feast:     { cost: 45, name: 'ĂN NO CHIẾN TIẾP', short: 'ĂN', desc: 'Hồi 35 máu và miễn sát thương chốc lát', cast: p => castFeast(p), pose: 'feast' },
             snore:     { cost: 60, name: 'NGỦ KHÒ CHẤN ĐỘNG', short: 'NGỦ', desc: 'Ngủ 2,5 giây: bất tử, hồi máu, tiếng ngáy hất văng kẻ địch', cast: p => castSnore(p) },
+            rain:      { cost: 50, name: 'HÔ PHONG HOÁN VŨ', short: 'MƯA', desc: 'Gọi mây đen mưa xối xả phía trước 5 giây: làm chậm, bào máu', cast: p => castRain(p), pose: 'rain', cutIn: true },
+            rakethrow: { cost: 45, name: 'NÉM CỬU XỈ ĐINH BA', short: 'NÉM', desc: 'Ném đinh ba xoay tít bay đi rồi quay về', cast: p => castRakeThrow(p), pose: 'throw' },
+            piglet:    { cost: 40, name: 'BIẾN HÓA HEO CON', short: 'HEO', desc: 'Hóa heo con chạy nhanh 5 giây, không bị trúng đòn', cast: p => castPiglet(p) },
             // Sa Tăng
-            quicksand: { cost: 40, name: 'LƯU SA HÀ', short: 'CÁT', desc: 'Vũng cát lún làm chậm và bào máu kẻ địch', cast: p => castQuicksand(p) },
-            counter:   { cost: 40, name: 'NGUYỆT NHA PHẢN ĐÒN', short: 'ĐỠ', desc: 'Thủ thế 1,2 giây, bị đánh thì phản đòn quanh mình', cast: p => castCounter(p) },
-            beads:     { cost: 50, name: 'CHUỖI ĐẦU LÂU', short: 'CHUỖI', desc: 'Ném chuỗi hạt bay đi rồi quay về', cast: p => castBeads(p) },
+            quicksand: { cost: 40, name: 'LƯU SA HÀ', short: 'CÁT', desc: 'Vũng cát lún làm chậm và bào máu kẻ địch', cast: p => castQuicksand(p), pose: 'sweep' },
+            counter:   { cost: 40, name: 'NGUYỆT NHA PHẢN ĐÒN', short: 'ĐỠ', desc: 'Thủ thế 1,2 giây, bị đánh thì phản đòn quanh mình', cast: p => castCounter(p), pose: 'barrier' },
+            beads:     { cost: 50, name: 'CHUỖI ĐẦU LÂU', short: 'CHUỖI', desc: 'Ném chuỗi hạt bay đi rồi quay về', cast: p => castBeads(p), pose: 'throw' },
+            tide:      { cost: 55, name: 'THỦY TRIỀU TRẤN', short: 'LỐC', desc: 'Lốc nước tiến chậm về phía trước, hút và bào máu kẻ địch', cast: p => castTide(p), pose: 'tide', cutIn: true },
+            wave:      { cost: 40, name: 'QUÉT THỦY', short: 'SÓNG', desc: 'Sóng nước quét dọc mặt đất, hất văng mọi kẻ địch', cast: p => castWave(p), pose: 'sweep' },
+            bubble:    { cost: 45, name: 'THỦY CẦU HỘ THỂ', short: 'CẦU', desc: 'Quả cầu nước chặn 3 đòn trong 6 giây', cast: p => castBubble(p), pose: 'bubble' },
             // Na Tra
             wheels:    { cost: 35, name: 'PHONG HỎA LUÂN', short: 'LUÂN', desc: 'Lao lửa xuyên qua mọi kẻ địch trên đường', cast: p => castWheels(p) },
-            ring:      { cost: 45, name: 'CÀN KHÔN QUYỂN', short: 'VÒNG', desc: 'Vòng vàng nảy qua tối đa 3 kẻ địch', cast: p => castRing(p) },
-            sash:      { cost: 55, name: 'HỖN THIÊN LĂNG', short: 'LĂNG', desc: 'Dải lụa trói kẻ địch đầu tiên trúng phải', cast: p => castSash(p) },
+            ring:      { cost: 45, name: 'CÀN KHÔN QUYỂN', short: 'VÒNG', desc: 'Vòng vàng nảy qua tối đa 3 kẻ địch', cast: p => castRing(p), pose: 'ringThrow' },
+            sash:      { cost: 55, name: 'HỖN THIÊN LĂNG', short: 'LĂNG', desc: 'Dải lụa trói kẻ địch đầu tiên trúng phải', cast: p => castSash(p), pose: 'sash' },
+            fireballs: { cost: 40, name: 'HỎA DIỆM', short: 'LỬA', desc: 'Ném liền ba quả cầu lửa', cast: p => castFireballs(p), pose: 'throw' },
+            sixarms:   { cost: 50, name: 'TAM ĐẦU LỤC TÝ', short: 'LỤC', desc: 'Hóa ba đầu sáu tay 8 giây: đánh nhanh và mạnh hơn', cast: p => castSixArms(p), pose: 'six' },
+            samadhi:   { cost: 70, name: 'TAM MUỘI CHÂN HỎA', short: 'HỎA', desc: 'Phun luồng lửa khổng lồ thiêu mọi kẻ địch phía trước', cast: p => castSamadhi(p), pose: 'fire', cutIn: true },
             // Đường Tăng
-            chant:     { cost: 45, name: 'KIM CÔ CHÚ', short: 'CHÚ', desc: 'Niệm chú làm choáng kẻ địch xung quanh', cast: p => castChant(p) },
-            heal:      { cost: 40, name: 'TỤNG KINH', short: 'KINH', desc: 'Hồi 40 máu trong 2 giây, gỡ tơ trói', cast: p => castHeal(p) },
-            smite:     { cost: 55, name: 'PHẬT QUANG PHỔ CHIẾU', short: 'QUANG', desc: 'Cột sáng giáng xuống 3 kẻ địch gần nhất', cast: p => castSmite(p) }
+            chant:     { cost: 45, name: 'KIM CÔ CHÚ', short: 'CHÚ', desc: 'Niệm chú làm choáng kẻ địch xung quanh', cast: p => castChant(p), pose: 'chant' },
+            heal:      { cost: 40, name: 'TỤNG KINH', short: 'KINH', desc: 'Hồi 40 máu trong 2 giây, gỡ tơ trói', cast: p => castHeal(p), pose: 'pray' },
+            smite:     { cost: 55, name: 'PHẬT QUANG PHỔ CHIẾU', short: 'QUANG', desc: 'Cột sáng giáng xuống 3 kẻ địch gần nhất', cast: p => castSmite(p), pose: 'summon' },
+            buddha:    { cost: 65, name: 'TRIỆU HOÁN PHẬT QUANG', short: 'PHẬT', desc: 'Tượng Phật vàng hiện 4 giây: hồi máu cho mình, đánh kẻ địch gần', cast: p => castBuddha(p), pose: 'summon', cutIn: true },
+            meditate:  { cost: 30, name: 'TỊNH TÂM', short: 'TÂM', desc: 'Ngồi thiền 2,5 giây: bất tử, hồi máu và nạp Pháp Lực rất nhanh', cast: p => castMeditate(p), pose: 'meditate' },
+            sutra:     { cost: 45, name: 'KINH VĂN HỘ THÂN', short: 'VĂN', desc: 'Chữ kinh vàng xoay quanh mình 6 giây, bào máu kẻ địch chạm vào', cast: p => castSutra(p), pose: 'chant' }
         };
         // Skill slots: keys and the stage whose clear unlocks each slot in the campaign
         const SLOT_KEYS = ['U', 'I', 'O'];
@@ -786,28 +801,32 @@
                 name: 'TRƯ BÁT GIỚI', role: 'Đỡ đòn · Đánh nặng',
                 hp: 150, speed: 4.8, jumps: 2,
                 attack: { timings: { 1: 0.34, 2: 0.3, 3: 0.42 }, reach: { 1: 95, 2: 100, 3: 110 }, damage: 1.3 },
-                skills: ['bellyslam', 'feast', 'snore'],
+                skills: ['bellyslam', 'rakethrow', 'rain'],
+                skillPool: ['bellyslam', 'feast', 'snore', 'rain', 'rakethrow', 'piglet'],
                 passive: 'heavy', passiveText: 'Thân Nặng: gần như không bị đẩy lùi'
             },
             sha: {
                 name: 'SA TĂNG', role: 'Phòng thủ · Khống chế',
                 hp: 120, speed: 5.4, jumps: 2,
                 attack: { timings: { 1: 0.3, 2: 0.28, 3: 0.36 }, reach: { 1: 105, 2: 110, 3: 120 }, damage: 1 },
-                skills: ['quicksand', 'counter', 'beads'],
+                skills: ['wave', 'tide', 'bubble'],
+                skillPool: ['quicksand', 'counter', 'beads', 'tide', 'wave', 'bubble'],
                 passive: 'steady', passiveText: 'Vững Như Bàn Thạch: đứng yên thì nhận ít hơn 40% sát thương'
             },
             nezha: {
                 name: 'NA TRA', role: 'Nhanh · Bay lượn',
                 hp: 80, speed: 7, jumps: 3,
                 attack: { timings: { 1: 0.2, 2: 0.18, 3: 0.26 }, reach: { 1: 85, 2: 85, 3: 95 }, damage: 0.85 },
-                skills: ['wheels', 'ring', 'sash'],
+                skills: ['wheels', 'fireballs', 'samadhi'],
+                skillPool: ['wheels', 'ring', 'sash', 'fireballs', 'sixarms', 'samadhi'],
                 passiveText: 'Phong Hỏa Luân: chạy nhanh nhất, nhảy được 3 lần'
             },
             tang: {
                 name: 'ĐƯỜNG TĂNG', role: 'Hỗ trợ · Phép thuật',
                 hp: 90, speed: 5.2, jumps: 2, mpGain: 1.5,
                 attack: { timings: { 1: 0.28, 2: 0.26, 3: 0.32 }, reach: { 1: 70, 2: 75, 3: 80 }, damage: 0.75 },
-                skills: ['chant', 'heal', 'smite'],
+                skills: ['chant', 'heal', 'buddha'],
+                skillPool: ['chant', 'heal', 'smite', 'buddha', 'meditate', 'sutra'],
                 passiveText: 'Chân Kinh: nạp Pháp Lực nhanh hơn 50%'
             }
         };
@@ -1395,261 +1414,80 @@
             }
         };
 
-        // --- CODE-DRAWN PARTY CHARACTERS ---
-        // Paper-doll sprites: a head and torso pixel map per character, legs and a weapon composed per pose.
-        // Each frame is 24x24, feet on the bottom row, body centred at x = 12, facing right like the Monkey King.
-        const CHAR_FRAME = 24;
-        const HIP_Y = 19;
+        // --- HAND-DRAWN PARTY SHEETS (Na Tra, Bát Giới, Sa Tăng, Đường Tăng) ---
+        // Built from the art in char-and-back/ the same way as the Monkey King: background removed,
+        // frames cut and aligned into 240x170 cells, feet on row 165, body centre on column 100, drawn at 0.5.
+        const hdCell = (row, frames, scale) => ({ row, fw: 240, fh: 170, frames, ax: 100, foot: 165, ...(scale ? { scale } : {}) });
 
-        // Leg rectangles [dx, dy, w, h] relative to the hip centre
-        const LEGS = {
-            stand:   [[-3, 0, 2, 5], [1, 0, 2, 5]],
-            strideA: [[-4, 0, 2, 3], [-5, 3, 2, 2], [1, 0, 2, 3], [2, 3, 2, 2]],
-            strideB: [[-2, 0, 2, 3], [-1, 3, 2, 2], [0, 0, 2, 3], [-1, 3, 2, 2]],
-            pass:    [[-2, 0, 2, 5], [0, 0, 2, 5]],
-            tuck:    [[-3, 0, 2, 2], [-2, 2, 3, 1], [1, 0, 2, 2], [2, 2, 3, 1]],
-            spread:  [[-5, 0, 2, 4], [3, 0, 2, 4]],
-            brace:   [[-5, 0, 2, 5], [3, 0, 2, 5]],
-            lunge:   [[-5, 0, 2, 3], [-6, 3, 2, 2], [2, 0, 2, 2], [3, 2, 2, 3]]
-        };
-
-        // Poses per animation row: bob = body offset, arm = weapon angle in degrees (0 = forward, -90 = straight up)
-        const PARTY_POSES = {
-            idle:   [{ bob: 0, legs: 'stand', arm: -60 }, { bob: 1, legs: 'stand', arm: -55 }],
-            run:    [{ bob: 0, legs: 'strideA', arm: -40 }, { bob: -1, legs: 'pass', arm: -45 },
-                     { bob: 0, legs: 'strideB', arm: -40 }, { bob: -1, legs: 'pass', arm: -45 }],
-            jump:   [{ bob: -1, legs: 'tuck', arm: -100 }, { bob: 0, legs: 'spread', arm: -30 }],
-            attack: [{ bob: 0, legs: 'brace', arm: -150 }, { bob: 0, legs: 'lunge', arm: 0, reach: 1.3 }, { bob: 1, legs: 'lunge', arm: 35 }],
-            cast:   [{ bob: -1, legs: 'stand', arm: -90 }],
-            dead:   [{ lying: true }, { lying: true, faded: true }]
-        };
-        const PARTY_ROWS = ['idle', 'run', 'jump', 'attack', 'cast', 'dead'];
-        const PARTY_ANIMS = Object.fromEntries(PARTY_ROWS.map((name, row) =>
-            [name, { row, fw: CHAR_FRAME, fh: CHAR_FRAME, frames: PARTY_POSES[name].length, ax: 12, foot: 23 }]));
-
-        const PARTY_SPRITES = {
-            // Trư Bát Giới: pig face, dark-blue robe over a round belly, nine-toothed rake
-            bajie: {
-                palette: { k: '#f9a8d4', K: '#f472b6', n: '#fbcfe8', b: '#111827', r: '#1e3a8a', R: '#3b82f6', y: '#facc15' },
-                head: [
-                    '.KK....K.',
-                    'KkkkkkkK.',
-                    'kkkkkbkkn',
-                    'kkkkkkknn',
-                    'kkkkkkknb',
-                    '.kkkkkknn',
-                    '..kkkkk..'
-                ],
-                torso: [
-                    '..rrrrrrr..',
-                    '.rrRRRRRrr.',
-                    'rrRRkkkRRrr',
-                    'rRRkkkkkRRr',
-                    'ryyyyyyyyyr',
-                    '.rrrrrrrrr.'
-                ],
-                legs: '#1f2937', arm: '#f9a8d4',
-                weapon: { style: 'rake', length: 11, shaft: '#78350f', head: '#cbd5e1' }
-            },
-            // Sa Tăng: bald, red beard, necklace of skulls, brown robe, crescent-moon spade
-            sha: {
-                palette: { s: '#d6a77a', b: '#111827', r: '#b91c1c', o: '#92400e', O: '#b45309', W: '#f5f5f4', g: '#a16207' },
-                head: [
-                    '..ssss..',
-                    '.ssssss.',
-                    'sssssbs.',
-                    'ssssssss',
-                    'ssrssrr.',
-                    '.rrrrrr.',
-                    '..rrrr..'
-                ],
-                torso: [
-                    '..oooooo..',
-                    '.oWoWoWoo.',
-                    'oooOOOOooo',
-                    'ooOOOOOOoo',
-                    'oggggggggo',
-                    '.oooooooo.'
-                ],
-                legs: '#451a03', arm: '#d6a77a',
-                weapon: { style: 'spade', length: 13, shaft: '#78350f', head: '#e2e8f0' }
-            },
-            // Na Tra: child with hair buns, red sash and golden ring, fire spear, riding wind-fire wheels
-            nezha: {
-                palette: { h: '#111827', s: '#fed7aa', b: '#111827', g: '#facc15', c: '#dc2626', C: '#f87171', d: '#7f1d1d' },
-                head: [
-                    'hh....hh',
-                    'hhhhhhhh',
-                    '.hssssh.',
-                    '.sssbss.',
-                    '.ssssss.',
-                    '.ssssss.',
-                    '..ssss..'
-                ],
-                torso: [
-                    '.gggggg.',
-                    'sccCCccs',
-                    'scCCCCcs',
-                    'sccccccs',
-                    '.dddddd.',
-                    '.cccccc.'
-                ],
-                legs: '#b91c1c', arm: '#fed7aa', wheels: true,
-                weapon: { style: 'spear', length: 13, shaft: '#a16207', head: '#e2e8f0', tassel: '#dc2626' }
-            },
-            // Đường Tăng: golden Vairocana crown, red kasaya over a white robe, ringed monk staff
-            tang: {
-                palette: { h: '#facc15', H: '#a16207', s: '#fed7aa', b: '#111827', w: '#f1f5f9', r: '#b91c1c', R: '#ef4444', y: '#fde047' },
-                head: [
-                    '.h.h.h..',
-                    '.hhhhhh.',
-                    'hHhHhHhh',
-                    '.ssssss.',
-                    '.sssbss.',
-                    '.ssssss.',
-                    '..ssss..'
-                ],
-                torso: [
-                    '..wwwwww..',
-                    '.rrrwwrrr.',
-                    'rrRyrrrRrr',
-                    'rRrryRrrRr',
-                    'rrRrryrrRr',
-                    'rrrrrryrrr',
-                    '.rrrrrrrr.'
-                ],
-                legs: '#f1f5f9', arm: '#ef4444',
-                weapon: { style: 'staff', length: 14, shaft: '#ca8a04', head: '#fde047' }
-            }
-        };
-
-        function drawPixelMap(g, rows, palette, ox, oy) {
-            rows.forEach((row, y) => {
-                [...row].forEach((ch, x) => {
-                    if (ch === '.') return;
-                    g.fillStyle = palette[ch];
-                    g.fillRect(ox + x, oy + y, 1, 1);
-                });
-            });
-        }
-
-        // Weapon: a shaft from the hand at `angle`, with a head shape at the tip
-        function drawPixelWeapon(g, w, hx, hy, angle, reach) {
-            const rad = angle * Math.PI / 180;
-            const dx = Math.cos(rad), dy = Math.sin(rad);
-            const px = -dy, py = dx; // perpendicular
-            const len = Math.round(w.length * reach);
-            const dot = (x, y, color) => {
-                g.fillStyle = color;
-                g.fillRect(Math.round(x), Math.round(y), 1, 1);
+        // Shared row layout of these sheets
+        function hdAnims(idleFrames, atk3Frames) {
+            return {
+                idle: hdCell(0, idleFrames),
+                run: hdCell(1, 5),
+                jump: hdCell(2, 3),   // rising, apex, falling
+                atk1: hdCell(3, 2),
+                atk2: hdCell(4, 2),
+                atk3: hdCell(5, atk3Frames),
+                cast: hdCell(6, 1),
+                dead: hdCell(7, 1),   // sitting down: these sheets have no fall
+                poses: hdCell(8, 4),  // skill poses, named per character below
+                poses2: hdCell(9, 2),
+                fx: hdCell(11, 3, 0.8), // effect / transformation sprites
+                portrait: hdCell(12, 1)
             };
-            for (let t = 0; t <= len; t += 0.5) dot(hx + dx * t, hy + dy * t, w.shaft);
-            const tx = hx + dx * len, ty = hy + dy * len;
-            if (w.style === 'rake') {
-                for (let k = -2; k <= 2; k++) dot(tx + px * k, ty + py * k, w.head);
-                for (const k of [-2, 0, 2]) for (let s = 1; s <= 2; s++) dot(tx + px * k + dx * s, ty + py * k + dy * s, w.head);
-            } else if (w.style === 'spade') {
-                for (let a = -1; a <= 1; a++) for (let b = 0; b <= 2; b++) dot(tx + px * a + dx * b, ty + py * a + dy * b, w.head);
-                dot(tx + px * 2 - dx, ty + py * 2 - dy, w.head);
-                dot(tx - px * 2 - dx, ty - py * 2 - dy, w.head);
-            } else if (w.style === 'spear') {
-                for (let s = 1; s <= 3; s++) dot(tx + dx * s, ty + dy * s, w.head);
-                dot(tx + px, ty + py, w.head);
-                dot(tx - px, ty - py, w.head);
-                dot(tx - dx * 2 + px, ty - dy * 2 + py, w.tassel);
-                dot(tx - dx * 2 - px, ty - dy * 2 - py, w.tassel);
-                dot(tx - dx * 3, ty - dy * 3, w.tassel);
-            } else if (w.style === 'staff') {
-                // ring of the monk staff
-                const cx = tx + dx * 2, cy = ty + dy * 2;
-                for (let a = 0; a < 12; a++) {
-                    const r = (a / 12) * Math.PI * 2;
-                    dot(cx + Math.cos(r) * 2.2, cy + Math.sin(r) * 2.2, w.head);
-                }
+        }
+
+        // Per-character art: sheet, named poses [animation row, frame], effect columns, face and portrait crops
+        const CHARACTER_ART = {
+            nezha: {
+                sheet: 'heroNezha', anims: hdAnims(1, 2),
+                poses: { sash: ['poses', 0], throw: ['poses', 1], ringThrow: ['poses', 2], six: ['poses', 3],
+                         sixIdle: ['poses2', 0], sixAttack: ['poses2', 1], fire: ['atk3', 1] },
+                fx: { ring: 0, fireball: 1 },
+                face: [86, 62, 36, 36], portrait: [28, 74, 146, 92]
+            },
+            bajie: {
+                sheet: 'heroBajie', anims: hdAnims(1, 3),
+                poses: { feast: ['poses', 0], rain: ['poses', 1], slam: ['poses', 2], eat: ['poses', 3], throw: ['atk2', 1] },
+                fx: { rake: 0, cloud: 1, pig: 2 },
+                face: [78, 60, 36, 36], portrait: [7, 76, 191, 90]
+            },
+            sha: {
+                sheet: 'heroSha', anims: hdAnims(1, 3),
+                poses: { barrier: ['poses', 0], bubble: ['poses', 1], sweep: ['poses', 2], throw: ['atk1', 1], tide: ['atk3', 2] },
+                fx: { tornado: 0, bubble: 1 },
+                face: [76, 58, 36, 36], portrait: [7, 75, 191, 91]
+            },
+            tang: {
+                sheet: 'heroTang', anims: hdAnims(3, 3),
+                poses: { pray: ['poses', 0], meditate: ['poses', 1], chant: ['poses', 2], summon: ['poses', 3] },
+                fx: { buddha: 0, lotus: 1 },
+                face: [92, 60, 36, 36], portrait: [28, 74, 146, 92]
             }
-        }
+        };
 
-        function drawPartyFrame(g, spec, pose) {
-            const bob = pose.bob || 0;
-            const torsoH = spec.torso.length, torsoW = spec.torso[0].length;
-            const headH = spec.head.length, headW = spec.head[0].length;
-            const torsoTop = HIP_Y - torsoH + bob;
-            const torsoLeft = 12 - Math.ceil(torsoW / 2);
-            const headTop = torsoTop - headH + 1;
-            const headLeft = 12 - Math.ceil(headW / 2);
-            const handX = torsoLeft + torsoW - 2, handY = torsoTop + 2;
-            const weaponBehind = pose.arm < -100;
-
-            if (weaponBehind) drawPixelWeapon(g, spec.weapon, handX, handY, pose.arm, pose.reach || 1);
-            const legs = LEGS[pose.legs];
-            g.fillStyle = spec.legs;
-            for (const [lx, ly, lw, lh] of legs) g.fillRect(12 + lx, HIP_Y + ly, lw, lh);
-            if (spec.wheels && pose.legs !== 'tuck') {
-                // little wind-fire wheels under each foot
-                for (const [lx, ly, , lh] of [legs[0], legs[legs.length - 1]]) {
-                    const wx = 12 + lx - 1, wy = HIP_Y + ly + lh - 2;
-                    g.fillStyle = '#f97316';
-                    g.fillRect(wx, wy, 4, 2);
-                    g.fillStyle = '#fde047';
-                    g.fillRect(wx + 1, wy, 2, 1);
-                }
-            }
-            drawPixelMap(g, spec.torso, spec.palette, torsoLeft, torsoTop);
-            drawPixelMap(g, spec.head, spec.palette, headLeft, headTop);
-            // forearm toward the weapon
-            const rad = pose.arm * Math.PI / 180;
-            g.fillStyle = spec.arm;
-            for (let t = 0; t < 3; t++) g.fillRect(Math.round(handX + Math.cos(rad) * t), Math.round(handY + Math.sin(rad) * t), 1, 1);
-            if (!weaponBehind) drawPixelWeapon(g, spec.weapon, handX, handY, pose.arm, pose.reach || 1);
-        }
-
-        function buildPartySheet(spec) {
-            const F = CHAR_FRAME;
-            const sheet = document.createElement('canvas');
-            sheet.width = F * 4;
-            sheet.height = F * PARTY_ROWS.length;
-            const sg = sheet.getContext('2d');
-            PARTY_ROWS.forEach((name, row) => {
-                PARTY_POSES[name].forEach((pose, col) => {
-                    // each frame gets its own canvas so a long weapon cannot bleed into the next frame
-                    const frame = document.createElement('canvas');
-                    frame.width = frame.height = F;
-                    const g = frame.getContext('2d');
-                    if (pose.lying) {
-                        const standing = document.createElement('canvas');
-                        standing.width = standing.height = F;
-                        drawPartyFrame(standing.getContext('2d'), spec, PARTY_POSES.idle[0]);
-                        // rotate the standing figure 90° so it lies along the bottom of the frame
-                        g.translate(F, 6);
-                        g.rotate(Math.PI / 2);
-                        if (pose.faded) g.globalAlpha = 0.7;
-                        g.drawImage(standing, 0, 0);
-                    } else {
-                        drawPartyFrame(g, spec, pose);
-                    }
-                    sg.drawImage(frame, col * F, row * F);
-                });
-            });
-            return sheet;
-        }
-
-        // Attach sprite sheets and animation pickers to every character
+        // Attach sprite sheets, animation pickers and cut-in portraits to every character
         function buildCharacters() {
             Object.assign(CHARACTERS.wukong, {
                 sheet: IMG.hero, scale: HERO_SCALE, animFor: wukongAnim,
-                dashSheet: FLASH.dash, guestSheet: FLASH.p2
+                dashSheet: FLASH.dash, guestSheet: FLASH.p2,
+                face: [100, 64, 36, 36],
+                portraitArt: { img: IMG.wukongEyes, sx: 0, sy: 0, sw: IMG.wukongEyes.width, sh: IMG.wukongEyes.height }
             });
-            for (const [id, spec] of Object.entries(PARTY_SPRITES)) {
-                const sheet = buildPartySheet(spec);
+            for (const [id, art] of Object.entries(CHARACTER_ART)) {
+                const sheet = IMG[art.sheet];
+                const [px, py, pw, ph] = art.portrait;
                 Object.assign(CHARACTERS[id], {
-                    sheet, scale: PARTY_SCALE, animFor: partyAnim,
+                    sheet, scale: HERO_SCALE, animFor: hdAnim,
+                    anims: art.anims, poses: art.poses, fx: art.fx, face: art.face,
                     dashSheet: tintImage(sheet, '#fde68a', 1),
-                    guestSheet: tintImage(sheet, '#3b82f6', 0.4)
+                    guestSheet: tintImage(sheet, '#3b82f6', 0.4),
+                    portraitArt: { img: sheet, sx: px, sy: art.anims.portrait.row * 170 + py, sw: pw, sh: ph }
                 });
             }
         }
 
-        // Frame picker for the Monkey King's original sheet
+        // Frame picker for the Monkey King sheet (its own row layout)
         function wukongAnim(p) {
             const A = HERO_ANIMS;
             switch (p.animState) {
@@ -1685,31 +1523,41 @@
             }
         }
 
-        // Frame picker for the code-drawn party characters
-        function partyAnim(p) {
-            const A = PARTY_ANIMS;
+
+        // Frame picker for the hand-drawn party sheets
+        function hdAnim(p) {
+            const ch = p.char, A = ch.anims;
+            const pose = name => {
+                const [row, col] = ch.poses[name];
+                return [A[row], col];
+            };
+            const six = p.buff && p.buff.kind === 'sixarms' && ch.poses.sixIdle;
             switch (p.animState) {
                 case 'run':
-                    return [A.run, Math.floor(p.animTime / 0.1) % A.run.frames];
+                    return six ? pose('sixIdle') : [A.run, Math.floor(p.animTime / 0.09) % A.run.frames];
                 case 'dash':
-                    return [A.run, 0];
+                    return [A.run, 2];
                 case 'dead':
                 case 'sleep':
-                    return [A.dead, p.animState === 'dead' ? Math.min(1, Math.floor(p.animTime / 0.4)) : 0];
+                    return [A.dead, 0];
+                case 'form':
+                    return [A.fx, ch.fx[p.form]];
                 case 'leap':
                     if (p.skillPhase === 'plant' || p.skillPhase === 'rise') return [A.jump, 0];
-                    if (p.skillPhase === 'slam') return [A.jump, 1];
-                    return [A.attack, 2];
+                    if (p.skillPhase === 'slam') return [A.jump, 2];
+                    return ch.poses.slam ? pose('slam') : [A.atk3, A.atk3.frames - 1];
                 case 'attack': {
+                    if (six) return pose('sixAttack');
+                    const anim = A['atk' + p.attackCombo];
                     const progress = 1 - p.attackTimer / p.attackDuration;
-                    return [A.attack, Math.min(2, Math.max(0, Math.floor(progress * 3)))];
+                    return [anim, Math.min(anim.frames - 1, Math.max(0, Math.floor(progress * anim.frames)))];
                 }
                 case 'cast':
-                    return [A.cast, 0];
+                    return p.castPose && ch.poses[p.castPose] ? pose(p.castPose) : [A.cast, 0];
                 case 'jump':
-                    return [A.jump, p.vy < 0 ? 0 : 1];
+                    return [A.jump, p.vy < -3 ? 0 : p.vy > 3 ? 2 : 1];
                 default:
-                    return [A.idle, Math.floor(p.animTime / 0.3) % A.idle.frames];
+                    return six ? pose('sixIdle') : [A.idle, Math.floor(p.animTime / 0.35) % A.idle.frames];
             }
         }
 
@@ -2651,7 +2499,9 @@
                 this.pulseTimer = 0;     // Ngủ Khò snore pulses
                 this.counterUsed = false;
                 this.wheelHits = new Set();
-                this.form = null;        // 72 Biến Hóa: 'eagle' or 'fish'
+                this.form = null;        // 72 Biến Hóa: 'eagle', 'fish' or 'pig'
+                this.buff = null;        // timed self-buff: { kind: 'sixarms' | 'bubble' | 'sutra', timer, hits }
+                this.castPose = null;    // named pose shown while casting
                 this.formTimer = 0;
                 this.jumpBuffer = 0;     // a jump pressed slightly too early still fires on landing
                 this.swimCooldown = 0;
@@ -2694,6 +2544,7 @@
                 this.isDashing = false;
                 this.skill = null;
                 this.form = null;
+                this.buff = null;
                 this.castTimer = 0;
                 this.healTimer = 0;
                 this.jumpBuffer = 0;
@@ -2704,6 +2555,11 @@
                 this.animState = 'idle';
                 this.animTime = 0;
                 updateHUD();
+            }
+
+            // Damage multiplier of basic swings (Tam Đầu Lục Tý hits harder)
+            attackPower() {
+                return this.char.attack.damage * (this.buff && this.buff.kind === 'sixarms' ? 1.6 : 1);
             }
 
             gainMp(amount) {
@@ -2746,6 +2602,8 @@
                 playSound('skill');
                 this.isAttacking = false;
 
+                this.castPose = s.pose || null;
+                if (s.cutIn) startCutIn(this, s.name);
                 if (s.leap) {
                     this.startLeap(LEAPS[s.leap]);
                 } else {
@@ -2838,6 +2696,17 @@
                 if (this.skillTimer <= 0) this.skill = null;
             }
 
+            // Tịnh Tâm: sit still, untouchable, healing and gathering mana
+            updateMeditate(dt, platforms) {
+                this.skillTimer -= dt;
+                this.vx = 0;
+                this.vy += this.gravity();
+                this.moveAndCollide(platforms);
+                this.heal(8 * dt);
+                this.gainMp(30 * dt);
+                if (this.skillTimer <= 0) this.skill = null;
+            }
+
             // Nguyệt Nha Phản Đòn: rooted guard stance (getting hit triggers counterBlast in takeDamage)
             updateCounter(dt, platforms) {
                 this.skillTimer -= dt;
@@ -2855,7 +2724,8 @@
                     return;
                 }
                 const fish = this.form === 'fish';
-                const speed = fish ? 8 : 7;
+                const pig = this.form === 'pig';
+                const speed = fish ? 8 : pig ? 8.5 : 7;
                 if (input.left) {
                     this.vx = -speed;
                     this.facing = 'left';
@@ -2864,6 +2734,20 @@
                     this.facing = 'right';
                 } else {
                     this.vx *= 0.8;
+                }
+                if (pig) {
+                    // a piglet runs and jumps like normal, just faster
+                    this.vy += this.gravity();
+                    if (this.jumpBuffer > 0 && this.isGrounded) {
+                        this.jumpBuffer = 0;
+                        this.vy = this.jumpForce;
+                    }
+                    this.moveAndCollide(platforms);
+                    if (this.y > GAME_HEIGHT + 100) {
+                        this.form = null;
+                        this.die();
+                    }
+                    return;
                 }
                 this.vy = Math.min(this.vy + (fish ? 0.16 : 0.18), fish ? 3 : 2.5);
                 if (this.jumpBuffer > 0) {
@@ -2906,6 +2790,11 @@
                 if (this.slowTimer > 0) this.slowTimer -= dt;
                 if (this.frozen > 0) this.frozen -= dt;
                 if (this.castTimer > 0) this.castTimer -= dt;
+                if (this.buff && !this.isDead) {
+                    this.buff.timer -= dt;
+                    if (this.buff.kind === 'sutra') sutraTick(this, dt);
+                    if (this.buff.timer <= 0) this.buff = null;
+                }
                 if (this.healTimer > 0 && !this.isDead) {
                     this.healTimer -= dt;
                     this.heal(20 * dt);
@@ -2943,6 +2832,7 @@
                     if (this.skill === 'leap') this.updateLeap(dt, platforms);
                     else if (this.skill === 'snore') this.updateSnore(dt, platforms);
                     else if (this.skill === 'wheels') this.updateWheels(dt, platforms);
+                    else if (this.skill === 'meditate') this.updateMeditate(dt, platforms);
                     else this.updateCounter(dt, platforms);
                     this.updateAnimation(dt);
                     return;
@@ -2996,7 +2886,7 @@
                     // Chain into the next swing only if the previous one was recent
                     this.attackCombo = this.comboWindow > 0 ? (this.attackCombo % 3) + 1 : 1;
                     this.hitThisSwing = false;
-                    this.attackDuration = attack.timings[this.attackCombo];
+                    this.attackDuration = attack.timings[this.attackCombo] * (this.buff && this.buff.kind === 'sixarms' ? 0.7 : 1);
                     this.isAttacking = true;
                     this.attackTimer = this.attackDuration;
                     this.attackCooldown = this.attackDuration + 0.08;
@@ -3069,7 +2959,7 @@
                 else if (this.skill === 'leap') state = 'leap';
                 else if (this.skill === 'snore') state = 'sleep';
                 else if (this.skill === 'wheels') state = 'dash';
-                else if (this.skill === 'counter' || this.castTimer > 0) state = 'cast';
+                else if (this.skill === 'counter' || this.skill === 'meditate' || this.castTimer > 0) state = 'cast';
                 else if (this.isDashing) state = 'dash';
                 else if (this.isAttacking) state = 'attack';
                 else if (!this.isGrounded) state = 'jump';
@@ -3179,6 +3069,14 @@
                     return false;
                 }
                 if (this.isDead || this.invulnerableTimer > 0 || this.isDashing || this.skill || this.form) return false;
+                if (this.buff && this.buff.kind === 'bubble') {
+                    // Thủy Cầu Hộ Thể soaks the hit
+                    this.buff.hits--;
+                    this.invulnerableTimer = 0.3;
+                    createHitSparks(centreX(this), this.y + this.height / 2, '#7dd3fc', 10);
+                    if (this.buff.hits <= 0) this.buff = null;
+                    return false;
+                }
                 if (DEV && dev.god && !duel.active) return false;
                 if (insideOwnCircle(this)) {
                     createHitSparks(this.x + this.width / 2, this.y + 20, '#facc15', 6);
@@ -3295,6 +3193,7 @@
                     ctx.stroke();
                     ctx.restore();
                 }
+                if (this.buff) drawBuff(ctx, this, cx, feetY);
                 if (this.skill === 'snore' && Math.floor(this.animTime * 2) % 2 === 0) {
                     ctx.save();
                     ctx.font = "10px 'Press Start 2P', monospace";
@@ -3529,6 +3428,10 @@
                 this.hits = new Set();
                 this.life = 3;
                 this.dead = false;
+                this.delay = 0;  // fireballs leave the hand one after another
+                this.tick = 0;
+                if (kind === 'tornado' || kind === 'wave') this.y = owner.y + owner.height;
+                if (kind === 'fireball') this.y = owner.y + 26;
             }
 
             touching(t) {
@@ -3546,7 +3449,7 @@
             update(dt) {
                 this.life -= dt;
                 const o = this.owner;
-                if (this.kind === 'beads') {
+                if (this.kind === 'beads' || this.kind === 'rake') {
                     // flies out 300px, then comes back to its owner, hitting on the way out and back
                     if (!this.returning) {
                         this.x += this.dir * 9;
@@ -3561,9 +3464,55 @@
                     for (const foe of foesOf(o)) {
                         if (!this.hits.has(foe) && this.touching(foe)) {
                             this.hits.add(foe);
-                            foe.takeDamage(skillDamage(22, 10), this.returning ? sideOf(o, foe) : (this.dir > 0 ? 'right' : 'left'));
+                            const dmg = this.kind === 'rake' ? skillDamage(30, 12) : skillDamage(22, 10);
+                            foe.takeDamage(dmg, this.returning ? sideOf(o, foe) : (this.dir > 0 ? 'right' : 'left'));
                         }
                     }
+                } else if (this.kind === 'fireball') {
+                    if (this.delay > 0) {
+                        this.delay -= dt;
+                        this.x = centreX(o) + this.dir * 24;
+                        this.y = o.y + 26;
+                        return;
+                    }
+                    this.x += this.dir * 10;
+                    this.travelled += 10;
+                    for (const foe of foesOf(o)) {
+                        if (this.touching(foe)) {
+                            foe.takeDamage(skillDamage(25, 9), this.dir > 0 ? 'right' : 'left');
+                            createHitSparks(this.x, this.y, '#f97316', 10);
+                            this.dead = true;
+                            break;
+                        }
+                    }
+                    if (this.travelled > 520) this.dead = true;
+                } else if (this.kind === 'tornado') {
+                    // drifts forward, dragging foes into its centre and grinding them
+                    this.x += this.dir * 2.6;
+                    this.tick -= dt;
+                    const bite = this.tick <= 0;
+                    if (bite) this.tick = 0.4;
+                    for (const foe of foesOf(o)) {
+                        const dx = centreX(foe) - this.x;
+                        if (Math.abs(dx) > 70 || Math.abs(foe.y + foe.height - this.y) > 90) continue;
+                        if (foe instanceof Player) foe.kbx = -Math.sign(dx) * 3;
+                        else foe.kvx = -Math.sign(dx) * 3;
+                        if (bite) foe.takeDamage(skillDamage(10, 4));
+                    }
+                } else if (this.kind === 'wave') {
+                    // rushes along the ground, throwing every foe it meets
+                    this.x += this.dir * 9;
+                    this.travelled += 9;
+                    for (const foe of foesOf(o)) {
+                        if (this.hits.has(foe)) continue;
+                        if (Math.abs(centreX(foe) - this.x) < 35 && Math.abs(foe.y + foe.height - this.y) < 60) {
+                            this.hits.add(foe);
+                            foe.takeDamage(skillDamage(28, 11), this.dir > 0 ? 'right' : 'left');
+                            if (foe instanceof Player) foe.kbx = this.dir * 10;
+                            else foe.kvx = this.dir * 10;
+                        }
+                    }
+                    if (this.travelled > 420) this.dead = true;
                 } else if (this.kind === 'ring') {
                     // bounces between up to 3 foes, then flies home
                     const next = this.returning ? null : foesOf(o)
@@ -3606,14 +3555,45 @@
 
             draw(ctx, camX) {
                 const x = this.x - camX, y = this.y;
+                const o = this.owner;
+                const fx = name => o && o.char.fx && o.char.fx[name] !== undefined ? [o.char.anims.fx, o.char.fx[name]] : null;
+                if (this.delay > 0) return;
                 ctx.save();
-                if (this.kind === 'beads') {
+                if (this.kind === 'fireball' || this.kind === 'rake' || this.kind === 'tornado') {
+                    const art = fx(this.kind === 'fireball' ? 'fireball' : this.kind);
+                    const glow = this.kind === 'tornado' ? '#7dd3fc' : '#f97316';
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.globalAlpha = 0.3;
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(x, this.kind === 'tornado' ? y - 40 : y, this.kind === 'tornado' ? 34 : 18, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                    if (art) {
+                        const scale = this.kind === 'tornado' ? 0.9 : this.kind === 'rake' ? 0.7 : 1;
+                        const bottom = this.kind === 'tornado' ? y : y + 20 * scale;
+                        drawSprite(o.char.sheet, art[0], art[1], x, bottom, this.dir < 0, scale);
+                    }
+                } else if (this.kind === 'wave') {
+                    // a curling water crest with foam
+                    for (let i = 0; i < 4; i++) {
+                        const h = 44 - i * 9;
+                        ctx.fillStyle = ['#0369a1', '#0ea5e9', '#38bdf8', '#e0f2fe'][i];
+                        ctx.beginPath();
+                        ctx.ellipse(x - this.dir * i * 6, y, 26 - i * 4, h, 0, Math.PI, 0);
+                        ctx.fill();
+                    }
+                } else if (this.kind === 'beads') {
                     // nine skull beads spinning in a ring
                     for (let i = 0; i < 9; i++) {
                         const a = worldTime * 10 + (i / 9) * Math.PI * 2;
                         ctx.fillStyle = i % 3 === 0 ? '#e7e5e4' : '#f5f5f4';
                         ctx.fillRect(snap(x + Math.cos(a) * 10 - 2), snap(y + Math.sin(a) * 10 - 2), 4, 4);
                     }
+                } else if (this.kind === 'ring' && fx('ring')) {
+                    const [anim, frame] = fx('ring');
+                    drawSprite(o.char.sheet, anim, frame, x, y + 18, false, 0.6);
                 } else if (this.kind === 'ring') {
                     ctx.globalCompositeOperation = 'lighter';
                     ctx.globalAlpha = 0.35;
@@ -3661,8 +3641,6 @@
         function castEyes(p) {
             const dir = p.facing === 'right' ? 1 : -1;
             const cx = centreX(p), eyeY = p.y + 16;
-            startCutIn();
-            hitStop = Math.max(hitStop, 0.25);
             addShake(8);
             playSound('roar');
             gazes.push({ x: cx, y: eyeY, dir, life: 0.5 });
@@ -3733,6 +3711,10 @@
 
         function drawGazes(ctx, camX) {
             for (const g of gazes) {
+                if (g.kind === 'cone') {
+                    drawFireCone(ctx, g, camX);
+                    continue;
+                }
                 const t = g.life / 0.5;
                 const x = g.x - camX;
                 const len = 650 * g.dir;
@@ -3748,11 +3730,172 @@
             }
         }
 
-        // Cut-in: the Hỏa Nhãn Kim Tinh portrait sweeps across the screen
-        const cutIn = { timer: 0, duration: 0.9 };
+        // Tam Muội Chân Hỏa: a widening wedge of flame
+        function drawFireCone(ctx, g, camX) {
+            const t = Math.max(0, g.life / 0.6);
+            const x = g.x - camX;
+            const reach = 380 * (1.2 - t * 0.2);
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            [['rgba(220, 38, 38, 0.55)', 1], ['rgba(249, 115, 22, 0.6)', 0.75], ['rgba(253, 224, 71, 0.7)', 0.45]].forEach(([c, k]) => {
+                ctx.fillStyle = c;
+                ctx.beginPath();
+                ctx.moveTo(x, g.y);
+                ctx.lineTo(x + g.dir * reach * k, g.y - 80 * k * t);
+                ctx.quadraticCurveTo(x + g.dir * reach * k * 1.08, g.y, x + g.dir * reach * k, g.y + 80 * k * t);
+                ctx.closePath();
+                ctx.fill();
+            });
+            ctx.restore();
+        }
 
-        function startCutIn() {
+        // --- Extra skills of the hand-drawn party (art from their sheets) ---
+        const fxFrame = (p, name) => [p.char.anims.fx, p.char.fx[name]];
+
+        // Trư Bát Giới
+        function castRain(p) {
+            const dir = p.facing === 'right' ? 1 : -1;
+            zones.push({ kind: 'rain', x: centreX(p) + dir * 140, y: p.y + p.height, w: 240, life: 5, maxLife: 5, tick: 0, owner: p });
+            playSound('roar');
+        }
+
+        function castRakeThrow(p) {
+            heroShots.push(new HeroShot('rake', p));
+        }
+
+        function castPiglet(p) {
+            p.form = 'pig';
+            p.formTimer = 5;
+            p.isAttacking = false;
+            p.isDashing = false;
+            transformPuff(p);
+        }
+
+        // Sa Tăng
+        function castTide(p) {
+            heroShots.push(new HeroShot('tornado', p));
+        }
+
+        function castWave(p) {
+            heroShots.push(new HeroShot('wave', p));
+            playSound('slam');
+        }
+
+        function castBubble(p) {
+            p.buff = { kind: 'bubble', timer: 6, hits: 3 };
+        }
+
+        // Na Tra
+        function castFireballs(p) {
+            for (let i = 0; i < 3; i++) {
+                const shot = new HeroShot('fireball', p);
+                shot.delay = i * 0.15;
+                heroShots.push(shot);
+            }
+        }
+
+        function castSixArms(p) {
+            p.buff = { kind: 'sixarms', timer: 8 };
+            transformPuff(p);
+            floatingTexts.push(new FloatingText('TAM ĐẦU LỤC TÝ!', p.x - 50, p.y - 20, '#f97316', 11));
+        }
+
+        function castSamadhi(p) {
+            const dir = p.facing === 'right' ? 1 : -1;
+            const cx = centreX(p), y = p.y + 30;
+            gazes.push({ kind: 'cone', x: cx + dir * 20, y, dir, life: 0.6 });
+            addShake(8);
+            playSound('roar');
+            for (const foe of foesOf(p)) {
+                const dx = (centreX(foe) - cx) * dir;
+                if (dx > 0 && dx < 380 && Math.abs(foe.y + foe.height / 2 - y) < 90) foe.takeDamage(skillDamage(60, 22), dir > 0 ? 'right' : 'left');
+            }
+            for (let i = 0; i < 30; i++) {
+                particles.push(new Particle(cx + dir * 30, y, dir * (4 + Math.random() * 8), (Math.random() - 0.5) * 4,
+                    Math.random() < 0.5 ? '#f97316' : '#fde047', 5, 0.5));
+            }
+        }
+
+        // Đường Tăng
+        function castBuddha(p) {
+            zones.push({ kind: 'buddha', x: centreX(p), y: p.y + p.height, r: 150, life: 4, maxLife: 4, tick: 0, owner: p });
+            playSound('checkpoint');
+        }
+
+        function castMeditate(p) {
+            p.skill = 'meditate';
+            p.skillTimer = 2.5;
+            p.isDashing = false;
+            p.vx = 0;
+        }
+
+        function castSutra(p) {
+            p.buff = { kind: 'sutra', timer: 6, tick: 0 };
+        }
+
+        // Kinh Văn Hộ Thân: the orbiting sutra glyphs bite anything close every half second
+        function sutraTick(p, dt) {
+            p.buff.tick -= dt;
+            if (p.buff.tick > 0) return;
+            p.buff.tick = 0.5;
+            const cx = centreX(p), cy = p.y + p.height / 2;
+            for (const foe of foesOf(p)) {
+                if (Math.abs(centreX(foe) - cx) < 85 && Math.abs(foe.y + foe.height / 2 - cy) < 85) foe.takeDamage(skillDamage(10, 4), sideOf(p, foe));
+            }
+        }
+
+        // Timed buffs drawn over the player
+        function drawBuff(ctx, p, cx, feetY) {
+            const b = p.buff;
+            ctx.save();
+            if (b.kind === 'bubble') {
+                ctx.globalAlpha = 0.55;
+                if (p.char.fx && p.char.fx.bubble !== undefined) {
+                    const [anim, frame] = fxFrame(p, 'bubble');
+                    drawSprite(p.char.sheet, anim, frame, cx, feetY + 14, false, 0.75);
+                } else {
+                    ctx.strokeStyle = '#7dd3fc';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(cx, feetY - 31, 38, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            } else if (b.kind === 'sutra') {
+                // golden glyphs circling the monk
+                ctx.fillStyle = '#facc15';
+                for (let i = 0; i < 8; i++) {
+                    const a = worldTime * 2.5 + (i / 8) * Math.PI * 2;
+                    const gx = cx + Math.cos(a) * 58, gy = feetY - 31 + Math.sin(a) * 30;
+                    ctx.fillRect(snap(gx - 4), snap(gy - 5), 8, 10);
+                    ctx.fillStyle = '#78350f';
+                    ctx.fillRect(snap(gx - 2), snap(gy - 3), 4, 2);
+                    ctx.fillRect(snap(gx - 2), snap(gy + 1), 4, 2);
+                    ctx.fillStyle = '#facc15';
+                }
+            } else if (b.kind === 'sixarms') {
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.globalAlpha = 0.25 + Math.sin(worldTime * 8) * 0.08;
+                ctx.fillStyle = '#f97316';
+                ctx.beginPath();
+                ctx.arc(cx, feetY - 31, 42, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // Cut-in: the caster's eye portrait sweeps across the screen before an ultimate
+        const cutIn = { timer: 0, duration: 0.9, art: null, title: '' };
+
+        function startCutIn(p, title) {
+            showCutIn(p.charId, title);
+            if (duel.active && duel.isHost) duel.cutIns.push({ c: p.charId, t: title });
+        }
+
+        function showCutIn(charId, title) {
+            cutIn.art = CHARACTERS[charId].portraitArt;
+            cutIn.title = title;
             cutIn.timer = cutIn.duration;
+            hitStop = Math.max(hitStop, 0.25);
         }
 
         function drawCutIn(ctx, dt) {
@@ -3760,8 +3903,9 @@
             cutIn.timer -= dt;
             const t = 1 - cutIn.timer / cutIn.duration;
             const alpha = Math.min(1, t / 0.12, cutIn.timer / 0.2);
-            const img = IMG.wukongEyes;
-            const w = img.width * 1.6, h = img.height * 1.6;
+            const { img, sx, sy, sw, sh } = cutIn.art;
+            const scale = Math.min(1.6, 300 / sw);
+            const w = sw * scale, h = sh * scale;
             // slides in from the right, holds, then fades
             const x = GAME_WIDTH / 2 - w / 2 + Math.max(0, 1 - t / 0.15) * GAME_WIDTH * 0.6;
             const y = 150;
@@ -3773,13 +3917,13 @@
             ctx.fillRect(0, y - 8, GAME_WIDTH, 3);
             ctx.fillRect(0, y + h + 5, GAME_WIDTH, 3);
             ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(img, snap(x), y, w, h);
+            ctx.drawImage(img, sx, sy, sw, sh, snap(x), y, w, h);
             ctx.font = "14px 'Press Start 2P', monospace";
             ctx.textAlign = 'center';
             ctx.fillStyle = '#fde047';
             ctx.shadowColor = 'black';
             ctx.shadowBlur = 6;
-            ctx.fillText('HỎA NHÃN KIM TINH', GAME_WIDTH / 2, y + h + 30);
+            ctx.fillText(cutIn.title, GAME_WIDTH / 2, y + h + 30);
             ctx.restore();
         }
 
@@ -3792,6 +3936,11 @@
                 z.tick -= dt;
                 const bite = z.tick <= 0;
                 if (bite) z.tick = 0.5;
+                if (z.kind === 'buddha') {
+                    // Phật Quang warms its caster
+                    const p = z.owner;
+                    if (!p.isDead && Math.abs(centreX(p) - z.x) < z.r) p.hp = Math.min(p.maxHp, p.hp + 12 * dt);
+                }
                 for (const foe of foesOf(z.owner)) {
                     if (z.kind === 'circle') {
                         // Vòng Tròn Kim Cô shoves foes out of the circle
@@ -3801,6 +3950,16 @@
                         if (foe instanceof Player) foe.kbx = push;
                         else foe.kvx = push;
                         if (bite) foe.takeDamage(skillDamage(6, 3), dx >= 0 ? 'right' : 'left');
+                        continue;
+                    }
+                    if (z.kind === 'buddha') {
+                        if (bite && Math.abs(centreX(foe) - z.x) < z.r && Math.abs(foe.y + foe.height - z.y) < z.r) foe.takeDamage(skillDamage(8, 3));
+                        continue;
+                    }
+                    if (z.kind === 'rain') {
+                        if (Math.abs(centreX(foe) - z.x) > z.w / 2) continue;
+                        foe.slowTimer = Math.max(foe.slowTimer || 0, 0.3);
+                        if (bite) foe.takeDamage(skillDamage(5, 2));
                         continue;
                     }
                     const inside = centreX(foe) > z.x && centreX(foe) < z.x + z.w && Math.abs(foe.y + foe.height - z.y) < 30;
@@ -3824,6 +3983,10 @@
                     drawGoldenCircle(ctx, z, camX);
                     continue;
                 }
+                if (z.kind === 'rain' || z.kind === 'buddha') {
+                    drawArtZone(ctx, z, camX);
+                    continue;
+                }
                 const x = z.x - camX;
                 ctx.save();
                 ctx.globalAlpha = Math.min(1, z.life / 0.5) * 0.8;
@@ -3841,6 +4004,50 @@
                 }
                 ctx.restore();
             }
+        }
+
+        // Mưa Thiên Hà: Bát Giới's cloud pours on a stretch of ground; Phật Quang: a Buddha rises behind Đường Tăng
+        function drawArtZone(ctx, z, camX) {
+            const x = z.x - camX;
+            const fade = Math.min(1, z.life / 0.5, (z.maxLife - z.life) / 0.3);
+            const o = z.owner;
+            const art = o && o.char && o.char.fx && o.char.fx[z.kind === 'rain' ? 'cloud' : 'buddha'] !== undefined;
+            ctx.save();
+            ctx.globalAlpha = fade;
+            if (z.kind === 'rain') {
+                const top = z.y - 190;
+                ctx.strokeStyle = 'rgba(147, 197, 253, 0.8)';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 26; i++) {
+                    const rx = x - z.w / 2 + ((i * 37) % z.w);
+                    const ry = top + ((worldTime * 420 + i * 53) % 180);
+                    ctx.beginPath();
+                    ctx.moveTo(rx, ry);
+                    ctx.lineTo(rx - 3, ry + 12);
+                    ctx.stroke();
+                }
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.35)';
+                ctx.beginPath();
+                ctx.ellipse(x, z.y, z.w / 2, 7, 0, 0, Math.PI * 2);
+                ctx.fill();
+                if (art) drawSprite(o.char.sheet, o.char.anims.fx, o.char.fx.cloud, x, top + 30, false, 1.8);
+                else {
+                    ctx.fillStyle = '#64748b';
+                    ctx.beginPath();
+                    ctx.ellipse(x, top, z.w / 2, 30, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else {
+                const pulse = 0.85 + Math.sin(worldTime * 4) * 0.15;
+                const g = ctx.createRadialGradient(x, z.y - 80, 10, x, z.y - 80, z.r);
+                g.addColorStop(0, 'rgba(253, 224, 71, ' + (0.45 * pulse) + ')');
+                g.addColorStop(1, 'rgba(253, 224, 71, 0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(x - z.r, z.y - 80 - z.r, z.r * 2, z.r * 2);
+                ctx.globalAlpha = fade * 0.85;
+                if (art) drawSprite(o.char.sheet, o.char.anims.fx, o.char.fx.buddha, x, z.y, false, 1.3);
+            }
+            ctx.restore();
         }
 
         function drawShotsAndBeams(ctx, camX) {
@@ -4075,7 +4282,7 @@
 
                 // Attacked by Player
                 if (player.isAttacking && overlaps(player.attackBox, this)) {
-                    const damage = Math.round((25 + player.attackCombo * 10) * damageMultiplier() * player.char.attack.damage);
+                    const damage = Math.round((25 + player.attackCombo * 10) * damageMultiplier() * player.attackPower());
                     if (this.takeDamage(damage, player.facing)) player.gainMp(8 + 3 * upgradeLevel('mp'));
                 }
             }
@@ -4719,13 +4926,12 @@
         vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
         vignette.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
 
-        // Face crop from the first idle frame of each sheet
-        const AVATAR_CROPS = { wukong: [100, 64, 36, 36], party: [5, 4, 14, 14] };
 
         function drawCharacterFace(canvasEl, charId) {
             const a = canvasEl.getContext('2d');
             const ch = CHARACTERS[charId];
-            const [sx, sy, sw, sh] = AVATAR_CROPS[charId === 'wukong' ? 'wukong' : 'party'];
+            // face crop from the first idle frame
+            const [sx, sy, sw, sh] = ch.face;
             a.imageSmoothingEnabled = false;
             a.clearRect(0, 0, canvasEl.width, canvasEl.height);
             a.drawImage(ch.sheet, sx, sy, sw, sh, 0, 0, canvasEl.width, canvasEl.height);
@@ -5325,6 +5531,7 @@
             phaseTimer: 0,
             timer: DUEL.roundTime,
             mainPlayer: null,   // the campaign Player, restored when the duel ends
+            cutIns: [],         // host: ultimate cut-ins not yet sent to the guest
             opponentOf(f) {
                 return this.fighters[0] === f ? this.fighters[1] : this.fighters[0];
             }
@@ -5561,6 +5768,7 @@
             duel.localIndex = duel.isHost ? 0 : 1;
             player = duel.fighters[duel.localIndex];
             duel.wins = [0, 0];
+            duel.cutIns = [];
             duel.round = 1;
             duel.remoteCounters = freshCounters();
             duel.localCounters = freshCounters();
@@ -5670,7 +5878,7 @@
                 if (!a.isAttacking || a.hitThisSwing || a.isDead || b.isDead) continue;
                 if (overlaps(a.attackBox, b)) {
                     a.hitThisSwing = true; // one hit per swing
-                    if (b.takeDamage(DUEL.damage[a.attackCombo], a.facing)) {
+                    if (b.takeDamage(Math.round(DUEL.damage[a.attackCombo] * a.attackPower()), a.facing)) {
                         a.gainMp(DUEL.mpPerHit);
                         hitStop = Math.max(hitStop, 0.05);
                     }
@@ -5728,15 +5936,16 @@
                     g: f.isGrounded ? 1 : 0, dead: f.isDead ? 1 : 0, inv: r2(f.invulnerableTimer),
                     hp: f.hp, mp: Math.round(f.mp), dash: f.isDashing ? 1 : 0, sl: f.slowed ? 1 : 0, fz: r2(f.frozen),
                     ct: r2(f.castTimer), lp: f.skill === 'leap' ? Object.keys(LEAPS).find(k => LEAPS[k] === f.leap) : null,
-                    fm: f.form
+                    fm: f.form, bf: f.buff ? f.buff.kind : null, bh: f.buff ? f.buff.hits : 0, cp: f.castPose
                 })),
                 c: clones.map(c => ({
                     x: r1(c.x), y: r1(c.y), vx: r1(c.vx), vy: r1(c.vy), fc: c.facing === 'left' ? 1 : 0,
                     atk: r2(c.attackTimer), g: c.isGrounded ? 1 : 0, life: r2(c.life), o: duel.fighters.indexOf(c.owner)
                 })),
-                hs: heroShots.map(s => ({ k: s.kind, x: r1(s.x), y: r1(s.y), o: duel.fighters.indexOf(s.owner) })),
-                zn: zones.map(z => ({ k: z.kind, x: r1(z.x), y: z.y, w: z.w, r: z.r, l: r2(z.life), o: duel.fighters.indexOf(z.owner) })),
-                gz: gazes.map(g => ({ x: r1(g.x), y: g.y, d: g.dir, l: r2(g.life) })),
+                hs: heroShots.map(s => ({ k: s.kind, x: r1(s.x), y: r1(s.y), d: s.dir, dl: s.delay > 0 ? 1 : 0, o: duel.fighters.indexOf(s.owner) })),
+                zn: zones.map(z => ({ k: z.kind, x: r1(z.x), y: z.y, w: z.w, r: z.r, l: r2(z.life), ml: z.maxLife, o: duel.fighters.indexOf(z.owner) })),
+                gz: gazes.map(g => ({ k: g.kind, x: r1(g.x), y: g.y, d: g.dir, l: r2(g.life) })),
+                ci: duel.cutIns.splice(0),
                 bm: beams.map(b => ({ x: r1(b.x), b: b.bottom, l: r2(b.life) })),
                 m: { round: duel.round, wins: duel.wins, phase: duel.phase, pt: r2(duel.phaseTimer), timer: r1(duel.timer), rw: duel.roundWinner }
             };
@@ -5779,21 +5988,22 @@
                     attackTimer: d.atk, attackDuration: d.ad, skill: d.sk, skillPhase: d.sp, skillTimer: d.skt,
                     pillarBaseY: d.pb, isGrounded: !!d.g, isDead: !!d.dead, invulnerableTimer: d.inv,
                     hp: d.hp, mp: d.mp, isDashing: !!d.dash, slowed: !!d.sl, frozen: d.fz,
-                    castTimer: d.ct, leap: d.lp ? LEAPS[d.lp] : null, form: d.fm || null
+                    castTimer: d.ct, leap: d.lp ? LEAPS[d.lp] : null, form: d.fm || null,
+                    buff: d.bf ? { kind: d.bf, hits: d.bh, timer: 1 } : null, castPose: d.cp || null
                 });
             });
 
             // Thrown skills, quicksand and light pillars are drawn from the host's copies
             heroShots = s.hs.map(d => Object.assign(Object.create(HeroShot.prototype), {
-                kind: d.k, x: d.x, y: d.y, owner: duel.fighters[d.o]
+                kind: d.k, x: d.x, y: d.y, dir: d.d, delay: d.dl, owner: duel.fighters[d.o]
             }));
-            zones = s.zn.map(d => ({ kind: d.k, x: d.x, y: d.y, w: d.w, r: d.r, life: d.l, owner: duel.fighters[d.o] }));
-            if (s.gz.length > gazes.length) {
-                startCutIn();
+            zones = s.zn.map(d => ({ kind: d.k, x: d.x, y: d.y, w: d.w, r: d.r, life: d.l, maxLife: d.ml, owner: duel.fighters[d.o] }));
+            for (const c of s.ci || []) {
+                showCutIn(c.c, c.t);
                 playSound('roar');
                 addShake(8);
             }
-            gazes = s.gz.map(d => ({ x: d.x, y: d.y, dir: d.d, life: d.l }));
+            gazes = s.gz.map(d => ({ kind: d.k, x: d.x, y: d.y, dir: d.d, life: d.l }));
             beams = s.bm.map(d => ({ x: d.x, bottom: d.b, life: d.l }));
 
             const before = clones.length;
