@@ -1525,8 +1525,8 @@
 
 
         // Frame picker for the hand-drawn party sheets
-        function hdAnim(p) {
-            const ch = p.char, A = ch.anims;
+        function hdAnim(p, ch = p.char) {
+            const A = ch.anims;
             const pose = name => {
                 const [row, col] = ch.poses[name];
                 return [A[row], col];
@@ -5316,7 +5316,7 @@
             const walking = t < 1;
             // The chosen character walks the map
             const hero = CHARACTERS[save.character];
-            const [anim, frame] = hero.animFor({ animState: walking ? 'run' : 'idle', animTime: mapState.t, vy: 0 });
+            const [anim, frame] = hero.animFor({ animState: walking ? 'run' : 'idle', animTime: mapState.t, vy: 0 }, hero);
             drawSprite(hero.sheet, anim, frame, hx, hy - 20, b.x < a.x, hero.scale * MAP_HERO_SCALE);
 
             // Info panel for the selected stage
