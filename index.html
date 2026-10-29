@@ -412,10 +412,19 @@
                 stars: [],        // best star count per stage
                 bestScores: [],   // best score per stage
                 upgrades: {},     // upgrade id -> level bought
-                character: 'wukong'
+                character: 'wukong',
+                loadouts: {}      // character id -> the 3 skills picked from its skill pool
             };
         }
         let save = freshSave();
+
+        // The three skills a character brings: a saved pick from its pool, or its defaults
+        function loadoutOf(charId) {
+            const ch = CHARACTERS[charId];
+            const picked = (save.loadouts || {})[charId];
+            if (ch.skillPool && Array.isArray(picked) && picked.length === 3 && picked.every(id => ch.skillPool.includes(id))) return [...picked];
+            return [...ch.skills];
+        }
 
         function loadSave() {
             try {
@@ -715,7 +724,7 @@
             cast:   wukongCell(6, 1),  // palms together
             dead:   wukongCell(7, 2),
             leap:   wukongCell(8, 2),  // staff raised, overhead slam
-            forms:  wukongCell(9, 3),  // eagle, mouse, fish (72 transformations)
+            forms:  { ...wukongCell(9, 3), scale: 0.9 },  // eagle, mouse, fish (72 transformations), small so drawn larger
             stance: wukongCell(10, 1)
         };
         // The code-drawn party characters use small 24px frames drawn at 4x
@@ -727,8 +736,11 @@
         const SKILLS = {
             // Tôn Ngộ Không
             pillar:    { cost: 40, name: 'NHƯ Ý TRỤ THIÊN', short: 'TRỤ', desc: 'Gậy mọc dài hất lên cao rồi đập đất', leap: 'pillar' },
-            clone:     { cost: 50, name: 'PHÂN THÂN THUẬT', short: 'PHÂN', desc: 'Hai phân thân đánh cùng trong 7 giây', cast: p => spawnClones(p) },
+            hundred:   { cost: 55, name: 'BÁCH PHÂN THÂN', short: 'BÁCH', desc: 'Ba phân thân vàng đánh cùng trong 7 giây', cast: p => spawnClones(p, 3) },
             freeze:    { cost: 60, name: 'ĐỊNH THÂN PHÁP', short: 'ĐỊNH', desc: 'Đóng băng kẻ địch xung quanh', cast: p => castFreeze(p) },
+            eyes:      { cost: 70, name: 'HỎA NHÃN KIM TINH', short: 'NHÃN', desc: 'Mắt lửa phóng tia thiêu mọi kẻ địch phía trước', cast: p => castEyes(p) },
+            circle:    { cost: 50, name: 'VÒNG TRÒN KIM CÔ', short: 'VÒNG', desc: 'Vòng vàng 4 giây: đứng trong vòng không bị thương, kẻ địch bị đẩy ra', cast: p => castCircle(p) },
+            transform: { cost: 45, name: '72 BIẾN HÓA', short: 'BIẾN', desc: 'Hóa đại bàng bay lượn 5 giây (dưới nước hóa cá), không bị trúng đòn', cast: p => castTransform(p) },
             // Trư Bát Giới
             bellyslam: { cost: 40, name: 'BỤNG ĐÈ THÁI SƠN', short: 'ĐÈ', desc: 'Nhảy lên rồi lấy bụng đè, sóng chấn rất rộng', leap: 'belly' },
             feast:     { cost: 45, name: 'ĂN NO CHIẾN TIẾP', short: 'ĂN', desc: 'Hồi 35 máu và miễn sát thương chốc lát', cast: p => castFeast(p) },
@@ -765,7 +777,9 @@
                 name: 'TÔN NGỘ KHÔNG', role: 'Cân bằng · Biến hóa',
                 hp: 100, speed: 6, jumps: 2,
                 attack: { timings: { 1: 0.3, 2: 0.24, 3: 0.4 }, reach: { 1: 80, 2: 90, 3: 120 }, damage: 1 },
-                skills: ['pillar', 'clone', 'freeze'],
+                skills: ['pillar', 'hundred', 'eyes'],
+                // Ngộ Không picks any 3 of these (Thất Thập Nhị Biến)
+                skillPool: ['pillar', 'hundred', 'freeze', 'eyes', 'circle', 'transform'],
                 passiveText: 'Cân Đẩu Vân: lướt mây không bị trúng đòn'
             },
             bajie: {
@@ -1641,6 +1655,9 @@
             switch (p.animState) {
                 case 'run':
                     return [A.run, Math.floor(p.animTime / 0.08) % A.run.frames];
+                case 'form':
+                    // eagle (frame 0) or fish (frame 2) from the 72 transformations row
+                    return [A.forms, p.form === 'fish' ? 2 : 0];
                 case 'dash':
                     // somersault on the cloud (Cân Đẩu Vân, the cloud is drawn under him)
                     return [A.jump, 3];
@@ -2634,6 +2651,8 @@
                 this.pulseTimer = 0;     // Ngủ Khò snore pulses
                 this.counterUsed = false;
                 this.wheelHits = new Set();
+                this.form = null;        // 72 Biến Hóa: 'eagle' or 'fish'
+                this.formTimer = 0;
                 this.jumpBuffer = 0;     // a jump pressed slightly too early still fires on landing
                 this.swimCooldown = 0;
                 this.slowTimer = 0;
@@ -2651,9 +2670,10 @@
                 this.setCharacter(charId);
             }
 
-            setCharacter(id) {
+            setCharacter(id, skills) {
                 this.charId = id;
                 this.char = CHARACTERS[id];
+                this.skills = skills || loadoutOf(id);
                 this.speed = this.char.speed;
                 this.maxJumps = this.char.jumps;
                 this.maxHp = this.char.hp;
@@ -2673,6 +2693,7 @@
                 this.attackCombo = 0;
                 this.isDashing = false;
                 this.skill = null;
+                this.form = null;
                 this.castTimer = 0;
                 this.healTimer = 0;
                 this.jumpBuffer = 0;
@@ -2705,7 +2726,7 @@
                     floatingTexts.push(new FloatingText('CHƯA LĨNH NGỘ', this.x - 30, this.y - 16, '#94a3b8', 9));
                     return;
                 }
-                this.useSkill(this.char.skills[slot]);
+                this.useSkill(this.skills[slot]);
             }
 
             useSkill(id) {
@@ -2826,6 +2847,43 @@
                 if (this.skillTimer <= 0) this.skill = null;
             }
 
+            // 72 Biến Hóa: an eagle flaps freely on land, a fish darts through water; attacking turns back
+            updateForm(dt, platforms, input) {
+                this.formTimer -= dt;
+                if (this.formTimer <= 0 || input.attack) {
+                    this.endForm();
+                    return;
+                }
+                const fish = this.form === 'fish';
+                const speed = fish ? 8 : 7;
+                if (input.left) {
+                    this.vx = -speed;
+                    this.facing = 'left';
+                } else if (input.right) {
+                    this.vx = speed;
+                    this.facing = 'right';
+                } else {
+                    this.vx *= 0.8;
+                }
+                this.vy = Math.min(this.vy + (fish ? 0.16 : 0.18), fish ? 3 : 2.5);
+                if (this.jumpBuffer > 0) {
+                    this.jumpBuffer = 0;
+                    this.vy = fish ? -7 : -5.5;
+                    particles.push(new Particle(centreX(this), this.y + this.height / 2, (Math.random() - 0.5) * 2, 1,
+                        fish ? '#bae6fd' : '#d6d3d1', 3, 0.4));
+                }
+                this.moveAndCollide(platforms);
+                if (this.y > GAME_HEIGHT + 100) {
+                    this.form = null;
+                    this.die();
+                }
+            }
+
+            endForm() {
+                this.form = null;
+                transformPuff(this);
+            }
+
             moveAndCollide(platforms) {
                 this.x += this.vx;
                 this.checkHorizontalCollisions(platforms);
@@ -2872,6 +2930,12 @@
                     this.deathTimer -= dt;
                     // In a duel the match decides what happens after a K.O.
                     if (this.deathTimer <= 0 && !duel.active) onPlayerDeath();
+                    return;
+                }
+
+                if (this.form) {
+                    this.updateForm(dt, platforms, input);
+                    this.updateAnimation(dt);
                     return;
                 }
 
@@ -3001,6 +3065,7 @@
             updateAnimation(dt) {
                 let state = 'idle';
                 if (this.isDead) state = 'dead';
+                else if (this.form) state = 'form';
                 else if (this.skill === 'leap') state = 'leap';
                 else if (this.skill === 'snore') state = 'sleep';
                 else if (this.skill === 'wheels') state = 'dash';
@@ -3113,8 +3178,12 @@
                     counterBlast(this);
                     return false;
                 }
-                if (this.isDead || this.invulnerableTimer > 0 || this.isDashing || this.skill) return false;
+                if (this.isDead || this.invulnerableTimer > 0 || this.isDashing || this.skill || this.form) return false;
                 if (DEV && dev.god && !duel.active) return false;
+                if (insideOwnCircle(this)) {
+                    createHitSparks(this.x + this.width / 2, this.y + 20, '#facc15', 6);
+                    return false;
+                }
 
                 // Sa Tăng's passive: standing still shrugs off part of the hit
                 if (this.char.passive === 'steady' && this.isGrounded && Math.abs(this.vx) < 0.5) amount = Math.round(amount * 0.6);
@@ -3151,6 +3220,7 @@
                 this.isAttacking = false;
                 this.isDashing = false;
                 this.skill = null;
+                this.form = null;
                 this.healTimer = 0;
                 this.deathTimer = 1.4;
                 updateHUD();
@@ -3159,13 +3229,12 @@
             draw(ctx, camX) {
                 const cx = this.x + this.width / 2 - camX;
                 const feetY = this.y + this.height;
-                const scale = this.char.scale;
                 const sheet = this.sheet || this.char.sheet;
 
                 for (const g of this.ghosts) {
                     ctx.save();
                     ctx.globalAlpha = (g.life / 0.25) * 0.3;
-                    drawSprite(this.char.dashSheet, g.anim, g.frame, g.x - camX, g.feetY, g.flip, scale);
+                    drawSprite(this.char.dashSheet, g.anim, g.frame, g.x - camX, g.feetY, g.flip, g.anim.scale || this.char.scale);
                     ctx.restore();
                 }
 
@@ -3180,6 +3249,7 @@
 
                 const flip = this.facing === 'left';
                 const [anim, frame] = this.animFrame();
+                const scale = anim.scale || this.char.scale;
                 if (this.charId === 'wukong' && this.animState === 'dash') {
                     // Cân Đẩu Vân: a golden cloud carries the somersaulting monkey
                     ctx.save();
@@ -3583,6 +3653,135 @@
         let heroShots = [];
         let zones = [];   // Lưu Sa Hà quicksand pools
         let beams = [];   // Phật Quang light pillars (visual only)
+        let gazes = [];   // Hỏa Nhãn Kim Tinh fire beams (visual only)
+
+        // --- Tôn Ngộ Không's extra skills (from the 72 transformations) ---
+        const CIRCLE_RADIUS = 95;
+
+        function castEyes(p) {
+            const dir = p.facing === 'right' ? 1 : -1;
+            const cx = centreX(p), eyeY = p.y + 16;
+            startCutIn();
+            hitStop = Math.max(hitStop, 0.25);
+            addShake(8);
+            playSound('roar');
+            gazes.push({ x: cx, y: eyeY, dir, life: 0.5 });
+            for (const foe of foesOf(p)) {
+                const dx = (centreX(foe) - cx) * dir;
+                const fy = foe.y + foe.height / 2;
+                if (dx > 0 && dx < 650 && Math.abs(fy - eyeY) < 60) foe.takeDamage(skillDamage(55, 20), dir > 0 ? 'right' : 'left');
+            }
+            for (const w of webs) {
+                const dx = (w.x + w.width / 2 - cx) * dir;
+                if (dx > 0 && dx < 650 && eyeY > w.y - 20 && eyeY < w.y + w.height + 20) w.cut();
+            }
+        }
+
+        function castCircle(p) {
+            zones.push({ kind: 'circle', x: centreX(p), y: p.y + p.height, r: CIRCLE_RADIUS, life: 4, maxLife: 4, tick: 0, owner: p });
+            playSound('checkpoint');
+        }
+
+        function insideOwnCircle(p) {
+            return zones.some(z => z.kind === 'circle' && z.owner === p
+                && Math.abs(centreX(p) - z.x) < z.r && Math.abs(p.y + p.height - z.y) < z.r);
+        }
+
+        function castTransform(p) {
+            p.form = currentLevel.water ? 'fish' : 'eagle';
+            p.formTimer = 5;
+            p.isAttacking = false;
+            p.isDashing = false;
+            p.vy = -3;
+            transformPuff(p);
+        }
+
+        function transformPuff(p) {
+            for (let i = 0; i < 16; i++) {
+                particles.push(new Particle(centreX(p), p.y + p.height / 2, (Math.random() - 0.5) * 6, -Math.random() * 3,
+                    Math.random() < 0.5 ? '#86efac' : '#bbf7d0', 6, 0.5));
+            }
+            playSound('skill');
+        }
+
+        function drawGoldenCircle(ctx, z, camX) {
+            const x = z.x - camX;
+            const fade = Math.min(1, z.life / 0.5);
+            ctx.save();
+            ctx.globalAlpha = 0.18 * fade;
+            ctx.fillStyle = '#fde047';
+            ctx.beginPath();
+            ctx.arc(x, z.y, z.r, Math.PI, 0);
+            ctx.fill();
+            ctx.globalAlpha = 0.9 * fade;
+            ctx.strokeStyle = '#facc15';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(x, z.y, z.r, Math.PI, 0);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(x, z.y, z.r, 10, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            // runes orbiting the dome
+            ctx.fillStyle = '#fef9c3';
+            for (let i = 0; i < 8; i++) {
+                const a = Math.PI + ((worldTime * 0.8 + i / 8) % 1) * Math.PI;
+                ctx.fillRect(snap(x + Math.cos(a) * z.r - 2), snap(z.y + Math.sin(a) * z.r - 2), 4, 4);
+            }
+            ctx.restore();
+        }
+
+        function drawGazes(ctx, camX) {
+            for (const g of gazes) {
+                const t = g.life / 0.5;
+                const x = g.x - camX;
+                const len = 650 * g.dir;
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.fillStyle = 'rgba(249, 115, 22, 0.7)';
+                ctx.fillRect(Math.min(x, x + len), g.y - 9 * t, Math.abs(len), 18 * t);
+                ctx.fillStyle = 'rgba(253, 224, 71, 0.9)';
+                ctx.fillRect(Math.min(x, x + len), g.y - 4 * t, Math.abs(len), 8 * t);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.fillRect(Math.min(x, x + len), g.y - 1.5 * t, Math.abs(len), 3 * t);
+                ctx.restore();
+            }
+        }
+
+        // Cut-in: the Hỏa Nhãn Kim Tinh portrait sweeps across the screen
+        const cutIn = { timer: 0, duration: 0.9 };
+
+        function startCutIn() {
+            cutIn.timer = cutIn.duration;
+        }
+
+        function drawCutIn(ctx, dt) {
+            if (cutIn.timer <= 0) return;
+            cutIn.timer -= dt;
+            const t = 1 - cutIn.timer / cutIn.duration;
+            const alpha = Math.min(1, t / 0.12, cutIn.timer / 0.2);
+            const img = IMG.wukongEyes;
+            const w = img.width * 1.6, h = img.height * 1.6;
+            // slides in from the right, holds, then fades
+            const x = GAME_WIDTH / 2 - w / 2 + Math.max(0, 1 - t / 0.15) * GAME_WIDTH * 0.6;
+            const y = 150;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, alpha);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(0, y - 8, GAME_WIDTH, h + 16);
+            ctx.fillStyle = '#f97316';
+            ctx.fillRect(0, y - 8, GAME_WIDTH, 3);
+            ctx.fillRect(0, y + h + 5, GAME_WIDTH, 3);
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(img, snap(x), y, w, h);
+            ctx.font = "14px 'Press Start 2P', monospace";
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#fde047';
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 6;
+            ctx.fillText('HỎA NHÃN KIM TINH', GAME_WIDTH / 2, y + h + 30);
+            ctx.restore();
+        }
 
         function updateSkillEffects(dt) {
             for (const s of heroShots) s.update(dt);
@@ -3594,6 +3793,16 @@
                 const bite = z.tick <= 0;
                 if (bite) z.tick = 0.5;
                 for (const foe of foesOf(z.owner)) {
+                    if (z.kind === 'circle') {
+                        // Vòng Tròn Kim Cô shoves foes out of the circle
+                        const dx = centreX(foe) - z.x;
+                        if (Math.abs(dx) > z.r || Math.abs(foe.y + foe.height - z.y) > z.r) continue;
+                        const push = (dx >= 0 ? 1 : -1) * 6;
+                        if (foe instanceof Player) foe.kbx = push;
+                        else foe.kvx = push;
+                        if (bite) foe.takeDamage(skillDamage(6, 3), dx >= 0 ? 'right' : 'left');
+                        continue;
+                    }
                     const inside = centreX(foe) > z.x && centreX(foe) < z.x + z.w && Math.abs(foe.y + foe.height - z.y) < 30;
                     if (!inside) continue;
                     foe.slowTimer = Math.max(foe.slowTimer || 0, 0.3);
@@ -3604,11 +3813,17 @@
 
             for (const b of beams) b.life -= dt;
             beams = beams.filter(b => b.life > 0);
+            for (const g of gazes) g.life -= dt;
+            gazes = gazes.filter(g => g.life > 0);
         }
 
-        // Quicksand pools sit on the ground, under everyone
+        // Quicksand pools sit on the ground, under everyone; golden circles glow around their caster
         function drawZones(ctx, camX) {
             for (const z of zones) {
+                if (z.kind === 'circle') {
+                    drawGoldenCircle(ctx, z, camX);
+                    continue;
+                }
                 const x = z.x - camX;
                 ctx.save();
                 ctx.globalAlpha = Math.min(1, z.life / 0.5) * 0.8;
@@ -3630,6 +3845,7 @@
 
         function drawShotsAndBeams(ctx, camX) {
             for (const s of heroShots) s.draw(ctx, camX);
+            drawGazes(ctx, camX);
             for (const b of beams) {
                 const x = b.x - camX;
                 const w = 30 * (b.life / 0.45);
@@ -3756,9 +3972,10 @@
         }
 
         // Replaces this caster's clones (in a duel the other fighter keeps theirs)
-        function spawnClones(p) {
+        function spawnClones(p, count = 2) {
             for (const c of clones) if (c.owner === p) cloudPuff(c.x + c.width / 2, c.y + c.height / 2);
-            const fresh = [new Clone(p.x - 40, p.y, -60, p), new Clone(p.x + 40, p.y, 60, p)];
+            const offsets = [-60, 60, 115].slice(0, count);
+            const fresh = offsets.map(o => new Clone(p.x + Math.sign(o) * 40, p.y, o, p));
             clones = clones.filter(c => c.owner !== p).concat(fresh);
             for (const c of fresh) cloudPuff(c.x + c.width / 2, c.y + c.height / 2);
         }
@@ -4503,7 +4720,7 @@
         vignette.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
 
         // Face crop from the first idle frame of each sheet
-        const AVATAR_CROPS = { wukong: [88, 50, 40, 40], party: [5, 4, 14, 14] };
+        const AVATAR_CROPS = { wukong: [100, 64, 36, 36], party: [5, 4, 14, 14] };
 
         function drawCharacterFace(canvasEl, charId) {
             const a = canvasEl.getContext('2d');
@@ -4544,6 +4761,8 @@
             heroShots = [];
             zones = [];
             beams = [];
+            gazes = [];
+            cutIn.timer = 0;
             shockwaves = [];
             particles = [];
             floatingTexts = [];
@@ -4622,7 +4841,7 @@
             const unlockBox = document.getElementById('clear-unlock');
             unlockBox.classList.toggle('hidden', learned.length === 0);
             unlockBox.innerHTML = learned.map(slot => {
-                const s = SKILLS[player.char.skills[slot]];
+                const s = SKILLS[player.skills[slot]];
                 return `Mở ô thần thông <b class="pixel-font text-[10px] text-sky-300">${SLOT_KEYS[slot]}</b> cho mọi nhân vật · `
                     + `${player.char.name}: <b class="text-sky-300">${s.name}</b> (${s.cost} Pháp Lực)`;
             }).join('<br>');
@@ -4686,7 +4905,7 @@
             ctx.save();
             ctx.textAlign = 'center';
             for (let slot = 0; slot < SLOT_KEYS.length; slot++) {
-                const s = SKILLS[player.char.skills[slot]];
+                const s = SKILLS[player.skills[slot]];
                 const learned = isSkillLearned(slot);
                 const ready = learned && player.mp >= s.cost;
                 ctx.fillStyle = 'rgba(2, 6, 23, 0.75)';
@@ -4935,14 +5154,32 @@
             return `<div class="h-1.5 mt-1 bg-slate-800 rounded"><div class="h-full bg-amber-400 rounded" style="width: ${Math.round((value / max) * 100)}%"></div></div>`;
         }
 
+        // One line per skill; for a character with a skill pool every pool skill is a toggle
+        function skillLines(id) {
+            const c = CHARACTERS[id];
+            const loadout = loadoutOf(id);
+            if (!c.skillPool) {
+                return loadout.map((sid, slot) =>
+                    `<div><span class="text-sky-300">[${SLOT_KEYS[slot]}] ${SKILLS[sid].name}</span> <span class="text-slate-500">· ${SKILLS[sid].desc}</span></div>`).join('');
+            }
+            const rows = c.skillPool.map(sid => {
+                const slot = loadout.indexOf(sid);
+                const on = slot >= 0;
+                return `
+                    <div data-skill="${sid}" data-owner="${id}" class="flex items-start gap-2 px-2 py-1 rounded-lg cursor-pointer ${on ? 'bg-sky-950/70 border border-sky-500/50' : 'bg-slate-800/50 border border-transparent hover:border-slate-600'}">
+                        <span class="pixel-font text-[9px] mt-0.5 w-5 ${on ? 'text-sky-300' : 'text-slate-600'}">${on ? SLOT_KEYS[slot] : '·'}</span>
+                        <span><span class="${on ? 'text-sky-300' : 'text-slate-400'}">${SKILLS[sid].name}</span> <span class="text-slate-500">· ${SKILLS[sid].desc}</span></span>
+                    </div>`;
+            }).join('');
+            return `<div class="text-[10px] text-amber-300/80 mb-1">Chọn 3 trong ${c.skillPool.length} thần thông (bấm để đổi):</div>${rows}`;
+        }
+
         function renderCharSelect() {
             charList.innerHTML = CHARACTER_IDS.map(id => {
                 const c = CHARACTERS[id];
                 const chosen = id === save.character;
-                const skills = c.skills.map((sid, slot) =>
-                    `<div><span class="text-sky-300">[${SLOT_KEYS[slot]}] ${SKILLS[sid].name}</span> <span class="text-slate-500">· ${SKILLS[sid].desc}</span></div>`).join('');
                 return `
-                    <button data-char="${id}" class="text-left p-3 rounded-xl border-2 space-y-2 cursor-pointer transition ${chosen ? 'border-amber-400 bg-amber-950/40' : 'border-slate-700 bg-slate-900/80 hover:border-slate-500'}">
+                    <div data-char="${id}" class="text-left p-3 rounded-xl border-2 space-y-2 cursor-pointer transition ${chosen ? 'border-amber-400 bg-amber-950/40' : 'border-slate-700 bg-slate-900/80 hover:border-slate-500'}">
                         <div class="flex items-center gap-3">
                             <canvas data-face="${id}" width="48" height="48" class="w-12 h-12 pixelated rounded-lg bg-slate-800"></canvas>
                             <div>
@@ -4956,17 +5193,28 @@
                             <div>Tốc độ${statBar(c.speed, 7)}</div>
                             <div>Nhảy ${c.jumps}${statBar(c.jumps, 3)}</div>
                         </div>
-                        <div class="space-y-0.5 text-[11px]">${skills}</div>
+                        <div class="space-y-1 text-[11px]">${skillLines(id)}</div>
                         <div class="text-[11px] text-emerald-300/80">✦ ${c.passiveText}</div>
-                    </button>`;
+                    </div>`;
             }).join('');
             for (const cv of charList.querySelectorAll('canvas[data-face]')) drawCharacterFace(cv, cv.dataset.face);
         }
 
+        // Picking a pool skill adds it to the loadout and drops the oldest pick (always 3 skills)
+        function toggleLoadoutSkill(charId, skillId) {
+            const loadout = loadoutOf(charId);
+            if (loadout.includes(skillId)) return;
+            loadout.shift();
+            loadout.push(skillId);
+            save.loadouts = { ...(save.loadouts || {}), [charId]: loadout };
+        }
+
         charList.addEventListener('click', (e) => {
-            const btn = e.target.closest('button[data-char]');
-            if (!btn) return;
-            save.character = btn.dataset.char;
+            const skillRow = e.target.closest('[data-skill]');
+            const card = e.target.closest('[data-char]');
+            if (!card) return;
+            if (skillRow) toggleLoadoutSkill(skillRow.dataset.owner, skillRow.dataset.skill);
+            save.character = card.dataset.char;
             writeSave();
             player.setCharacter(save.character);
             drawAvatar();
@@ -5010,7 +5258,7 @@
                     </div>`;
             });
             const hero = CHARACTERS[save.character];
-            const skills = hero.skills.map((id, slot) => {
+            const skills = loadoutOf(save.character).map((id, slot) => {
                 const s = SKILLS[id];
                 const learned = isSkillLearned(slot);
                 return `
@@ -5099,7 +5347,7 @@
         duelCharSelect.innerHTML = CHARACTER_IDS.map(id => `<option value="${id}">${CHARACTERS[id].name}</option>`).join('');
 
         function sendMyCharacter() {
-            if (!duel.isHost) sendDuel({ t: 'char', id: duelCharSelect.value });
+            if (!duel.isHost) sendDuel({ t: 'char', id: duelCharSelect.value, skills: loadoutOf(duelCharSelect.value) });
         }
 
         function loadPeerJs() {
@@ -5246,9 +5494,12 @@
 
         function onDuelMessage(msg) {
             if (msg.t === 'start') {
-                beginDuelMatch(msg.arena, msg.chars);
+                beginDuelMatch(msg.arena, msg.chars, msg.loadouts);
             } else if (msg.t === 'char' && duel.isHost) {
-                if (CHARACTERS[msg.id]) duel.guestChar = msg.id;
+                if (CHARACTERS[msg.id]) {
+                    duel.guestChar = msg.id;
+                    duel.guestSkills = Array.isArray(msg.skills) && msg.skills.length === 3 && msg.skills.every(id => SKILLS[id]) ? msg.skills : null;
+                }
             } else if (msg.t === 'snap') {
                 applySnapshot(msg);
             } else if (msg.t === 'input' && duel.isHost) {
@@ -5288,13 +5539,15 @@
         }
 
         // --- Match flow ---
-        // chars = [host character, guest character]
-        function beginDuelMatch(arena, chars) {
+        // chars = [host character, guest character]; loadouts = their skill lists
+        function beginDuelMatch(arena, chars, loadouts = []) {
             duel.arena = arena;
             if (!duel.mainPlayer) duel.mainPlayer = player;
 
             const host = new Player(0, 0, chars[0]);
             const guest = new Player(0, 0, chars[1]);
+            if (loadouts[0]) host.setCharacter(chars[0], loadouts[0]);
+            if (loadouts[1]) guest.setCharacter(chars[1], loadouts[1]);
             host.cloneSheet = FLASH.clone;
             guest.cloneSheet = FLASH.p2clone;
             // Recolour the guest only when both picked the same character
@@ -5327,6 +5580,8 @@
             heroShots = [];
             zones = [];
             beams = [];
+            gazes = [];
+            cutIn.timer = 0;
             particles = [];
             floatingTexts = [];
             shockwaves = [];
@@ -5390,8 +5645,9 @@
 
         function hostStartMatch(arena) {
             const chars = [duelCharSelect.value, duel.guestChar || 'wukong'];
-            sendDuel({ t: 'start', arena, chars });
-            beginDuelMatch(arena, chars);
+            const loadouts = [loadoutOf(chars[0]), duel.guestSkills || [...CHARACTERS[chars[1]].skills]];
+            sendDuel({ t: 'start', arena, chars, loadouts });
+            beginDuelMatch(arena, chars, loadouts);
         }
 
         // --- Host side ---
@@ -5471,14 +5727,16 @@
                     sk: f.skill, sp: f.skillPhase, skt: r2(f.skillTimer), pb: f.pillarBaseY,
                     g: f.isGrounded ? 1 : 0, dead: f.isDead ? 1 : 0, inv: r2(f.invulnerableTimer),
                     hp: f.hp, mp: Math.round(f.mp), dash: f.isDashing ? 1 : 0, sl: f.slowed ? 1 : 0, fz: r2(f.frozen),
-                    ct: r2(f.castTimer), lp: f.skill === 'leap' ? Object.keys(LEAPS).find(k => LEAPS[k] === f.leap) : null
+                    ct: r2(f.castTimer), lp: f.skill === 'leap' ? Object.keys(LEAPS).find(k => LEAPS[k] === f.leap) : null,
+                    fm: f.form
                 })),
                 c: clones.map(c => ({
                     x: r1(c.x), y: r1(c.y), vx: r1(c.vx), vy: r1(c.vy), fc: c.facing === 'left' ? 1 : 0,
                     atk: r2(c.attackTimer), g: c.isGrounded ? 1 : 0, life: r2(c.life), o: duel.fighters.indexOf(c.owner)
                 })),
                 hs: heroShots.map(s => ({ k: s.kind, x: r1(s.x), y: r1(s.y), o: duel.fighters.indexOf(s.owner) })),
-                zn: zones.map(z => ({ x: r1(z.x), y: z.y, w: z.w, l: r2(z.life) })),
+                zn: zones.map(z => ({ k: z.kind, x: r1(z.x), y: z.y, w: z.w, r: z.r, l: r2(z.life), o: duel.fighters.indexOf(z.owner) })),
+                gz: gazes.map(g => ({ x: r1(g.x), y: g.y, d: g.dir, l: r2(g.life) })),
                 bm: beams.map(b => ({ x: r1(b.x), b: b.bottom, l: r2(b.life) })),
                 m: { round: duel.round, wins: duel.wins, phase: duel.phase, pt: r2(duel.phaseTimer), timer: r1(duel.timer), rw: duel.roundWinner }
             };
@@ -5521,7 +5779,7 @@
                     attackTimer: d.atk, attackDuration: d.ad, skill: d.sk, skillPhase: d.sp, skillTimer: d.skt,
                     pillarBaseY: d.pb, isGrounded: !!d.g, isDead: !!d.dead, invulnerableTimer: d.inv,
                     hp: d.hp, mp: d.mp, isDashing: !!d.dash, slowed: !!d.sl, frozen: d.fz,
-                    castTimer: d.ct, leap: d.lp ? LEAPS[d.lp] : null
+                    castTimer: d.ct, leap: d.lp ? LEAPS[d.lp] : null, form: d.fm || null
                 });
             });
 
@@ -5529,7 +5787,13 @@
             heroShots = s.hs.map(d => Object.assign(Object.create(HeroShot.prototype), {
                 kind: d.k, x: d.x, y: d.y, owner: duel.fighters[d.o]
             }));
-            zones = s.zn.map(d => ({ x: d.x, y: d.y, w: d.w, life: d.l }));
+            zones = s.zn.map(d => ({ kind: d.k, x: d.x, y: d.y, w: d.w, r: d.r, life: d.l, owner: duel.fighters[d.o] }));
+            if (s.gz.length > gazes.length) {
+                startCutIn();
+                playSound('roar');
+                addShake(8);
+            }
+            gazes = s.gz.map(d => ({ x: d.x, y: d.y, dir: d.d, life: d.l }));
             beams = s.bm.map(d => ({ x: d.x, bottom: d.b, life: d.l }));
 
             const before = clones.length;
@@ -5653,7 +5917,7 @@
             ctx.restore();
         }
 
-        function drawDuel(ctx) {
+        function drawDuel(ctx, dt) {
             ctx.save();
             applyShake(ctx);
             drawEnvironment(ctx, currentLevel, 0);
@@ -5673,6 +5937,7 @@
             ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
             for (const ft of floatingTexts) ft.draw(ctx, 0);
             drawDuelHud(ctx);
+            drawCutIn(ctx, dt);
             drawSkillSlots(ctx);
         }
 
@@ -5841,7 +6106,7 @@
                 } else {
                     sendGuestInput(dt);
                 }
-                drawDuel(ctx);
+                drawDuel(ctx, dt);
                 requestAnimationFrame(gameLoop);
                 return;
             }
@@ -5901,6 +6166,7 @@
                 drawSkillSlots(ctx);
             }
             drawLevelBanner(ctx, dt);
+            drawCutIn(ctx, dt);
 
             requestAnimationFrame(gameLoop);
         }
