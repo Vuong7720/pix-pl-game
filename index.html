@@ -205,6 +205,55 @@
         <div id="map-ui" class="hidden absolute bottom-4 left-0 right-0 z-20 flex justify-center gap-3 px-4">
             <button id="map-play-btn" class="px-6 py-3 bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-500 hover:to-red-500 text-white pixel-font text-xs rounded-xl shadow-lg transition cursor-pointer">VÀO ẢI</button>
             <button id="map-shop-btn" class="px-6 py-3 bg-slate-900/90 hover:bg-slate-800 border border-pink-400/50 text-pink-200 pixel-font text-xs rounded-xl shadow-lg transition cursor-pointer">CỬA HÀNG <i class="fa-solid fa-apple-whole"></i> <span id="map-peaches">0</span></button>
+            <button id="map-duel-btn" class="px-6 py-3 bg-slate-900/90 hover:bg-slate-800 border border-sky-400/50 text-sky-200 pixel-font text-xs rounded-xl shadow-lg transition cursor-pointer"><i class="fa-solid fa-user-group"></i> SOLO ONLINE</button>
+        </div>
+
+        <!-- ONLINE DUEL (Solo online qua link mời) -->
+        <div id="duel-overlay" class="hidden absolute inset-0 z-30 flex items-center justify-center bg-slate-950/85 p-4">
+            <div class="glass-panel rounded-2xl w-full max-w-md p-5 space-y-4 text-center">
+                <h2 class="pixel-font text-sm text-amber-400">SOLO ONLINE</h2>
+
+                <div id="duel-menu" class="space-y-3">
+                    <p class="text-slate-400 text-xs">Tạo phòng rồi gửi link cho bạn bè, hoặc nhập mã phòng bạn bè gửi cho bạn.</p>
+                    <button id="duel-create-btn" class="w-full py-3 bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-500 hover:to-red-500 text-white pixel-font text-xs rounded-xl cursor-pointer">TẠO PHÒNG</button>
+                    <div class="flex gap-2">
+                        <input id="duel-code-input" maxlength="6" placeholder="MÃ PHÒNG" class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-amber-300 pixel-font text-xs uppercase text-center">
+                        <button id="duel-join-btn" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 pixel-font text-xs rounded-xl cursor-pointer">VÀO</button>
+                    </div>
+                </div>
+
+                <div id="duel-lobby" class="hidden space-y-3">
+                    <div id="duel-host-info" class="space-y-2">
+                        <div class="text-xs text-slate-400">Gửi link này cho bạn bè:</div>
+                        <div class="flex gap-2">
+                            <input id="duel-link" readonly class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 text-xs">
+                            <button id="duel-copy-btn" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 pixel-font text-[10px] rounded-xl cursor-pointer">CHÉP</button>
+                        </div>
+                        <div class="text-xs text-slate-500">Mã phòng: <span id="duel-code-text" class="pixel-font text-amber-300"></span></div>
+                        <label class="flex items-center justify-center gap-2 text-xs text-slate-400">Đấu trường:
+                            <select id="duel-arena" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-slate-200">
+                                <option value="forest">Hoa Quả Sơn</option>
+                                <option value="fire">Hỏa Diệm Sơn</option>
+                                <option value="bone">Bạch Cốt Động</option>
+                                <option value="sea">Long Cung</option>
+                                <option value="web">Bàn Tơ Động</option>
+                                <option value="sky">Thiên Cung</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div id="duel-status" class="text-sm text-slate-300">Đang chờ đối thủ...</div>
+                    <button id="duel-start-btn" class="hidden w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 pixel-font text-xs rounded-xl cursor-pointer">BẮT ĐẦU ĐẤU</button>
+                </div>
+
+                <div id="duel-result" class="hidden space-y-3">
+                    <div id="duel-result-title" class="pixel-font text-2xl text-amber-400"></div>
+                    <div id="duel-result-score" class="pixel-font text-sm text-slate-300"></div>
+                    <button id="duel-rematch-btn" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 pixel-font text-xs rounded-xl cursor-pointer">ĐẤU LẠI</button>
+                    <div id="duel-rematch-wait" class="hidden text-xs text-slate-400">Chờ chủ phòng bấm đấu lại...</div>
+                </div>
+
+                <button id="duel-close-btn" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 pixel-font text-[10px] rounded-xl cursor-pointer">THOÁT</button>
+            </div>
         </div>
 
         <!-- DEV PANEL (open the game with ?dev in the URL; toggle with the ` key) -->
@@ -332,8 +381,11 @@
         const dev = { god: true, infiniteMp: true };
 
         function isSkillLearned(id) {
-            return DEV || !!save.skills[id];
+            return DEV || duel.active || !!save.skills[id];
         }
+
+        // Controls of a frozen fighter
+        const NO_INPUT = { left: false, right: false, attack: false, dash: false };
 
         // --- SAVE DATA (localStorage) ---
         const SAVE_KEY = 'tay-du-ky-save';
@@ -377,6 +429,7 @@
         ];
 
         function upgradeLevel(id) {
+            if (duel.active) return 0; // duels are fair: no shop upgrades
             return save.upgrades[id] || 0;
         }
 
@@ -390,20 +443,22 @@
         };
 
         window.addEventListener('keydown', (e) => {
+            // Typing a room code must not move the monkey or pick map nodes
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
             if (e.code === 'KeyW' || e.code === 'ArrowUp' || e.code === 'Space') {
-                if (!keys.up && gameState === 'PLAYING') player.queueJump();
+                if (!keys.up && (gameState === 'PLAYING' || gameState === 'DUEL')) localJump();
                 keys.up = true;
             }
             if (e.code === 'KeyJ') keys.attack = true;
             if (e.code === 'KeyK' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.dash = true;
             if (e.repeat) return;
-            if (gameState === 'PLAYING') {
-                if (e.code === 'KeyU') player.useSkill('pillar');
-                if (e.code === 'KeyI') player.useSkill('clone');
-                if (e.code === 'KeyO') player.useSkill('freeze');
-                if (e.code === 'Escape' || e.code === 'KeyP') setPaused(true);
+            if (gameState === 'PLAYING' || gameState === 'DUEL') {
+                if (e.code === 'KeyU') localSkill('pillar');
+                if (e.code === 'KeyI') localSkill('clone');
+                if (e.code === 'KeyO') localSkill('freeze');
+                if (gameState === 'PLAYING' && (e.code === 'Escape' || e.code === 'KeyP')) setPaused(true);
             } else if (gameState === 'PAUSED') {
                 if (e.code === 'Escape' || e.code === 'KeyP') setPaused(false);
             } else if (gameState === 'MAP') {
@@ -422,7 +477,7 @@
         });
 
         window.addEventListener('mousedown', (e) => {
-            if (e.button === 0 && gameState === 'PLAYING') keys.attack = true;
+            if (e.button === 0 && (gameState === 'PLAYING' || gameState === 'DUEL') && e.target === canvas) keys.attack = true;
         });
         window.addEventListener('mouseup', (e) => {
             if (e.button === 0) keys.attack = false;
@@ -831,6 +886,9 @@
             }
             FLASH.dash = tintImage(IMG.hero, '#fde68a', 1);
             FLASH.clone = tintImage(IMG.hero, '#fcd34d', 0.35);
+            // Duel guest: a blue-robed Monkey King and blue clones
+            FLASH.p2 = tintImage(IMG.hero, '#3b82f6', 0.4);
+            FLASH.p2clone = tintImage(IMG.hero, '#7dd3fc', 0.45);
             FLASH.rage = {};
             for (const key of ['boarRunBlack', 'boarRunWhite', 'dragonKing', 'spiderQueen', 'erlang']) FLASH.rage[key] = tintImage(IMG[key], '#dc2626', 0.35);
         }
@@ -2011,7 +2069,8 @@
         function drawDarkness(ctx, camX) {
             const px = player.x + player.width / 2 - camX;
             const py = player.y + player.height / 2;
-            const bossFight = enemies.some(e => e.type === 'boss' && e.awake && !e.dead);
+            // Wider light in boss fights and duels so you can see who you are fighting
+            const bossFight = duel.active || enemies.some(e => e.type === 'boss' && e.awake && !e.dead);
             const inner = bossFight ? 170 : 100;
             const outer = bossFight ? 480 : 330;
             const g = ctx.createRadialGradient(px, py, inner, px, py, outer);
@@ -2180,6 +2239,13 @@
                 this.slowTimer = 0;
                 this.slowed = false;
 
+                // Duel support: where the controls come from, which sprite sheet to draw, knockback and freeze
+                this.input = keys;
+                this.sheet = null;
+                this.kbx = 0;
+                this.frozen = 0;
+                this.hitThisSwing = false;
+
                 this.animState = 'idle';
                 this.animTime = 0;
             }
@@ -2199,6 +2265,9 @@
                 this.skill = null;
                 this.jumpBuffer = 0;
                 this.ghosts = [];
+                this.kbx = 0;
+                this.frozen = 0;
+                this.slowTimer = 0;
                 this.animState = 'idle';
                 this.animTime = 0;
                 updateHUD();
@@ -2214,7 +2283,7 @@
             }
 
             useSkill(id) {
-                if (this.isDead || this.skill) return;
+                if (this.isDead || this.skill || this.frozen > 0) return;
                 if (!isSkillLearned(id)) {
                     floatingTexts.push(new FloatingText('CHƯA LĨNH NGỘ', this.x - 30, this.y - 16, '#94a3b8', 9));
                     return;
@@ -2268,7 +2337,7 @@
 
                 if (this.skillPhase === 'rise') {
                     this.vy += this.gravity();
-                    this.vx = keys.left ? -3 : keys.right ? 3 : 0;
+                    this.vx = this.input.left ? -3 : this.input.right ? 3 : 0;
                     if (this.vy >= 0) {
                         this.skillPhase = 'slam';
                         this.vy = 4;
@@ -2307,8 +2376,11 @@
                 if (this.comboWindow > 0) this.comboWindow -= dt;
                 if (this.swimCooldown > 0) this.swimCooldown -= dt;
                 if (this.slowTimer > 0) this.slowTimer -= dt;
+                if (this.frozen > 0) this.frozen -= dt;
                 // Caught in a web or hit by a web ball: sluggish and sticky
                 this.slowed = this.slowTimer > 0 || inWeb(this);
+                // Frozen by an opponent's Định Thân Pháp: controls do nothing
+                const input = this.frozen > 0 ? NO_INPUT : this.input;
 
                 if (this.isDead) {
                     this.vx *= 0.9;
@@ -2319,7 +2391,8 @@
                     this.checkVerticalCollisions(platforms);
                     this.updateAnimation(dt);
                     this.deathTimer -= dt;
-                    if (this.deathTimer <= 0) onPlayerDeath();
+                    // In a duel the match decides what happens after a K.O.
+                    if (this.deathTimer <= 0 && !duel.active) onPlayerDeath();
                     return;
                 }
 
@@ -2331,7 +2404,7 @@
 
                 if (this.jumpBuffer > 0) {
                     this.jumpBuffer -= dt;
-                    if (this.jump()) this.jumpBuffer = 0;
+                    if (this.frozen <= 0 && this.jump()) this.jumpBuffer = 0;
                 }
 
                 if (this.isDashing) {
@@ -2342,10 +2415,10 @@
                     }
                 } else {
                     const speed = this.speed * (currentLevel.water ? 0.85 : 1) * (this.slowed ? 0.4 : 1);
-                    if (keys.left) {
+                    if (input.left) {
                         this.vx = -speed;
                         this.facing = 'left';
-                    } else if (keys.right) {
+                    } else if (input.right) {
                         this.vx = speed;
                         this.facing = 'right';
                     } else {
@@ -2357,7 +2430,7 @@
                     this.applyCurrents();
                 }
 
-                if (keys.dash && this.dashCooldown <= 0 && !this.isDashing) {
+                if (input.dash && this.dashCooldown <= 0 && !this.isDashing) {
                     this.isDashing = true;
                     this.dashTimer = 0.22;
                     this.dashCooldown = 0.8 - 0.15 * upgradeLevel('dash');
@@ -2372,9 +2445,10 @@
                     }
                 }
 
-                if (keys.attack && this.attackCooldown <= 0 && !this.isAttacking) {
+                if (input.attack && this.attackCooldown <= 0 && !this.isAttacking) {
                     // Chain into the next swing only if the previous one was recent
                     this.attackCombo = this.comboWindow > 0 ? (this.attackCombo % 3) + 1 : 1;
+                    this.hitThisSwing = false;
                     this.attackDuration = ATTACK_TIMINGS[this.attackCombo];
                     this.isAttacking = true;
                     this.attackTimer = this.attackDuration;
@@ -2390,7 +2464,8 @@
                     }
                 }
 
-                this.x += this.vx;
+                this.x += this.vx + this.kbx;
+                this.kbx *= 0.85;
                 this.checkHorizontalCollisions(platforms);
 
                 this.y += this.vy;
@@ -2567,14 +2642,17 @@
                 return false;
             }
 
-            takeDamage(amount) {
-                if (this.isDead || this.invulnerableTimer > 0 || this.isDashing || this.skill) return;
-                if (DEV && dev.god) return;
+            // knockbackDir ('left'/'right') pushes the player away; returns true if the hit landed
+            takeDamage(amount, knockbackDir) {
+                if (this.isDead || this.invulnerableTimer > 0 || this.isDashing || this.skill) return false;
+                if (DEV && dev.god && !duel.active) return false;
 
                 this.hp -= amount;
                 if (this.hp < 0) this.hp = 0;
 
-                this.invulnerableTimer = 1.0;
+                // Duels need short invulnerability so combos still connect
+                this.invulnerableTimer = duel.active ? 0.35 : 1.0;
+                if (knockbackDir) this.kbx = (knockbackDir === 'right' ? 1 : -1) * 7;
                 playSound('hit');
 
                 createHitSparks(this.x + this.width / 2, this.y + this.height / 2, '#ef4444', 15);
@@ -2586,6 +2664,7 @@
                 if (this.hp <= 0) {
                     this.die();
                 }
+                return true;
             }
 
             // Plays the death animation; respawn (or game over) follows when deathTimer runs out
@@ -2635,13 +2714,26 @@
                     ctx.beginPath();
                     ctx.rect(0, 0, GAME_WIDTH, this.pillarBaseY);
                     ctx.clip();
-                    drawSprite(IMG.hero, HERO_ANIMS.pillarTop, this.currentFrame(), cx, feetY, flip, HERO_SCALE);
+                    drawSprite(this.sheet || IMG.hero, HERO_ANIMS.pillarTop, this.currentFrame(), cx, feetY, flip, HERO_SCALE);
                     ctx.restore();
                     return;
                 }
 
                 const a = this.animState === 'attack' ? HERO_ANIMS[ATTACK_FRAMES[this.attackCombo][0]] : HERO_ANIMS[this.animState];
-                drawSprite(IMG.hero, a, this.currentFrame(), cx, feetY, flip, HERO_SCALE);
+                drawSprite(this.sheet || IMG.hero, a, this.currentFrame(), cx, feetY, flip, HERO_SCALE);
+
+                if (this.frozen > 0 && !this.isDead) {
+                    // spinning golden seal of Định Thân Pháp above the head
+                    ctx.save();
+                    ctx.translate(cx, this.y - 16);
+                    ctx.rotate(this.frozen * 3);
+                    ctx.strokeStyle = '#fde047';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(-8, -8, 16, 16);
+                    ctx.rotate(Math.PI / 4);
+                    ctx.strokeRect(-8, -8, 16, 16);
+                    ctx.restore();
+                }
 
                 if (this.slowed && !this.isDead) {
                     // sticky silk strands across the body
@@ -2675,6 +2767,13 @@
                 e.frozen = e.type === 'boss' ? FREEZE_TIME / 2 : FREEZE_TIME;
                 createHitSparks(e.x + e.width / 2, e.y + e.height / 2, '#fde047', 10);
             }
+            if (duel.active) {
+                const foe = duel.opponentOf(p);
+                if (!foe.isDead && Math.abs(foe.x + foe.width / 2 - cx) < 450) {
+                    foe.frozen = DUEL.freezeTime;
+                    createHitSparks(foe.x + foe.width / 2, foe.y + foe.height / 2, '#fde047', 10);
+                }
+            }
             projectiles = [];
             floatingTexts.push(new FloatingText('ĐỊNH!', p.x - 4, p.y - 20, '#fde047', 16));
         }
@@ -2693,12 +2792,14 @@
                     Math.random() < 0.5 ? '#facc15' : '#fde68a', 4, 0.5
                 ));
             }
+            const inRange = t => Math.abs(t.x + t.width / 2 - cx) < 170 && Math.abs(t.y + t.height - feetY) < 110;
             for (const e of enemies) {
                 if (e.dead) continue;
-                const ex = e.x + e.width / 2;
-                if (Math.abs(ex - cx) < 170 && Math.abs(e.y + e.height - feetY) < 110) {
-                    e.takeDamage(Math.round(70 * damageMultiplier()), ex > cx ? 'right' : 'left');
-                }
+                if (inRange(e)) e.takeDamage(Math.round(70 * damageMultiplier()), e.x + e.width / 2 > cx ? 'right' : 'left');
+            }
+            if (duel.active) {
+                const foe = duel.opponentOf(p);
+                if (inRange(foe)) foe.takeDamage(DUEL.slamDamage, foe.x + foe.width / 2 > cx ? 'right' : 'left');
             }
             for (const c of chests) {
                 if (!c.opened && Math.abs(c.x + c.width / 2 - cx) < 170 && Math.abs(c.y + c.height - feetY) < 60) c.open();
@@ -2712,14 +2813,16 @@
         const CLONE_LIFE = 7;
 
         class Clone {
-            constructor(x, y, offset) {
+            constructor(x, y, offset, owner) {
                 this.x = x;
                 this.y = y;
                 this.width = 40;
                 this.height = 62;
                 this.vx = 0;
                 this.vy = -6;
-                this.offset = offset; // where it idles relative to the player when there is nothing to fight
+                this.offset = offset; // where it idles relative to its owner when there is nothing to fight
+                this.owner = owner;
+                this.sheet = owner.cloneSheet || FLASH.clone;
                 this.life = CLONE_LIFE;
                 this.facing = offset < 0 ? 'left' : 'right';
                 this.isGrounded = false;
@@ -2729,22 +2832,31 @@
                 this.animTime = Math.random();
             }
 
+            // Enemies in the campaign, the other fighter in a duel
+            targets() {
+                if (duel.active) {
+                    const foe = duel.opponentOf(this.owner);
+                    return foe.isDead ? [] : [foe];
+                }
+                return enemies.filter(e => !e.dead);
+            }
+
             update(dt, platforms) {
                 this.life -= dt;
                 this.animTime += dt;
                 if (this.cooldown > 0) this.cooldown -= dt;
 
+                const owner = this.owner;
                 let target = null;
                 let best = 320;
-                for (const e of enemies) {
-                    if (e.dead) continue;
+                for (const e of this.targets()) {
                     const d = Math.abs(e.x + e.width / 2 - (this.x + this.width / 2));
                     if (d < best && Math.abs(e.y - this.y) < 160) {
                         best = d;
                         target = e;
                     }
                 }
-                const goalX = target ? target.x + target.width / 2 : player.x + player.width / 2 + this.offset;
+                const goalX = target ? target.x + target.width / 2 : owner.x + owner.width / 2 + this.offset;
                 const dx = goalX - (this.x + this.width / 2);
 
                 if (this.attackTimer > 0) {
@@ -2753,8 +2865,9 @@
                     if (!this.hitDone && this.attackTimer < 0.15) {
                         this.hitDone = true;
                         const reach = { x: this.facing === 'right' ? this.x + this.width : this.x - 80, y: this.y, width: 80, height: 55 };
-                        for (const e of enemies) {
-                            if (!e.dead && overlaps(reach, e)) e.takeDamage(Math.round(18 * damageMultiplier()), this.facing);
+                        const damage = duel.active ? DUEL.cloneDamage : Math.round(18 * damageMultiplier());
+                        for (const e of this.targets()) {
+                            if (overlaps(reach, e)) e.takeDamage(damage, this.facing);
                         }
                     }
                 } else if (target && Math.abs(dx) < 60 && this.cooldown <= 0) {
@@ -2770,7 +2883,7 @@
                 }
 
                 // Hop up when whatever it follows is standing higher
-                const goalFeet = target ? target.y + target.height : player.y + player.height;
+                const goalFeet = target ? target.y + target.height : owner.y + owner.height;
                 if (this.isGrounded && goalFeet < this.y + this.height - 60) this.vy = -12.5;
 
                 this.vy += 0.65;
@@ -2781,8 +2894,8 @@
                 Player.prototype.checkVerticalCollisions.call(this, platforms);
 
                 if (this.y > GAME_HEIGHT + 50) {
-                    this.x = player.x;
-                    this.y = player.y - 20;
+                    this.x = owner.x;
+                    this.y = owner.y - 20;
                     this.vy = 0;
                 }
             }
@@ -2804,7 +2917,7 @@
                 }
                 ctx.save();
                 ctx.globalAlpha = 0.8;
-                drawSprite(FLASH.clone, anim, frame, this.x + this.width / 2 - camX, this.y + this.height, this.facing === 'left', HERO_SCALE);
+                drawSprite(this.sheet, anim, frame, this.x + this.width / 2 - camX, this.y + this.height, this.facing === 'left', HERO_SCALE);
                 ctx.restore();
             }
         }
@@ -2817,10 +2930,12 @@
             }
         }
 
+        // Replaces this caster's clones (in a duel the other fighter keeps theirs)
         function spawnClones(p) {
-            for (const c of clones) cloudPuff(c.x + c.width / 2, c.y + c.height / 2);
-            clones = [new Clone(p.x - 40, p.y, -60), new Clone(p.x + 40, p.y, 60)];
-            for (const c of clones) cloudPuff(c.x + c.width / 2, c.y + c.height / 2);
+            for (const c of clones) if (c.owner === p) cloudPuff(c.x + c.width / 2, c.y + c.height / 2);
+            const fresh = [new Clone(p.x - 40, p.y, -60, p), new Clone(p.x + 40, p.y, 60, p)];
+            clones = clones.filter(c => c.owner !== p).concat(fresh);
+            for (const c of fresh) cloudPuff(c.x + c.width / 2, c.y + c.height / 2);
         }
 
         // --- ENEMY CLASS ---
@@ -3606,12 +3721,12 @@
         function setUiFor(state) {
             const inStage = ['PLAYING', 'PAUSED', 'CLEAR', 'GAMEOVER'].includes(state);
             hud.classList.toggle('hidden', !inStage);
-            mobileControls.classList.toggle('hidden', state !== 'PLAYING');
+            mobileControls.classList.toggle('hidden', state !== 'PLAYING' && state !== 'DUEL');
             mapUi.classList.toggle('hidden', state !== 'MAP');
         }
 
         function hideOverlays() {
-            for (const el of [startOverlay, gameOverOverlay, clearOverlay, pauseOverlay, shopOverlay]) el.classList.add('hidden');
+            for (const el of [startOverlay, gameOverOverlay, clearOverlay, pauseOverlay, shopOverlay, duelOverlay]) el.classList.add('hidden');
             shopOpen = false;
         }
 
@@ -3793,6 +3908,7 @@
         }
 
         function handleMapKey(code) {
+            if (isDuelOverlayOpen()) return;
             if (shopOpen) {
                 if (code === 'KeyB' || code === 'Escape') closeShop();
                 return;
@@ -3809,7 +3925,7 @@
 
         // Click a node to walk there; click the node you are on to enter it
         canvas.addEventListener('click', (e) => {
-            if (gameState !== 'MAP' || shopOpen) return;
+            if (gameState !== 'MAP' || shopOpen || isDuelOverlayOpen()) return;
             const rect = canvas.getBoundingClientRect();
             const scale = Math.min(rect.width / GAME_WIDTH, rect.height / GAME_HEIGHT);
             const x = (e.clientX - rect.left - (rect.width - GAME_WIDTH * scale) / 2) / scale;
@@ -4005,6 +4121,622 @@
             updateMapUi();
         });
 
+        // --- ONLINE DUEL (Solo online) ---
+        // PeerJS connects the two browsers directly. The host runs the match; the guest sends its
+        // inputs and draws the snapshots the host sends back ~30 times a second.
+        const PEERJS_URL = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
+        const PEER_PREFIX = 'tdk-duel-';
+        const DUEL = {
+            hp: 150,
+            damage: { 1: 8, 2: 10, 3: 14 }, // per combo step
+            slamDamage: 25,
+            cloneDamage: 4,
+            freezeTime: 1.5,
+            mpPerHit: 10,
+            roundTime: 90,
+            winsNeeded: 2
+        };
+        const SKILL_IDS = ['pillar', 'clone', 'freeze'];
+
+        const duel = {
+            active: false,      // a match is on screen
+            isHost: false,
+            peer: null,
+            conn: null,
+            code: '',
+            arena: 'forest',
+            fighters: [],       // [host fighter, guest fighter]
+            localIndex: 0,
+            remoteInput: { left: false, right: false, attack: false, dash: false },
+            remoteCounters: null, // guest's jump/skill press counters last seen by the host
+            localCounters: null,  // this guest's own press counters
+            lastSentInput: '',
+            inputTimer: 0,
+            sendTimer: 0,
+            round: 1,
+            wins: [0, 0],
+            roundWinner: -1,
+            phase: 'intro',     // intro -> fight -> ko -> intro ... -> over
+            phaseTimer: 0,
+            timer: DUEL.roundTime,
+            mainPlayer: null,   // the campaign Player, restored when the duel ends
+            opponentOf(f) {
+                return this.fighters[0] === f ? this.fighters[1] : this.fighters[0];
+            }
+        };
+
+        const duelOverlay = document.getElementById('duel-overlay');
+        const duelMenu = document.getElementById('duel-menu');
+        const duelLobby = document.getElementById('duel-lobby');
+        const duelResult = document.getElementById('duel-result');
+        const duelHostInfo = document.getElementById('duel-host-info');
+        const duelStatus = document.getElementById('duel-status');
+        const duelStartBtn = document.getElementById('duel-start-btn');
+        const duelLink = document.getElementById('duel-link');
+
+        function freshCounters() {
+            return { j: 0, pillar: 0, clone: 0, freeze: 0 };
+        }
+
+        function loadPeerJs() {
+            return new Promise((resolve, reject) => {
+                if (window.Peer) return resolve();
+                const s = document.createElement('script');
+                s.src = PEERJS_URL;
+                s.onload = resolve;
+                s.onerror = () => reject(new Error('peerjs'));
+                document.head.appendChild(s);
+            });
+        }
+
+        function randomRoomCode() {
+            const letters = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no look-alikes such as O/0, I/1
+            let code = '';
+            for (let i = 0; i < 5; i++) code += letters[Math.floor(Math.random() * letters.length)];
+            return code;
+        }
+
+        function makeArena(themeKey) {
+            return {
+                name: 'ĐẤU TRƯỜNG',
+                theme: themeKey,
+                water: themeKey === 'sea',
+                worldWidth: GAME_WIDTH,
+                bgGradient: ['#0f172a', '#1e293b', '#020617'],
+                platforms: [
+                    { x: -40, y: 480, w: GAME_WIDTH + 80, h: 60, type: 'stone' },
+                    { x: 100, y: 350, w: 170, h: 20, type: 'ledge' },
+                    { x: GAME_WIDTH - 270, y: 350, w: 170, h: 20, type: 'ledge' },
+                    { x: GAME_WIDTH / 2 - 85, y: 230, w: 170, h: 20, type: 'ledge' }
+                ]
+            };
+        }
+
+        // --- Lobby UI ---
+        function showDuelPanel(panel) {
+            for (const el of [duelMenu, duelLobby, duelResult]) el.classList.toggle('hidden', el !== panel);
+        }
+
+        function setDuelStatus(text) {
+            duelStatus.innerText = text;
+        }
+
+        function openDuelOverlay() {
+            initAudio();
+            startMusic();
+            duelOverlay.classList.remove('hidden');
+            showDuelPanel(duelMenu);
+        }
+
+        function isDuelOverlayOpen() {
+            return !duelOverlay.classList.contains('hidden');
+        }
+
+        // --- Connection ---
+        async function createRoom() {
+            showDuelPanel(duelLobby);
+            duelHostInfo.classList.remove('hidden');
+            duelStartBtn.classList.add('hidden');
+            duelLink.value = '';
+            setDuelStatus('Đang tạo phòng...');
+            try {
+                await loadPeerJs();
+            } catch (e) {
+                setDuelStatus('Không tải được thư viện kết nối. Hãy kiểm tra mạng.');
+                return;
+            }
+            duel.isHost = true;
+            duel.code = randomRoomCode();
+            const peer = new Peer(PEER_PREFIX + duel.code);
+            duel.peer = peer;
+            peer.on('open', () => {
+                duelLink.value = `${location.origin}${location.pathname}?room=${duel.code}`;
+                document.getElementById('duel-code-text').innerText = duel.code;
+                setDuelStatus('Đang chờ đối thủ vào phòng...');
+            });
+            peer.on('connection', (conn) => {
+                if (duel.conn) {
+                    conn.close(); // the room already has two players
+                    return;
+                }
+                setupConnection(conn);
+                conn.on('open', () => {
+                    setDuelStatus('Đối thủ đã vào phòng!');
+                    duelStartBtn.classList.remove('hidden');
+                });
+            });
+            peer.on('error', (err) => {
+                if (err.type === 'unavailable-id') {
+                    // someone else owns this code: try another one
+                    peer.destroy();
+                    createRoom();
+                    return;
+                }
+                setDuelStatus(`Lỗi kết nối (${err.type}).`);
+            });
+        }
+
+        async function joinRoom(rawCode) {
+            const code = rawCode.trim().toUpperCase();
+            if (!code) return;
+            showDuelPanel(duelLobby);
+            duelHostInfo.classList.add('hidden');
+            duelStartBtn.classList.add('hidden');
+            setDuelStatus(`Đang vào phòng ${code}...`);
+            try {
+                await loadPeerJs();
+            } catch (e) {
+                setDuelStatus('Không tải được thư viện kết nối. Hãy kiểm tra mạng.');
+                return;
+            }
+            duel.isHost = false;
+            duel.code = code;
+            const peer = new Peer();
+            duel.peer = peer;
+            peer.on('open', () => {
+                const conn = peer.connect(PEER_PREFIX + code, { serialization: 'json', reliable: true });
+                setupConnection(conn);
+                conn.on('open', () => setDuelStatus('Đã vào phòng! Chờ chủ phòng bắt đầu...'));
+            });
+            peer.on('error', (err) => {
+                setDuelStatus(err.type === 'peer-unavailable'
+                    ? 'Không tìm thấy phòng. Kiểm tra lại mã, hoặc chủ phòng đã thoát.'
+                    : `Lỗi kết nối (${err.type}).`);
+            });
+        }
+
+        function setupConnection(conn) {
+            duel.conn = conn;
+            conn.on('data', onDuelMessage);
+            conn.on('close', () => onDuelDisconnect(conn));
+            conn.on('error', () => onDuelDisconnect(conn));
+        }
+
+        function sendDuel(msg) {
+            if (duel.conn && duel.conn.open) duel.conn.send(msg);
+        }
+
+        function onDuelMessage(msg) {
+            if (msg.t === 'start') {
+                beginDuelMatch(msg.arena);
+            } else if (msg.t === 'snap') {
+                applySnapshot(msg);
+            } else if (msg.t === 'input' && duel.isHost) {
+                applyRemoteInput(msg);
+            } else if (msg.t === 'bye') {
+                onDuelDisconnect(duel.conn);
+            }
+        }
+
+        function onDuelDisconnect(conn) {
+            if (!conn || duel.conn !== conn) return;
+            duel.conn = null;
+            if (duel.active) {
+                endDuelMatch();
+                goToMap();
+            }
+            duelOverlay.classList.remove('hidden');
+            showDuelPanel(duelLobby);
+            duelHostInfo.classList.toggle('hidden', !duel.isHost);
+            duelStartBtn.classList.add('hidden');
+            setDuelStatus(duel.isHost
+                ? 'Đối thủ đã rời phòng. Link vẫn dùng được, đang chờ người khác vào...'
+                : 'Mất kết nối với chủ phòng.');
+        }
+
+        function leaveDuel() {
+            sendDuel({ t: 'bye' });
+            if (duel.active) endDuelMatch();
+            const conn = duel.conn;
+            duel.conn = null;
+            if (conn) conn.close();
+            if (duel.peer) duel.peer.destroy();
+            duel.peer = null;
+            // drop ?room= so a reload does not rejoin
+            if (location.search.includes('room=')) history.replaceState(null, '', location.pathname + (DEV ? '?dev' : ''));
+            goToMap();
+        }
+
+        // --- Match flow ---
+        function beginDuelMatch(arena) {
+            duel.arena = arena;
+            if (!duel.mainPlayer) duel.mainPlayer = player;
+
+            const host = new Player(0, 0);
+            const guest = new Player(0, 0);
+            host.cloneSheet = FLASH.clone;
+            guest.sheet = FLASH.p2;
+            guest.cloneSheet = FLASH.p2clone;
+            host.input = duel.isHost ? keys : NO_INPUT;
+            guest.input = duel.isHost ? duel.remoteInput : NO_INPUT;
+            for (const f of [host, guest]) {
+                f.maxHp = DUEL.hp;
+                f.maxJumps = 2;
+            }
+            duel.fighters = [host, guest];
+            duel.localIndex = duel.isHost ? 0 : 1;
+            player = duel.fighters[duel.localIndex];
+            duel.wins = [0, 0];
+            duel.round = 1;
+            duel.remoteCounters = freshCounters();
+            duel.localCounters = freshCounters();
+
+            currentLevel = makeArena(arena);
+            const theme = THEMES[arena];
+            buildScenery(currentLevel, theme);
+            resetAmbient(theme.ambient);
+            camera.x = 0;
+            enemies = [];
+            chests = [];
+            webs = [];
+            hazards = [];
+            checkpoints = [];
+            pickups = [];
+            projectiles = [];
+            particles = [];
+            floatingTexts = [];
+            shockwaves = [];
+            levelBanner.timer = 0;
+
+            duel.active = true;
+            startDuelRound();
+            hideOverlays();
+            duelOverlay.classList.add('hidden');
+            releaseKeys();
+            gameState = 'DUEL';
+            setUiFor(gameState);
+        }
+
+        function startDuelRound() {
+            const [host, guest] = duel.fighters;
+            host.reset(150, 480 - host.height);
+            host.facing = 'right';
+            guest.reset(GAME_WIDTH - 150 - guest.width, 480 - guest.height);
+            guest.facing = 'left';
+            for (const f of duel.fighters) f.mp = 30;
+            clones = [];
+            duel.roundWinner = -1;
+            duel.phase = 'intro';
+            duel.phaseTimer = 2;
+            duel.timer = DUEL.roundTime;
+        }
+
+        function endDuelRound() {
+            const [a, b] = duel.fighters;
+            let winner = -1;
+            if (a.isDead !== b.isDead) winner = a.isDead ? 1 : 0;
+            else if (!a.isDead && a.hp !== b.hp) winner = a.hp > b.hp ? 0 : 1; // time out: more HP wins
+            if (winner >= 0) duel.wins[winner]++;
+            duel.roundWinner = winner;
+            duel.phase = 'ko';
+            duel.phaseTimer = 2.5;
+            playSound('kill');
+            addShake(8);
+            hitStop = 0.3;
+        }
+
+        function endDuelMatch() {
+            duel.active = false;
+            if (duel.mainPlayer) player = duel.mainPlayer;
+            duel.mainPlayer = null;
+            duel.fighters = [];
+            clones = [];
+        }
+
+        function showDuelResult() {
+            const me = duel.localIndex;
+            const won = duel.wins[me] > duel.wins[1 - me];
+            document.getElementById('duel-result-title').innerText = won ? 'BẠN THẮNG!' : 'BẠN THUA!';
+            document.getElementById('duel-result-score').innerText = `${duel.wins[me]} - ${duel.wins[1 - me]}`;
+            document.getElementById('duel-rematch-btn').classList.toggle('hidden', !duel.isHost);
+            document.getElementById('duel-rematch-wait').classList.toggle('hidden', duel.isHost);
+            showDuelPanel(duelResult);
+            duelOverlay.classList.remove('hidden');
+        }
+
+        function hostStartMatch(arena) {
+            sendDuel({ t: 'start', arena });
+            beginDuelMatch(arena);
+        }
+
+        // --- Host side ---
+        function applyRemoteInput(m) {
+            Object.assign(duel.remoteInput, { left: !!m.l, right: !!m.r, attack: !!m.a, dash: !!m.d });
+            const guest = duel.fighters[1];
+            const seen = duel.remoteCounters;
+            if (guest && seen && duel.phase === 'fight') {
+                if (m.j > seen.j) guest.queueJump();
+                for (const id of SKILL_IDS) if (m[id] > seen[id]) guest.useSkill(id);
+            }
+            if (seen) Object.assign(seen, { j: m.j, pillar: m.pillar, clone: m.clone, freeze: m.freeze });
+        }
+
+        function resolveDuelHits() {
+            for (let i = 0; i < 2; i++) {
+                const a = duel.fighters[i], b = duel.fighters[1 - i];
+                if (!a.isAttacking || a.hitThisSwing || a.isDead || b.isDead) continue;
+                if (overlaps(a.attackBox, b)) {
+                    a.hitThisSwing = true; // one hit per swing
+                    if (b.takeDamage(DUEL.damage[a.attackCombo], a.facing)) {
+                        a.gainMp(DUEL.mpPerHit);
+                        hitStop = Math.max(hitStop, 0.05);
+                    }
+                }
+            }
+        }
+
+        function updateDuelHost(dt) {
+            const platforms = currentLevel.platforms;
+            if (duel.phase === 'intro') {
+                duel.phaseTimer -= dt;
+                if (duel.phaseTimer <= 0) duel.phase = 'fight';
+            } else if (duel.phase === 'fight' || duel.phase === 'ko') {
+                for (const f of duel.fighters) {
+                    f.update(dt, platforms);
+                    f.x = Math.max(0, Math.min(GAME_WIDTH - f.width, f.x));
+                }
+                for (const c of clones) c.update(dt, platforms);
+                clones = clones.filter(c => {
+                    if (c.life > 0) return true;
+                    cloudPuff(c.x + c.width / 2, c.y + c.height / 2);
+                    return false;
+                });
+                if (duel.phase === 'fight') {
+                    resolveDuelHits();
+                    duel.timer -= dt;
+                    if (duel.fighters.some(f => f.isDead) || duel.timer <= 0) endDuelRound();
+                } else {
+                    duel.phaseTimer -= dt;
+                    if (duel.phaseTimer <= 0) {
+                        if (Math.max(...duel.wins) >= DUEL.winsNeeded) {
+                            duel.phase = 'over';
+                            showDuelResult();
+                        } else {
+                            duel.round++;
+                            startDuelRound();
+                        }
+                    }
+                }
+            }
+            updateEffects(dt);
+        }
+
+        const r1 = v => Math.round(v * 10) / 10;
+        const r2 = v => Math.round(v * 100) / 100;
+
+        function duelSnapshot() {
+            return {
+                t: 'snap',
+                f: duel.fighters.map(f => ({
+                    x: r1(f.x), y: r1(f.y), vx: r1(f.vx), vy: r1(f.vy), fc: f.facing === 'left' ? 1 : 0,
+                    st: f.animState, at: r2(f.animTime), cb: f.attackCombo, atk: r2(f.attackTimer), ad: f.attackDuration,
+                    sk: f.skill, sp: f.skillPhase, skt: r2(f.skillTimer), pb: f.pillarBaseY,
+                    g: f.isGrounded ? 1 : 0, dead: f.isDead ? 1 : 0, inv: r2(f.invulnerableTimer),
+                    hp: f.hp, mp: Math.round(f.mp), dash: f.isDashing ? 1 : 0, sl: f.slowed ? 1 : 0, fz: r2(f.frozen)
+                })),
+                c: clones.map(c => ({
+                    x: r1(c.x), y: r1(c.y), vx: r1(c.vx), vy: r1(c.vy), fc: c.facing === 'left' ? 1 : 0,
+                    atk: r2(c.attackTimer), g: c.isGrounded ? 1 : 0, life: r2(c.life), o: duel.fighters.indexOf(c.owner)
+                })),
+                m: { round: duel.round, wins: duel.wins, phase: duel.phase, pt: r2(duel.phaseTimer), timer: r1(duel.timer), rw: duel.roundWinner }
+            };
+        }
+
+        // --- Guest side ---
+        function applySnapshot(s) {
+            if (!duel.active) return;
+            s.f.forEach((d, i) => {
+                const f = duel.fighters[i];
+                const cx = d.x + f.width / 2, feetY = d.y + f.height;
+                // The guest does not simulate, so it derives sounds and effects from what changed
+                if (d.hp < f.hp) {
+                    createHitSparks(cx, d.y + f.height / 2, '#ef4444', 12);
+                    floatingTexts.push(new FloatingText(`-${f.hp - d.hp}`, d.x + 10, d.y - 10, '#ef4444', 16));
+                    playSound('hit');
+                    addShake(4);
+                }
+                if (d.atk > f.attackTimer + 0.05) playSound('slash');
+                if (d.dash && !f.isDashing) playSound('slash');
+                if (d.sk === 'pillar' && !f.skill) playSound('skill');
+                if (d.sp === 'land' && f.skillPhase !== 'land') {
+                    addShockwave(cx, feetY, 170, '#facc15');
+                    addShake(8);
+                    playSound('slam');
+                }
+                if (d.fz > 0 && f.frozen <= 0) addShockwave(cx, feetY, 200, '#fde047');
+                if (d.dead && !f.isDead) playSound('kill');
+
+                // Snap on big jumps (new round), otherwise glide toward the host's position
+                if (Math.abs(d.x - f.x) > 80 || Math.abs(d.y - f.y) > 80) {
+                    f.x = d.x;
+                    f.y = d.y;
+                }
+                f.targetX = d.x;
+                f.targetY = d.y;
+                if (f.animState !== d.st || Math.abs(f.animTime - d.at) > 0.2) f.animTime = d.at;
+                Object.assign(f, {
+                    vx: d.vx, vy: d.vy, facing: d.fc ? 'left' : 'right', animState: d.st, attackCombo: d.cb,
+                    attackTimer: d.atk, attackDuration: d.ad, skill: d.sk, skillPhase: d.sp, skillTimer: d.skt,
+                    pillarBaseY: d.pb, isGrounded: !!d.g, isDead: !!d.dead, invulnerableTimer: d.inv,
+                    hp: d.hp, mp: d.mp, isDashing: !!d.dash, slowed: !!d.sl, frozen: d.fz
+                });
+            });
+
+            const before = clones.length;
+            clones = s.c.map(d => Object.assign(Object.create(Clone.prototype), {
+                x: d.x, y: d.y, vx: d.vx, vy: d.vy, facing: d.fc ? 'left' : 'right', attackTimer: d.atk,
+                isGrounded: !!d.g, life: d.life, width: 40, height: 62, animTime: worldTime,
+                sheet: d.o === 1 ? FLASH.p2clone : FLASH.clone
+            }));
+            if (clones.length > before) for (const c of clones) cloudPuff(c.x + c.width / 2, c.y + c.height / 2);
+
+            const prevPhase = duel.phase;
+            Object.assign(duel, { round: s.m.round, wins: s.m.wins, phase: s.m.phase, phaseTimer: s.m.pt, timer: s.m.timer, roundWinner: s.m.rw });
+            if (duel.phase === 'ko' && prevPhase === 'fight') {
+                playSound('kill');
+                addShake(8);
+            }
+            if (duel.phase === 'over' && prevPhase !== 'over') showDuelResult();
+        }
+
+        function updateDuelGuest(dt) {
+            for (const f of duel.fighters) {
+                if (f.targetX !== undefined) {
+                    f.x += (f.targetX - f.x) * 0.5;
+                    f.y += (f.targetY - f.y) * 0.5;
+                }
+                // keep animations moving between snapshots
+                f.animTime += dt;
+                if (f.attackTimer > 0) f.attackTimer = Math.max(0, f.attackTimer - dt);
+                if (f.skillTimer > 0) f.skillTimer = Math.max(0, f.skillTimer - dt);
+                if (f.invulnerableTimer > 0) f.invulnerableTimer -= dt;
+                if (f.frozen > 0) f.frozen -= dt;
+            }
+            updateEffects(dt);
+        }
+
+        function sendGuestInput(dt) {
+            const msg = {
+                t: 'input', l: keys.left ? 1 : 0, r: keys.right ? 1 : 0, a: keys.attack ? 1 : 0, d: keys.dash ? 1 : 0,
+                ...duel.localCounters
+            };
+            const signature = JSON.stringify(msg);
+            duel.inputTimer -= dt;
+            // send on change, and every 0.1s anyway in case a packet was lost
+            if (signature !== duel.lastSentInput || duel.inputTimer <= 0) {
+                sendDuel(msg);
+                duel.lastSentInput = signature;
+                duel.inputTimer = 0.1;
+            }
+        }
+
+        // Jump / skill presses go to the local fighter (host) or are counted and sent (guest)
+        function localJump() {
+            if (duel.active) {
+                if (duel.phase !== 'fight') return;
+                if (!duel.isHost) {
+                    duel.localCounters.j++;
+                    return;
+                }
+            }
+            player.queueJump();
+        }
+
+        function localSkill(id) {
+            if (duel.active) {
+                if (duel.phase !== 'fight') return;
+                if (!duel.isHost) {
+                    duel.localCounters[id]++;
+                    return;
+                }
+            }
+            player.useSkill(id);
+        }
+
+        // --- Drawing ---
+        function drawDuelHud(ctx) {
+            const names = ['CHỦ PHÒNG', 'KHÁCH'];
+            duel.fighters.forEach((f, i) => {
+                const w = 280, x = i === 0 ? 20 : GAME_WIDTH - 20 - w, y = 18;
+                const left = i === 0;
+                ctx.save();
+                ctx.fillStyle = 'rgba(2, 6, 23, 0.75)';
+                ctx.fillRect(x - 4, y - 4, w + 8, 42);
+                ctx.font = "8px 'Press Start 2P', monospace";
+                ctx.textAlign = left ? 'left' : 'right';
+                ctx.fillStyle = left ? '#fde68a' : '#7dd3fc';
+                ctx.fillText(names[i] + (i === duel.localIndex ? ' (BẠN)' : ''), left ? x : x + w, y + 8);
+                // HP bars drain toward the centre of the screen
+                const hpW = w * Math.max(0, f.hp / f.maxHp);
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(x, y + 13, w, 10);
+                ctx.fillStyle = f.hp / f.maxHp > 0.3 ? '#22c55e' : '#ef4444';
+                ctx.fillRect(left ? x + w - hpW : x, y + 13, hpW, 10);
+                const mpW = w * (f.mp / f.maxMp);
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(x, y + 26, w, 4);
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillRect(left ? x + w - mpW : x, y + 26, mpW, 4);
+                // round wins
+                for (let k = 0; k < DUEL.winsNeeded; k++) {
+                    ctx.fillStyle = k < duel.wins[i] ? '#facc15' : '#334155';
+                    ctx.fillRect(left ? x + w - 10 - k * 14 : x + 2 + k * 14, y, 8, 8);
+                }
+                ctx.restore();
+            });
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 4;
+            ctx.font = "16px 'Press Start 2P', monospace";
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(String(Math.max(0, Math.ceil(duel.timer))), GAME_WIDTH / 2, 42);
+            let banner = '';
+            if (duel.phase === 'intro') banner = duel.phaseTimer > 0.6 ? `HIỆP ${duel.round}` : 'ĐẤU!';
+            else if (duel.phase === 'ko') banner = duel.roundWinner === -1 ? 'HÒA!' : duel.timer <= 0 ? 'HẾT GIỜ!' : 'K.O.!';
+            if (banner) {
+                ctx.font = "28px 'Press Start 2P', monospace";
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillText(banner, GAME_WIDTH / 2, 200);
+            }
+            ctx.restore();
+        }
+
+        function drawDuel(ctx) {
+            ctx.save();
+            applyShake(ctx);
+            drawEnvironment(ctx, currentLevel, 0);
+            for (const c of clones) c.draw(ctx, 0);
+            for (const f of duel.fighters) f.draw(ctx, 0);
+            drawShockwaves(ctx, 0);
+            for (const p of particles) p.draw(ctx, 0);
+            ctx.restore();
+
+            const theme = THEMES[currentLevel.theme];
+            if (currentLevel.water) drawWaterOverlay(ctx, 0);
+            if (theme.dark) drawDarkness(ctx, 0);
+            drawAmbient(ctx, 0);
+            ctx.fillStyle = vignette;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            for (const ft of floatingTexts) ft.draw(ctx, 0);
+            drawDuelHud(ctx);
+            drawSkillSlots(ctx);
+        }
+
+        document.getElementById('map-duel-btn').addEventListener('click', openDuelOverlay);
+        document.getElementById('duel-create-btn').addEventListener('click', createRoom);
+        document.getElementById('duel-join-btn').addEventListener('click', () => joinRoom(document.getElementById('duel-code-input').value));
+        document.getElementById('duel-start-btn').addEventListener('click', () => hostStartMatch(document.getElementById('duel-arena').value));
+        document.getElementById('duel-rematch-btn').addEventListener('click', () => hostStartMatch(duel.arena));
+        document.getElementById('duel-close-btn').addEventListener('click', leaveDuel);
+        document.getElementById('duel-copy-btn').addEventListener('click', () => {
+            duelLink.select();
+            if (navigator.clipboard) navigator.clipboard.writeText(duelLink.value).catch(() => document.execCommand('copy'));
+            else document.execCommand('copy');
+            setDuelStatus('Đã chép link! Gửi cho bạn bè nhé. Đang chờ đối thủ...');
+        });
+
         // --- TOUCH BINDINGS ---
         function bindTouch(id, keyProp, actionCallback) {
             const btn = document.getElementById(id);
@@ -4013,7 +4745,7 @@
             const handleStart = (e) => {
                 e.preventDefault();
                 keys[keyProp] = true;
-                if (actionCallback && player && gameState === 'PLAYING') actionCallback();
+                if (actionCallback && player && (gameState === 'PLAYING' || gameState === 'DUEL')) actionCallback();
             };
 
             const handleEnd = (e) => {
@@ -4030,12 +4762,12 @@
 
         bindTouch('btn-left', 'left');
         bindTouch('btn-right', 'right');
-        bindTouch('btn-jump', 'jump', () => player.queueJump());
+        bindTouch('btn-jump', 'jump', localJump);
         bindTouch('btn-attack', 'attack');
         bindTouch('btn-dash', 'dash');
-        bindTouch('btn-skill1', 'skill1', () => player.useSkill('pillar'));
-        bindTouch('btn-skill2', 'skill2', () => player.useSkill('clone'));
-        bindTouch('btn-skill3', 'skill3', () => player.useSkill('freeze'));
+        bindTouch('btn-skill1', 'skill1', () => localSkill('pillar'));
+        bindTouch('btn-skill2', 'skill2', () => localSkill('clone'));
+        bindTouch('btn-skill3', 'skill3', () => localSkill('freeze'));
 
         // Platforms with `move` drift side to side; whoever stands on one rides along
         function moveClouds(platforms) {
@@ -4090,6 +4822,11 @@
 
             portal.update(dt, player);
             if (gameState !== 'PLAYING') return; // portal reached
+            updateEffects(dt);
+        }
+
+        // Particles, floating numbers and shockwave rings (shared by the campaign and duels)
+        function updateEffects(dt) {
             updateShockwaves(dt);
 
             for (let i = particles.length - 1; i >= 0; i--) {
@@ -4100,6 +4837,15 @@
             for (let i = floatingTexts.length - 1; i >= 0; i--) {
                 floatingTexts[i].update(dt);
                 if (floatingTexts[i].life <= 0) floatingTexts.splice(i, 1);
+            }
+        }
+
+        function applyShake(ctx) {
+            if (shake > 0.3) {
+                ctx.translate(snap((Math.random() - 0.5) * 2 * shake), snap((Math.random() - 0.5) * 2 * shake));
+                shake *= 0.88;
+            } else {
+                shake = 0;
             }
         }
 
@@ -4125,6 +4871,24 @@
                 return;
             }
 
+            if (gameState === 'DUEL') {
+                if (hitStop > 0) hitStop -= dt;
+                else if (duel.isHost) updateDuelHost(dt);
+                else updateDuelGuest(dt);
+                if (duel.isHost) {
+                    duel.sendTimer -= dt;
+                    if (duel.sendTimer <= 0) {
+                        sendDuel(duelSnapshot());
+                        duel.sendTimer = 1 / 30;
+                    }
+                } else {
+                    sendGuestInput(dt);
+                }
+                drawDuel(ctx);
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
             if (gameState === 'PLAYING') {
                 // Hit-stop freezes the world for a few frames to sell heavy impacts
                 if (hitStop > 0) hitStop -= dt;
@@ -4134,12 +4898,7 @@
             const camX = snap(camera.x);
 
             ctx.save();
-            if (shake > 0.3) {
-                ctx.translate(snap((Math.random() - 0.5) * 2 * shake), snap((Math.random() - 0.5) * 2 * shake));
-                shake *= 0.88;
-            } else {
-                shake = 0;
-            }
+            applyShake(ctx);
 
             drawEnvironment(ctx, currentLevel, camX);
 
@@ -4188,10 +4947,17 @@
         }
 
         // --- BUTTON EVENT LISTENERS ---
+        // Opened from an invite link (?room=CODE): the start button joins that duel room
+        const inviteRoom = new URLSearchParams(location.search).get('room');
+
         startBtn.addEventListener('click', () => {
             initAudio();
             startMusic();
             goToMap();
+            if (inviteRoom) {
+                openDuelOverlay();
+                joinRoom(inviteRoom);
+            }
         });
 
         resetBtn.addEventListener('click', () => {
@@ -4227,7 +4993,7 @@
 
             panel.addEventListener('click', (e) => {
                 const btn = e.target.closest('button');
-                if (!btn) return;
+                if (!btn || duel.active) return;
                 btn.blur();
                 if (btn.dataset.stage !== undefined) {
                     if (startBtn.disabled) return; // art still loading
@@ -4276,7 +5042,7 @@
             drawAvatar();
             updateHUD();
             startBtn.disabled = false;
-            startBtn.innerText = 'VÀO HÀNH TRÌNH';
+            startBtn.innerText = inviteRoom ? `VÀO PHÒNG ĐẤU ${inviteRoom.toUpperCase()}` : 'VÀO HÀNH TRÌNH';
             if (save.unlocked > 0 || save.peaches > 0) resetBtn.classList.remove('hidden');
         });
 
