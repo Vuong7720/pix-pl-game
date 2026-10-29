@@ -57,7 +57,7 @@
             </div>
             <div>
                 <div class="flex items-center justify-between gap-2 mb-1">
-                    <span class="pixel-font text-xs text-amber-400 font-bold tracking-wider">TÔN NGỘ KHÔNG</span>
+                    <span id="hud-name" class="pixel-font text-xs text-amber-400 font-bold tracking-wider">TÔN NGỘ KHÔNG</span>
                     <span id="level-indicator" class="pixel-font text-[10px] bg-amber-950 text-amber-300 px-2 py-0.5 rounded border border-amber-800">CẢNH 1</span>
                 </div>
                 <!-- Health Bar -->
@@ -134,7 +134,7 @@
                         <span class="text-slate-400">Tạm dừng · Nhạc</span>
                     </div>
                     <div class="col-span-2 text-slate-500">
-                        Đánh trúng quái để nạp Pháp Lực · Chém rương để lấy Đào Tiên · Dùng Đào Tiên mua nâng cấp ở Cửa Hàng Thổ Địa
+                        Trên bản đồ bấm <span class="text-amber-400">C</span> để chọn nhân vật (5 nhân vật, mỗi người 3 thần thông riêng) · Đánh trúng quái để nạp Pháp Lực · Dùng Đào Tiên mua nâng cấp ở Cửa Hàng Thổ Địa
                     </div>
                 </div>
 
@@ -205,7 +205,19 @@
         <div id="map-ui" class="hidden absolute bottom-4 left-0 right-0 z-20 flex justify-center gap-3 px-4">
             <button id="map-play-btn" class="px-6 py-3 bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-500 hover:to-red-500 text-white pixel-font text-xs rounded-xl shadow-lg transition cursor-pointer">VÀO ẢI</button>
             <button id="map-shop-btn" class="px-6 py-3 bg-slate-900/90 hover:bg-slate-800 border border-pink-400/50 text-pink-200 pixel-font text-xs rounded-xl shadow-lg transition cursor-pointer">CỬA HÀNG <i class="fa-solid fa-apple-whole"></i> <span id="map-peaches">0</span></button>
+            <button id="map-char-btn" class="px-6 py-3 bg-slate-900/90 hover:bg-slate-800 border border-amber-400/50 text-amber-200 pixel-font text-xs rounded-xl shadow-lg transition cursor-pointer"><i class="fa-solid fa-user"></i> NHÂN VẬT</button>
             <button id="map-duel-btn" class="px-6 py-3 bg-slate-900/90 hover:bg-slate-800 border border-sky-400/50 text-sky-200 pixel-font text-xs rounded-xl shadow-lg transition cursor-pointer"><i class="fa-solid fa-user-group"></i> SOLO ONLINE</button>
+        </div>
+
+        <!-- CHARACTER SELECT -->
+        <div id="char-overlay" class="hidden absolute inset-0 z-30 flex items-center justify-center bg-slate-950/85 p-4">
+            <div class="glass-panel rounded-2xl w-full max-w-3xl p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="pixel-font text-sm text-amber-400">CHỌN NHÂN VẬT</h2>
+                    <button id="char-close-btn" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 pixel-font text-[10px] rounded-xl cursor-pointer">ĐÓNG (C)</button>
+                </div>
+                <div id="char-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[70vh] overflow-y-auto pr-1"></div>
+            </div>
         </div>
 
         <!-- ONLINE DUEL (Solo online qua link mời) -->
@@ -241,6 +253,9 @@
                             </select>
                         </label>
                     </div>
+                    <label class="flex items-center justify-center gap-2 text-xs text-slate-400">Nhân vật của bạn:
+                        <select id="duel-char" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-slate-200"></select>
+                    </label>
                     <div id="duel-status" class="text-sm text-slate-300">Đang chờ đối thủ...</div>
                     <button id="duel-start-btn" class="hidden w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 pixel-font text-xs rounded-xl cursor-pointer">BẮT ĐẦU ĐẤU</button>
                 </div>
@@ -380,8 +395,9 @@
         const DEV = new URLSearchParams(location.search).has('dev');
         const dev = { god: true, infiniteMp: true };
 
-        function isSkillLearned(id) {
-            return DEV || duel.active || !!save.skills[id];
+        // Skill slots open as the campaign progresses (all open in duels and dev mode)
+        function isSkillLearned(slot) {
+            return DEV || duel.active || save.unlocked > SLOT_UNLOCK_STAGE[slot];
         }
 
         // Controls of a frozen fighter
@@ -396,7 +412,7 @@
                 stars: [],        // best star count per stage
                 bestScores: [],   // best score per stage
                 upgrades: {},     // upgrade id -> level bought
-                skills: {}        // skill id -> true once learned
+                character: 'wukong'
             };
         }
         let save = freshSave();
@@ -405,10 +421,7 @@
             try {
                 Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY)) || {});
             } catch (e) { /* storage unavailable: play without saving */ }
-            // Saves from before skills were unlockable: grant what the cleared stages would have taught
-            for (const id in SKILLS) {
-                if (save.unlocked > SKILLS[id].unlockStage) save.skills[id] = true;
-            }
+            if (!CHARACTERS[save.character]) save.character = 'wukong';
         }
 
         function writeSave() {
@@ -455,9 +468,9 @@
             if (e.code === 'KeyK' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.dash = true;
             if (e.repeat) return;
             if (gameState === 'PLAYING' || gameState === 'DUEL') {
-                if (e.code === 'KeyU') localSkill('pillar');
-                if (e.code === 'KeyI') localSkill('clone');
-                if (e.code === 'KeyO') localSkill('freeze');
+                if (e.code === 'KeyU') localSkill(0);
+                if (e.code === 'KeyI') localSkill(1);
+                if (e.code === 'KeyO') localSkill(2);
                 if (gameState === 'PLAYING' && (e.code === 'Escape' || e.code === 'KeyP')) setPaused(true);
             } else if (gameState === 'PAUSED') {
                 if (e.code === 'Escape' || e.code === 'KeyP') setPaused(false);
@@ -704,17 +717,80 @@
         // Staff x inside the pillar frames, relative to ax (art pixels)
         const PILLAR_STAFF_X = -2.5;
 
-        // Each skill is learned by clearing stage `unlockStage`
+        // Every skill a character can have. `leap` skills take over movement (see LEAPS); the rest `cast` instantly.
         const SKILLS = {
-            pillar: { cost: 40, key: 'U', name: 'NHƯ Ý TRỤ THIÊN', short: 'TRỤ', unlockStage: 0 }, // staff launch + ground slam
-            clone:  { cost: 50, key: 'I', name: 'PHÂN THÂN THUẬT', short: 'PHÂN', unlockStage: 1 }, // two clones fight alongside
-            freeze: { cost: 60, key: 'O', name: 'ĐỊNH THÂN PHÁP', short: 'ĐỊNH', unlockStage: 2 }   // freezes nearby enemies
+            // Tôn Ngộ Không
+            pillar:    { cost: 40, name: 'NHƯ Ý TRỤ THIÊN', short: 'TRỤ', desc: 'Gậy mọc dài hất lên cao rồi đập đất', leap: 'pillar' },
+            clone:     { cost: 50, name: 'PHÂN THÂN THUẬT', short: 'PHÂN', desc: 'Hai phân thân đánh cùng trong 7 giây', cast: p => spawnClones(p) },
+            freeze:    { cost: 60, name: 'ĐỊNH THÂN PHÁP', short: 'ĐỊNH', desc: 'Đóng băng kẻ địch xung quanh', cast: p => castFreeze(p) },
+            // Trư Bát Giới
+            bellyslam: { cost: 40, name: 'BỤNG ĐÈ THÁI SƠN', short: 'ĐÈ', desc: 'Nhảy lên rồi lấy bụng đè, sóng chấn rất rộng', leap: 'belly' },
+            feast:     { cost: 45, name: 'ĂN NO CHIẾN TIẾP', short: 'ĂN', desc: 'Hồi 35 máu và miễn sát thương chốc lát', cast: p => castFeast(p) },
+            snore:     { cost: 60, name: 'NGỦ KHÒ CHẤN ĐỘNG', short: 'NGỦ', desc: 'Ngủ 2,5 giây: bất tử, hồi máu, tiếng ngáy hất văng kẻ địch', cast: p => castSnore(p) },
+            // Sa Tăng
+            quicksand: { cost: 40, name: 'LƯU SA HÀ', short: 'CÁT', desc: 'Vũng cát lún làm chậm và bào máu kẻ địch', cast: p => castQuicksand(p) },
+            counter:   { cost: 40, name: 'NGUYỆT NHA PHẢN ĐÒN', short: 'ĐỠ', desc: 'Thủ thế 1,2 giây, bị đánh thì phản đòn quanh mình', cast: p => castCounter(p) },
+            beads:     { cost: 50, name: 'CHUỖI ĐẦU LÂU', short: 'CHUỖI', desc: 'Ném chuỗi hạt bay đi rồi quay về', cast: p => castBeads(p) },
+            // Na Tra
+            wheels:    { cost: 35, name: 'PHONG HỎA LUÂN', short: 'LUÂN', desc: 'Lao lửa xuyên qua mọi kẻ địch trên đường', cast: p => castWheels(p) },
+            ring:      { cost: 45, name: 'CÀN KHÔN QUYỂN', short: 'VÒNG', desc: 'Vòng vàng nảy qua tối đa 3 kẻ địch', cast: p => castRing(p) },
+            sash:      { cost: 55, name: 'HỖN THIÊN LĂNG', short: 'LĂNG', desc: 'Dải lụa trói kẻ địch đầu tiên trúng phải', cast: p => castSash(p) },
+            // Đường Tăng
+            chant:     { cost: 45, name: 'KIM CÔ CHÚ', short: 'CHÚ', desc: 'Niệm chú làm choáng kẻ địch xung quanh', cast: p => castChant(p) },
+            heal:      { cost: 40, name: 'TỤNG KINH', short: 'KINH', desc: 'Hồi 40 máu trong 2 giây, gỡ tơ trói', cast: p => castHeal(p) },
+            smite:     { cost: 55, name: 'PHẬT QUANG PHỔ CHIẾU', short: 'QUANG', desc: 'Cột sáng giáng xuống 3 kẻ địch gần nhất', cast: p => castSmite(p) }
+        };
+        // Skill slots: keys and the stage whose clear unlocks each slot in the campaign
+        const SLOT_KEYS = ['U', 'I', 'O'];
+        const SLOT_UNLOCK_STAGE = [0, 1, 2];
+        // Leaping skills: launch height (px), slam radius and damage (campaign / duel), whether the staff is drawn
+        const LEAPS = {
+            pillar: { height: 307, radius: 170, damage: 70, duelDamage: 25, staff: true },
+            belly:  { height: 190, radius: 220, damage: 85, duelDamage: 28, staff: false }
         };
         const FREEZE_TIME = 3;
-        // Combo step -> [animation, first frame, frame count], swing duration and hitbox reach
+        // Monkey King combo step -> [animation, first frame, frame count]
         const ATTACK_FRAMES = { 1: ['sweep', 0, 7], 2: ['smash', 4, 4], 3: ['smash', 0, 8] };
-        const ATTACK_TIMINGS = { 1: 0.3, 2: 0.24, 3: 0.4 };
-        const ATTACK_REACH = { 1: 80, 2: 90, 3: 120 };
+
+        // Playable characters. Sheets are attached in buildCharacters() once the art is ready.
+        const CHARACTERS = {
+            wukong: {
+                name: 'TÔN NGỘ KHÔNG', role: 'Cân bằng · Biến hóa',
+                hp: 100, speed: 6, jumps: 2,
+                attack: { timings: { 1: 0.3, 2: 0.24, 3: 0.4 }, reach: { 1: 80, 2: 90, 3: 120 }, damage: 1 },
+                skills: ['pillar', 'clone', 'freeze'],
+                passiveText: 'Cân Đẩu Vân: lướt mây không bị trúng đòn'
+            },
+            bajie: {
+                name: 'TRƯ BÁT GIỚI', role: 'Đỡ đòn · Đánh nặng',
+                hp: 150, speed: 4.8, jumps: 2,
+                attack: { timings: { 1: 0.34, 2: 0.3, 3: 0.42 }, reach: { 1: 95, 2: 100, 3: 110 }, damage: 1.3 },
+                skills: ['bellyslam', 'feast', 'snore'],
+                passive: 'heavy', passiveText: 'Thân Nặng: gần như không bị đẩy lùi'
+            },
+            sha: {
+                name: 'SA TĂNG', role: 'Phòng thủ · Khống chế',
+                hp: 120, speed: 5.4, jumps: 2,
+                attack: { timings: { 1: 0.3, 2: 0.28, 3: 0.36 }, reach: { 1: 105, 2: 110, 3: 120 }, damage: 1 },
+                skills: ['quicksand', 'counter', 'beads'],
+                passive: 'steady', passiveText: 'Vững Như Bàn Thạch: đứng yên thì nhận ít hơn 40% sát thương'
+            },
+            nezha: {
+                name: 'NA TRA', role: 'Nhanh · Bay lượn',
+                hp: 80, speed: 7, jumps: 3,
+                attack: { timings: { 1: 0.2, 2: 0.18, 3: 0.26 }, reach: { 1: 85, 2: 85, 3: 95 }, damage: 0.85 },
+                skills: ['wheels', 'ring', 'sash'],
+                passiveText: 'Phong Hỏa Luân: chạy nhanh nhất, nhảy được 3 lần'
+            },
+            tang: {
+                name: 'ĐƯỜNG TĂNG', role: 'Hỗ trợ · Phép thuật',
+                hp: 90, speed: 5.2, jumps: 2, mpGain: 1.5,
+                attack: { timings: { 1: 0.28, 2: 0.26, 3: 0.32 }, reach: { 1: 70, 2: 75, 3: 80 }, damage: 0.75 },
+                skills: ['chant', 'heal', 'smite'],
+                passiveText: 'Chân Kinh: nạp Pháp Lực nhanh hơn 50%'
+            }
+        };
+        const CHARACTER_IDS = Object.keys(CHARACTERS);
 
         // Mob sheets face LEFT
         const ENEMY_ANIMS = {
@@ -1297,6 +1373,319 @@
                 ]]
             }
         };
+
+        // --- CODE-DRAWN PARTY CHARACTERS ---
+        // Paper-doll sprites: a head and torso pixel map per character, legs and a weapon composed per pose.
+        // Each frame is 24x24, feet on the bottom row, body centred at x = 12, facing right like the Monkey King.
+        const CHAR_FRAME = 24;
+        const HIP_Y = 19;
+
+        // Leg rectangles [dx, dy, w, h] relative to the hip centre
+        const LEGS = {
+            stand:   [[-3, 0, 2, 5], [1, 0, 2, 5]],
+            strideA: [[-4, 0, 2, 3], [-5, 3, 2, 2], [1, 0, 2, 3], [2, 3, 2, 2]],
+            strideB: [[-2, 0, 2, 3], [-1, 3, 2, 2], [0, 0, 2, 3], [-1, 3, 2, 2]],
+            pass:    [[-2, 0, 2, 5], [0, 0, 2, 5]],
+            tuck:    [[-3, 0, 2, 2], [-2, 2, 3, 1], [1, 0, 2, 2], [2, 2, 3, 1]],
+            spread:  [[-5, 0, 2, 4], [3, 0, 2, 4]],
+            brace:   [[-5, 0, 2, 5], [3, 0, 2, 5]],
+            lunge:   [[-5, 0, 2, 3], [-6, 3, 2, 2], [2, 0, 2, 2], [3, 2, 2, 3]]
+        };
+
+        // Poses per animation row: bob = body offset, arm = weapon angle in degrees (0 = forward, -90 = straight up)
+        const PARTY_POSES = {
+            idle:   [{ bob: 0, legs: 'stand', arm: -60 }, { bob: 1, legs: 'stand', arm: -55 }],
+            run:    [{ bob: 0, legs: 'strideA', arm: -40 }, { bob: -1, legs: 'pass', arm: -45 },
+                     { bob: 0, legs: 'strideB', arm: -40 }, { bob: -1, legs: 'pass', arm: -45 }],
+            jump:   [{ bob: -1, legs: 'tuck', arm: -100 }, { bob: 0, legs: 'spread', arm: -30 }],
+            attack: [{ bob: 0, legs: 'brace', arm: -150 }, { bob: 0, legs: 'lunge', arm: 0, reach: 1.3 }, { bob: 1, legs: 'lunge', arm: 35 }],
+            cast:   [{ bob: -1, legs: 'stand', arm: -90 }],
+            dead:   [{ lying: true }, { lying: true, faded: true }]
+        };
+        const PARTY_ROWS = ['idle', 'run', 'jump', 'attack', 'cast', 'dead'];
+        const PARTY_ANIMS = Object.fromEntries(PARTY_ROWS.map((name, row) =>
+            [name, { row, fw: CHAR_FRAME, fh: CHAR_FRAME, frames: PARTY_POSES[name].length, ax: 12, foot: 23 }]));
+
+        const PARTY_SPRITES = {
+            // Trư Bát Giới: pig face, dark-blue robe over a round belly, nine-toothed rake
+            bajie: {
+                palette: { k: '#f9a8d4', K: '#f472b6', n: '#fbcfe8', b: '#111827', r: '#1e3a8a', R: '#3b82f6', y: '#facc15' },
+                head: [
+                    '.KK....K.',
+                    'KkkkkkkK.',
+                    'kkkkkbkkn',
+                    'kkkkkkknn',
+                    'kkkkkkknb',
+                    '.kkkkkknn',
+                    '..kkkkk..'
+                ],
+                torso: [
+                    '..rrrrrrr..',
+                    '.rrRRRRRrr.',
+                    'rrRRkkkRRrr',
+                    'rRRkkkkkRRr',
+                    'ryyyyyyyyyr',
+                    '.rrrrrrrrr.'
+                ],
+                legs: '#1f2937', arm: '#f9a8d4',
+                weapon: { style: 'rake', length: 11, shaft: '#78350f', head: '#cbd5e1' }
+            },
+            // Sa Tăng: bald, red beard, necklace of skulls, brown robe, crescent-moon spade
+            sha: {
+                palette: { s: '#d6a77a', b: '#111827', r: '#b91c1c', o: '#92400e', O: '#b45309', W: '#f5f5f4', g: '#a16207' },
+                head: [
+                    '..ssss..',
+                    '.ssssss.',
+                    'sssssbs.',
+                    'ssssssss',
+                    'ssrssrr.',
+                    '.rrrrrr.',
+                    '..rrrr..'
+                ],
+                torso: [
+                    '..oooooo..',
+                    '.oWoWoWoo.',
+                    'oooOOOOooo',
+                    'ooOOOOOOoo',
+                    'oggggggggo',
+                    '.oooooooo.'
+                ],
+                legs: '#451a03', arm: '#d6a77a',
+                weapon: { style: 'spade', length: 13, shaft: '#78350f', head: '#e2e8f0' }
+            },
+            // Na Tra: child with hair buns, red sash and golden ring, fire spear, riding wind-fire wheels
+            nezha: {
+                palette: { h: '#111827', s: '#fed7aa', b: '#111827', g: '#facc15', c: '#dc2626', C: '#f87171', d: '#7f1d1d' },
+                head: [
+                    'hh....hh',
+                    'hhhhhhhh',
+                    '.hssssh.',
+                    '.sssbss.',
+                    '.ssssss.',
+                    '.ssssss.',
+                    '..ssss..'
+                ],
+                torso: [
+                    '.gggggg.',
+                    'sccCCccs',
+                    'scCCCCcs',
+                    'sccccccs',
+                    '.dddddd.',
+                    '.cccccc.'
+                ],
+                legs: '#b91c1c', arm: '#fed7aa', wheels: true,
+                weapon: { style: 'spear', length: 13, shaft: '#a16207', head: '#e2e8f0', tassel: '#dc2626' }
+            },
+            // Đường Tăng: golden Vairocana crown, red kasaya over a white robe, ringed monk staff
+            tang: {
+                palette: { h: '#facc15', H: '#a16207', s: '#fed7aa', b: '#111827', w: '#f1f5f9', r: '#b91c1c', R: '#ef4444', y: '#fde047' },
+                head: [
+                    '.h.h.h..',
+                    '.hhhhhh.',
+                    'hHhHhHhh',
+                    '.ssssss.',
+                    '.sssbss.',
+                    '.ssssss.',
+                    '..ssss..'
+                ],
+                torso: [
+                    '..wwwwww..',
+                    '.rrrwwrrr.',
+                    'rrRyrrrRrr',
+                    'rRrryRrrRr',
+                    'rrRrryrrRr',
+                    'rrrrrryrrr',
+                    '.rrrrrrrr.'
+                ],
+                legs: '#f1f5f9', arm: '#ef4444',
+                weapon: { style: 'staff', length: 14, shaft: '#ca8a04', head: '#fde047' }
+            }
+        };
+
+        function drawPixelMap(g, rows, palette, ox, oy) {
+            rows.forEach((row, y) => {
+                [...row].forEach((ch, x) => {
+                    if (ch === '.') return;
+                    g.fillStyle = palette[ch];
+                    g.fillRect(ox + x, oy + y, 1, 1);
+                });
+            });
+        }
+
+        // Weapon: a shaft from the hand at `angle`, with a head shape at the tip
+        function drawPixelWeapon(g, w, hx, hy, angle, reach) {
+            const rad = angle * Math.PI / 180;
+            const dx = Math.cos(rad), dy = Math.sin(rad);
+            const px = -dy, py = dx; // perpendicular
+            const len = Math.round(w.length * reach);
+            const dot = (x, y, color) => {
+                g.fillStyle = color;
+                g.fillRect(Math.round(x), Math.round(y), 1, 1);
+            };
+            for (let t = 0; t <= len; t += 0.5) dot(hx + dx * t, hy + dy * t, w.shaft);
+            const tx = hx + dx * len, ty = hy + dy * len;
+            if (w.style === 'rake') {
+                for (let k = -2; k <= 2; k++) dot(tx + px * k, ty + py * k, w.head);
+                for (const k of [-2, 0, 2]) for (let s = 1; s <= 2; s++) dot(tx + px * k + dx * s, ty + py * k + dy * s, w.head);
+            } else if (w.style === 'spade') {
+                for (let a = -1; a <= 1; a++) for (let b = 0; b <= 2; b++) dot(tx + px * a + dx * b, ty + py * a + dy * b, w.head);
+                dot(tx + px * 2 - dx, ty + py * 2 - dy, w.head);
+                dot(tx - px * 2 - dx, ty - py * 2 - dy, w.head);
+            } else if (w.style === 'spear') {
+                for (let s = 1; s <= 3; s++) dot(tx + dx * s, ty + dy * s, w.head);
+                dot(tx + px, ty + py, w.head);
+                dot(tx - px, ty - py, w.head);
+                dot(tx - dx * 2 + px, ty - dy * 2 + py, w.tassel);
+                dot(tx - dx * 2 - px, ty - dy * 2 - py, w.tassel);
+                dot(tx - dx * 3, ty - dy * 3, w.tassel);
+            } else if (w.style === 'staff') {
+                // ring of the monk staff
+                const cx = tx + dx * 2, cy = ty + dy * 2;
+                for (let a = 0; a < 12; a++) {
+                    const r = (a / 12) * Math.PI * 2;
+                    dot(cx + Math.cos(r) * 2.2, cy + Math.sin(r) * 2.2, w.head);
+                }
+            }
+        }
+
+        function drawPartyFrame(g, spec, pose) {
+            const bob = pose.bob || 0;
+            const torsoH = spec.torso.length, torsoW = spec.torso[0].length;
+            const headH = spec.head.length, headW = spec.head[0].length;
+            const torsoTop = HIP_Y - torsoH + bob;
+            const torsoLeft = 12 - Math.ceil(torsoW / 2);
+            const headTop = torsoTop - headH + 1;
+            const headLeft = 12 - Math.ceil(headW / 2);
+            const handX = torsoLeft + torsoW - 2, handY = torsoTop + 2;
+            const weaponBehind = pose.arm < -100;
+
+            if (weaponBehind) drawPixelWeapon(g, spec.weapon, handX, handY, pose.arm, pose.reach || 1);
+            const legs = LEGS[pose.legs];
+            g.fillStyle = spec.legs;
+            for (const [lx, ly, lw, lh] of legs) g.fillRect(12 + lx, HIP_Y + ly, lw, lh);
+            if (spec.wheels && pose.legs !== 'tuck') {
+                // little wind-fire wheels under each foot
+                for (const [lx, ly, , lh] of [legs[0], legs[legs.length - 1]]) {
+                    const wx = 12 + lx - 1, wy = HIP_Y + ly + lh - 2;
+                    g.fillStyle = '#f97316';
+                    g.fillRect(wx, wy, 4, 2);
+                    g.fillStyle = '#fde047';
+                    g.fillRect(wx + 1, wy, 2, 1);
+                }
+            }
+            drawPixelMap(g, spec.torso, spec.palette, torsoLeft, torsoTop);
+            drawPixelMap(g, spec.head, spec.palette, headLeft, headTop);
+            // forearm toward the weapon
+            const rad = pose.arm * Math.PI / 180;
+            g.fillStyle = spec.arm;
+            for (let t = 0; t < 3; t++) g.fillRect(Math.round(handX + Math.cos(rad) * t), Math.round(handY + Math.sin(rad) * t), 1, 1);
+            if (!weaponBehind) drawPixelWeapon(g, spec.weapon, handX, handY, pose.arm, pose.reach || 1);
+        }
+
+        function buildPartySheet(spec) {
+            const F = CHAR_FRAME;
+            const sheet = document.createElement('canvas');
+            sheet.width = F * 4;
+            sheet.height = F * PARTY_ROWS.length;
+            const sg = sheet.getContext('2d');
+            PARTY_ROWS.forEach((name, row) => {
+                PARTY_POSES[name].forEach((pose, col) => {
+                    // each frame gets its own canvas so a long weapon cannot bleed into the next frame
+                    const frame = document.createElement('canvas');
+                    frame.width = frame.height = F;
+                    const g = frame.getContext('2d');
+                    if (pose.lying) {
+                        const standing = document.createElement('canvas');
+                        standing.width = standing.height = F;
+                        drawPartyFrame(standing.getContext('2d'), spec, PARTY_POSES.idle[0]);
+                        // rotate the standing figure 90° so it lies along the bottom of the frame
+                        g.translate(F, 6);
+                        g.rotate(Math.PI / 2);
+                        if (pose.faded) g.globalAlpha = 0.7;
+                        g.drawImage(standing, 0, 0);
+                    } else {
+                        drawPartyFrame(g, spec, pose);
+                    }
+                    sg.drawImage(frame, col * F, row * F);
+                });
+            });
+            return sheet;
+        }
+
+        // Attach sprite sheets and animation pickers to every character
+        function buildCharacters() {
+            Object.assign(CHARACTERS.wukong, {
+                sheet: IMG.hero, scale: HERO_SCALE, animFor: wukongAnim,
+                dashSheet: FLASH.dash, guestSheet: FLASH.p2
+            });
+            for (const [id, spec] of Object.entries(PARTY_SPRITES)) {
+                const sheet = buildPartySheet(spec);
+                Object.assign(CHARACTERS[id], {
+                    sheet, scale: HERO_SCALE, animFor: partyAnim,
+                    dashSheet: tintImage(sheet, '#fde68a', 1),
+                    guestSheet: tintImage(sheet, '#3b82f6', 0.4)
+                });
+            }
+        }
+
+        // Frame picker for the Monkey King's original sheet
+        function wukongAnim(p) {
+            const A = HERO_ANIMS;
+            switch (p.animState) {
+                case 'run':
+                    return [A.run, Math.floor(p.animTime / 0.08) % A.run.frames];
+                case 'dash':
+                    // Spinning-cloud frames 1-12 (Cân Đẩu Vân)
+                    return [A.dash, 1 + Math.floor(p.animTime / 0.03) % 12];
+                case 'dead':
+                    return [A.dead, Math.min(A.dead.frames - 1, Math.floor(p.animTime / 0.1))];
+                case 'leap':
+                    // spin flash -> riding the staff -> spin dive -> yellow impact splash
+                    if (p.skillPhase === 'plant' || p.skillPhase === 'slam') return [A.pillar, 1];
+                    if (p.skillPhase === 'rise') return [A.pillarTop, 3];
+                    return [A.pillar, 13 + Math.min(2, Math.floor((1 - p.skillTimer / 0.3) * 3))];
+                case 'attack': {
+                    const [anim, start, len] = ATTACK_FRAMES[p.attackCombo];
+                    const progress = 1 - p.attackTimer / p.attackDuration;
+                    return [A[anim], start + Math.min(len - 1, Math.max(0, Math.floor(progress * len)))];
+                }
+                case 'cast':
+                    return [A.jump, 1];
+                case 'jump':
+                    // Staff raised while rising, neutral at the apex, crouched while falling
+                    return [A.jump, p.vy < -3 ? 1 : p.vy > 3 ? 2 : 0];
+                default:
+                    return [A.idle, Math.floor(p.animTime / 0.15) % A.idle.frames];
+            }
+        }
+
+        // Frame picker for the code-drawn party characters
+        function partyAnim(p) {
+            const A = PARTY_ANIMS;
+            switch (p.animState) {
+                case 'run':
+                    return [A.run, Math.floor(p.animTime / 0.1) % A.run.frames];
+                case 'dash':
+                    return [A.run, 0];
+                case 'dead':
+                case 'sleep':
+                    return [A.dead, p.animState === 'dead' ? Math.min(1, Math.floor(p.animTime / 0.4)) : 0];
+                case 'leap':
+                    if (p.skillPhase === 'plant' || p.skillPhase === 'rise') return [A.jump, 0];
+                    if (p.skillPhase === 'slam') return [A.jump, 1];
+                    return [A.attack, 2];
+                case 'attack': {
+                    const progress = 1 - p.attackTimer / p.attackDuration;
+                    return [A.attack, Math.min(2, Math.max(0, Math.floor(progress * 3)))];
+                }
+                case 'cast':
+                    return [A.cast, 0];
+                case 'jump':
+                    return [A.jump, p.vy < 0 ? 0 : 1];
+                default:
+                    return [A.idle, Math.floor(p.animTime / 0.3) % A.idle.frames];
+            }
+        }
 
         function buildProceduralSprites() {
             for (const [key, def] of Object.entries({ ...SEA_SPRITES, ...CAVE_SPRITES, ...SKY_SPRITES })) IMG[key] = makeSheet(def.frames, def.palette);
@@ -2195,21 +2584,18 @@
 
         // --- PLAYER CLASS ---
         class Player {
-            constructor(x, y) {
+            constructor(x, y, charId = 'wukong') {
                 this.x = x;
                 this.y = y;
                 this.width = 40;
                 this.height = 62;
                 this.vx = 0;
                 this.vy = 0;
-                this.speed = 6;
                 this.jumpForce = -12.5;
                 this.isGrounded = false;
                 this.jumpCount = 0;
-                this.maxJumps = 2;
                 this.facing = 'right';
 
-                this.maxHp = 100;
                 this.hp = 100;
                 this.invulnerableTimer = 0;
                 this.isDead = false;
@@ -2218,7 +2604,6 @@
                 this.isAttacking = false;
                 this.attackCombo = 0;
                 this.attackTimer = 0;
-                this.attackDuration = ATTACK_TIMINGS[1];
                 this.attackCooldown = 0;
                 this.comboWindow = 0;
                 this.attackBox = { x: 0, y: 0, width: 75, height: 50 };
@@ -2230,16 +2615,22 @@
 
                 this.maxMp = 100;
                 this.mp = 0;
-                this.skill = null;       // active skill that takes over movement ('pillar')
+                this.skill = null;       // skill that takes over movement: 'leap', 'snore', 'wheels' or 'counter'
                 this.skillPhase = null;
                 this.skillTimer = 0;
+                this.leap = null;        // LEAPS entry while leaping
                 this.pillarBaseY = 0;
+                this.castTimer = 0;      // brief casting pose after an instant skill
+                this.healTimer = 0;      // Tụng Kinh heal over time
+                this.pulseTimer = 0;     // Ngủ Khò snore pulses
+                this.counterUsed = false;
+                this.wheelHits = new Set();
                 this.jumpBuffer = 0;     // a jump pressed slightly too early still fires on landing
                 this.swimCooldown = 0;
                 this.slowTimer = 0;
                 this.slowed = false;
 
-                // Duel support: where the controls come from, which sprite sheet to draw, knockback and freeze
+                // Duel support: where the controls come from, an optional sheet override, knockback and freeze
                 this.input = keys;
                 this.sheet = null;
                 this.kbx = 0;
@@ -2248,6 +2639,16 @@
 
                 this.animState = 'idle';
                 this.animTime = 0;
+                this.setCharacter(charId);
+            }
+
+            setCharacter(id) {
+                this.charId = id;
+                this.char = CHARACTERS[id];
+                this.speed = this.char.speed;
+                this.maxJumps = this.char.jumps;
+                this.maxHp = this.char.hp;
+                this.attackDuration = this.char.attack.timings[1];
             }
 
             reset(x, y) {
@@ -2263,6 +2664,8 @@
                 this.attackCombo = 0;
                 this.isDashing = false;
                 this.skill = null;
+                this.castTimer = 0;
+                this.healTimer = 0;
                 this.jumpBuffer = 0;
                 this.ghosts = [];
                 this.kbx = 0;
@@ -2274,7 +2677,12 @@
             }
 
             gainMp(amount) {
-                this.mp = Math.min(this.maxMp, this.mp + amount);
+                this.mp = Math.min(this.maxMp, this.mp + amount * (this.char.mpGain || 1));
+                updateHUD();
+            }
+
+            heal(amount) {
+                this.hp = Math.min(this.maxHp, this.hp + amount);
                 updateHUD();
             }
 
@@ -2282,50 +2690,59 @@
                 this.jumpBuffer = 0.12;
             }
 
-            useSkill(id) {
-                if (this.isDead || this.skill || this.frozen > 0) return;
-                if (!isSkillLearned(id)) {
+            // Skill keys U / I / O map to the character's three skill slots
+            useSkillSlot(slot) {
+                if (!isSkillLearned(slot)) {
                     floatingTexts.push(new FloatingText('CHƯA LĨNH NGỘ', this.x - 30, this.y - 16, '#94a3b8', 9));
                     return;
                 }
-                const cost = SKILLS[id].cost;
-                if (this.mp < cost) {
+                this.useSkill(this.char.skills[slot]);
+            }
+
+            useSkill(id) {
+                if (this.isDead || this.skill || this.frozen > 0) return;
+                const s = SKILLS[id];
+                if (this.mp < s.cost) {
                     floatingTexts.push(new FloatingText('THIẾU PHÁP LỰC', this.x - 40, this.y - 16, '#7dd3fc', 9));
                     return;
                 }
-                if (id === 'pillar' && !this.isGrounded) {
+                if (s.leap && !this.isGrounded) {
                     floatingTexts.push(new FloatingText('CẦN ĐỨNG TRÊN ĐẤT', this.x - 50, this.y - 16, '#7dd3fc', 9));
                     return;
                 }
 
-                this.mp -= cost;
+                this.mp -= s.cost;
                 updateHUD();
                 playSound('skill');
+                this.isAttacking = false;
 
-                if (id === 'pillar') {
-                    this.skill = 'pillar';
-                    this.skillPhase = 'plant';
-                    this.skillTimer = 0.18;
-                    this.pillarBaseY = this.y + this.height;
-                    this.isAttacking = false;
-                    this.isDashing = false;
-                    this.vx = 0;
-                    this.vy = 0;
-                } else if (id === 'clone') {
-                    spawnClones(this);
-                } else if (id === 'freeze') {
-                    castFreeze(this);
+                if (s.leap) {
+                    this.startLeap(LEAPS[s.leap]);
+                } else {
+                    s.cast(this);
+                    if (!this.skill) this.castTimer = 0.35;
                 }
             }
 
-            // Như Ý Trụ Thiên: plant the staff, ride it upward, then dive into a ground slam
-            updatePillar(dt, platforms) {
+            startLeap(leap) {
+                this.skill = 'leap';
+                this.leap = leap;
+                this.skillPhase = 'plant';
+                this.skillTimer = 0.18;
+                this.pillarBaseY = this.y + this.height;
+                this.isDashing = false;
+                this.vx = 0;
+                this.vy = 0;
+            }
+
+            // Leaping skills (Trụ Thiên, Bụng Đè): crouch, launch, dive into a ground slam
+            updateLeap(dt, platforms) {
                 this.skillTimer -= dt;
                 if (this.skillPhase === 'plant') {
                     if (this.skillTimer <= 0) {
                         this.skillPhase = 'rise';
-                        // Same ~300px launch height whatever the gravity
-                        this.vy = -Math.sqrt(2 * this.gravity() * 307);
+                        // Same launch height whatever the gravity
+                        this.vy = -Math.sqrt(2 * this.gravity() * this.leap.height);
                         this.jumpCount = this.maxJumps;
                     }
                     return;
@@ -2347,11 +2764,7 @@
                     this.vx = 0;
                 }
 
-                this.x += this.vx;
-                this.checkHorizontalCollisions(platforms);
-                this.y += this.vy;
-                this.isGrounded = false;
-                this.checkVerticalCollisions(platforms);
+                this.moveAndCollide(platforms);
 
                 if (this.skillPhase === 'slam' && this.isGrounded) {
                     this.skillPhase = 'land';
@@ -2362,6 +2775,54 @@
                     this.skill = null;
                     this.die();
                 }
+            }
+
+            // Ngủ Khò: lie down, heal, and knock back anything nearby with each snore
+            updateSnore(dt, platforms) {
+                this.skillTimer -= dt;
+                this.vx = 0;
+                this.vy += this.gravity();
+                this.moveAndCollide(platforms);
+                this.heal(10 * dt);
+                this.pulseTimer -= dt;
+                if (this.pulseTimer <= 0) {
+                    this.pulseTimer = 0.6;
+                    snorePulse(this);
+                }
+                if (this.skillTimer <= 0) this.skill = null;
+            }
+
+            // Phong Hỏa Luân: fly forward, burning every foe on the way once
+            updateWheels(dt, platforms) {
+                this.skillTimer -= dt;
+                this.vx = (this.facing === 'right' ? 1 : -1) * 13;
+                this.vy = 0;
+                this.moveAndCollide(platforms);
+                for (const foe of foesOf(this)) {
+                    if (this.wheelHits.has(foe) || !overlaps(this, foe)) continue;
+                    this.wheelHits.add(foe);
+                    foe.takeDamage(skillDamage(30, 12), this.facing);
+                }
+                particles.push(new Particle(this.x + this.width / 2, this.y + this.height - 6, -this.vx * 0.1, -Math.random() * 2,
+                    Math.random() < 0.5 ? '#f97316' : '#fde047', 4, 0.35));
+                if (this.skillTimer <= 0) this.skill = null;
+            }
+
+            // Nguyệt Nha Phản Đòn: rooted guard stance (getting hit triggers counterBlast in takeDamage)
+            updateCounter(dt, platforms) {
+                this.skillTimer -= dt;
+                this.vx = 0;
+                this.vy += this.gravity();
+                this.moveAndCollide(platforms);
+                if (this.skillTimer <= 0) this.skill = null;
+            }
+
+            moveAndCollide(platforms) {
+                this.x += this.vx;
+                this.checkHorizontalCollisions(platforms);
+                this.y += this.vy;
+                this.isGrounded = false;
+                this.checkVerticalCollisions(platforms);
             }
 
             // Underwater stages are floaty
@@ -2377,6 +2838,15 @@
                 if (this.swimCooldown > 0) this.swimCooldown -= dt;
                 if (this.slowTimer > 0) this.slowTimer -= dt;
                 if (this.frozen > 0) this.frozen -= dt;
+                if (this.castTimer > 0) this.castTimer -= dt;
+                if (this.healTimer > 0 && !this.isDead) {
+                    this.healTimer -= dt;
+                    this.heal(20 * dt);
+                    if (Math.random() < 0.3) {
+                        particles.push(new Particle(this.x + Math.random() * this.width, this.y + this.height,
+                            0, -1.5 - Math.random(), '#86efac', 3, 0.5));
+                    }
+                }
                 // Caught in a web or hit by a web ball: sluggish and sticky
                 this.slowed = this.slowTimer > 0 || inWeb(this);
                 // Frozen by an opponent's Định Thân Pháp: controls do nothing
@@ -2396,8 +2866,11 @@
                     return;
                 }
 
-                if (this.skill === 'pillar') {
-                    this.updatePillar(dt, platforms);
+                if (this.skill) {
+                    if (this.skill === 'leap') this.updateLeap(dt, platforms);
+                    else if (this.skill === 'snore') this.updateSnore(dt, platforms);
+                    else if (this.skill === 'wheels') this.updateWheels(dt, platforms);
+                    else this.updateCounter(dt, platforms);
                     this.updateAnimation(dt);
                     return;
                 }
@@ -2445,11 +2918,12 @@
                     }
                 }
 
+                const attack = this.char.attack;
                 if (input.attack && this.attackCooldown <= 0 && !this.isAttacking) {
                     // Chain into the next swing only if the previous one was recent
                     this.attackCombo = this.comboWindow > 0 ? (this.attackCombo % 3) + 1 : 1;
                     this.hitThisSwing = false;
-                    this.attackDuration = ATTACK_TIMINGS[this.attackCombo];
+                    this.attackDuration = attack.timings[this.attackCombo];
                     this.isAttacking = true;
                     this.attackTimer = this.attackDuration;
                     this.attackCooldown = this.attackDuration + 0.08;
@@ -2472,7 +2946,7 @@
                 this.isGrounded = false;
                 this.checkVerticalCollisions(platforms);
 
-                this.attackBox.width = ATTACK_REACH[this.attackCombo] || 75;
+                this.attackBox.width = attack.reach[this.attackCombo] || 75;
                 this.attackBox.height = 55;
                 this.attackBox.y = this.y;
                 this.attackBox.x = this.facing === 'right' ? this.x + this.width : this.x - this.attackBox.width;
@@ -2488,14 +2962,16 @@
 
                 this.updateAnimation(dt);
 
-                // Leave a faint cloud afterimage every 0.04s while dashing
+                // Leave a faint afterimage every 0.04s while dashing
                 const lastGhost = this.ghosts[this.ghosts.length - 1];
                 if (this.isDashing && (!lastGhost || lastGhost.life < 0.21)) {
+                    const [anim, frame] = this.animFrame();
                     this.ghosts.push({
                         x: this.x + this.width / 2,
                         feetY: this.y + this.height,
                         flip: this.facing === 'left',
-                        frame: this.currentFrame(),
+                        anim,
+                        frame,
                         life: 0.25
                     });
                 }
@@ -2516,7 +2992,10 @@
             updateAnimation(dt) {
                 let state = 'idle';
                 if (this.isDead) state = 'dead';
-                else if (this.skill) state = 'pillar';
+                else if (this.skill === 'leap') state = 'leap';
+                else if (this.skill === 'snore') state = 'sleep';
+                else if (this.skill === 'wheels') state = 'dash';
+                else if (this.skill === 'counter' || this.castTimer > 0) state = 'cast';
                 else if (this.isDashing) state = 'dash';
                 else if (this.isAttacking) state = 'attack';
                 else if (!this.isGrounded) state = 'jump';
@@ -2529,33 +3008,9 @@
                 this.animTime += dt;
             }
 
-            currentFrame() {
-                switch (this.animState) {
-                    case 'run':
-                        return Math.floor(this.animTime / 0.08) % HERO_ANIMS.run.frames;
-                    case 'dash':
-                        // Spinning-cloud frames 1-12 (Cân Đẩu Vân)
-                        return 1 + Math.floor(this.animTime / 0.03) % 12;
-                    case 'dead':
-                        return Math.min(HERO_ANIMS.dead.frames - 1, Math.floor(this.animTime / 0.1));
-                    case 'pillar':
-                        // spin flash -> riding the staff -> spin dive -> yellow impact splash
-                        if (this.skillPhase === 'plant' || this.skillPhase === 'slam') return 1;
-                        if (this.skillPhase === 'rise') return 3;
-                        return 13 + Math.min(2, Math.floor((1 - this.skillTimer / 0.3) * 3));
-                    case 'attack': {
-                        const [, start, len] = ATTACK_FRAMES[this.attackCombo];
-                        const progress = 1 - this.attackTimer / this.attackDuration;
-                        return start + Math.min(len - 1, Math.max(0, Math.floor(progress * len)));
-                    }
-                    case 'jump':
-                        // Staff raised while rising, neutral at the apex, crouched while falling
-                        if (this.vy < -3) return 1;
-                        if (this.vy > 3) return 2;
-                        return 0;
-                    default:
-                        return Math.floor(this.animTime / 0.15) % HERO_ANIMS.idle.frames;
-                }
+            // [animation, frame] for the current state, from the character's own sheet layout
+            animFrame() {
+                return this.char.animFor(this);
             }
 
             checkHorizontalCollisions(platforms) {
@@ -2644,15 +3099,27 @@
 
             // knockbackDir ('left'/'right') pushes the player away; returns true if the hit landed
             takeDamage(amount, knockbackDir) {
+                if (this.skill === 'counter' && !this.counterUsed && !this.isDead) {
+                    this.counterUsed = true;
+                    counterBlast(this);
+                    return false;
+                }
                 if (this.isDead || this.invulnerableTimer > 0 || this.isDashing || this.skill) return false;
                 if (DEV && dev.god && !duel.active) return false;
+
+                // Sa Tăng's passive: standing still shrugs off part of the hit
+                if (this.char.passive === 'steady' && this.isGrounded && Math.abs(this.vx) < 0.5) amount = Math.round(amount * 0.6);
 
                 this.hp -= amount;
                 if (this.hp < 0) this.hp = 0;
 
                 // Duels need short invulnerability so combos still connect
                 this.invulnerableTimer = duel.active ? 0.35 : 1.0;
-                if (knockbackDir) this.kbx = (knockbackDir === 'right' ? 1 : -1) * 7;
+                if (knockbackDir) {
+                    // Bát Giới's passive: too heavy to be pushed around
+                    const push = this.char.passive === 'heavy' ? 2 : 7;
+                    this.kbx = (knockbackDir === 'right' ? 1 : -1) * push;
+                }
                 playSound('hit');
 
                 createHitSparks(this.x + this.width / 2, this.y + this.height / 2, '#ef4444', 15);
@@ -2675,6 +3142,7 @@
                 this.isAttacking = false;
                 this.isDashing = false;
                 this.skill = null;
+                this.healTimer = 0;
                 this.deathTimer = 1.4;
                 updateHUD();
             }
@@ -2682,11 +3150,13 @@
             draw(ctx, camX) {
                 const cx = this.x + this.width / 2 - camX;
                 const feetY = this.y + this.height;
+                const scale = this.char.scale;
+                const sheet = this.sheet || this.char.sheet;
 
                 for (const g of this.ghosts) {
                     ctx.save();
                     ctx.globalAlpha = (g.life / 0.25) * 0.3;
-                    drawSprite(FLASH.dash, HERO_ANIMS.dash, g.frame, g.x - camX, g.feetY, g.flip, HERO_SCALE);
+                    drawSprite(this.char.dashSheet, g.anim, g.frame, g.x - camX, g.feetY, g.flip, scale);
                     ctx.restore();
                 }
 
@@ -2700,9 +3170,10 @@
                 }
 
                 const flip = this.facing === 'left';
-                if (this.skill === 'pillar' && this.skillPhase === 'rise') {
+                const [anim, frame] = this.animFrame();
+                if (this.skill === 'leap' && this.skillPhase === 'rise' && this.leap.staff) {
                     // The staff reaches from the ground up to the monkey's feet
-                    const staffX = cx + PILLAR_STAFF_X * HERO_SCALE * (flip ? -1 : 1);
+                    const staffX = cx + PILLAR_STAFF_X * scale * (flip ? -1 : 1);
                     ctx.fillStyle = '#7f1d1d';
                     ctx.fillRect(snap(staffX - 4), snap(feetY), 8, this.pillarBaseY - feetY);
                     ctx.fillStyle = '#b45309';
@@ -2714,13 +3185,31 @@
                     ctx.beginPath();
                     ctx.rect(0, 0, GAME_WIDTH, this.pillarBaseY);
                     ctx.clip();
-                    drawSprite(this.sheet || IMG.hero, HERO_ANIMS.pillarTop, this.currentFrame(), cx, feetY, flip, HERO_SCALE);
+                    drawSprite(sheet, anim, frame, cx, feetY, flip, scale);
                     ctx.restore();
                     return;
                 }
 
-                const a = this.animState === 'attack' ? HERO_ANIMS[ATTACK_FRAMES[this.attackCombo][0]] : HERO_ANIMS[this.animState];
-                drawSprite(this.sheet || IMG.hero, a, this.currentFrame(), cx, feetY, flip, HERO_SCALE);
+                drawSprite(sheet, anim, frame, cx, feetY, flip, scale);
+
+                if (this.skill === 'counter') {
+                    // silver guard arc in front of Sa Tăng
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(226, 232, 240, 0.85)';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    const dir = flip ? Math.PI : 0;
+                    ctx.arc(cx, this.y + this.height / 2, 38, dir - 1, dir + 1);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+                if (this.skill === 'snore' && Math.floor(this.animTime * 2) % 2 === 0) {
+                    ctx.save();
+                    ctx.font = "10px 'Press Start 2P', monospace";
+                    ctx.fillStyle = '#e0f2fe';
+                    ctx.fillText('Z', cx + 14, this.y + 26 - (this.animTime * 20) % 20);
+                    ctx.restore();
+                }
 
                 if (this.frozen > 0 && !this.isDead) {
                     // spinning golden seal of Định Thân Pháp above the head
@@ -2750,41 +3239,58 @@
             return 1 + 0.2 * upgradeLevel('atk');
         }
 
-        // Applies shop upgrades at the start of a stage attempt
+        // Applies the chosen character and shop upgrades at the start of a stage attempt
         function applyUpgrades() {
-            player.maxHp = 100 + 20 * upgradeLevel('hp');
-            player.maxJumps = upgradeLevel('jump') > 0 ? 3 : 2;
+            player.setCharacter(save.character || 'wukong');
+            player.maxHp = player.char.hp + 20 * upgradeLevel('hp');
+            player.maxJumps = player.char.jumps + (upgradeLevel('jump') > 0 ? 1 : 0);
             maxLives = BASE_LIVES + upgradeLevel('life');
         }
 
-        // Định Thân Pháp: a golden seal ripples out and freezes every enemy in range
-        function castFreeze(p) {
-            const cx = p.x + p.width / 2;
-            addShockwave(cx, p.y + p.height, 420, '#fde047');
-            addShake(4);
-            for (const e of enemies) {
-                if (e.dead || Math.abs(e.x + e.width / 2 - cx) > 450) continue;
-                e.frozen = e.type === 'boss' ? FREEZE_TIME / 2 : FREEZE_TIME;
-                createHitSparks(e.x + e.width / 2, e.y + e.height / 2, '#fde047', 10);
-            }
+        // Who a skill can hit: the enemies in the campaign, the other fighter in a duel
+        function foesOf(p) {
             if (duel.active) {
                 const foe = duel.opponentOf(p);
-                if (!foe.isDead && Math.abs(foe.x + foe.width / 2 - cx) < 450) {
-                    foe.frozen = DUEL.freezeTime;
-                    createHitSparks(foe.x + foe.width / 2, foe.y + foe.height / 2, '#fde047', 10);
-                }
+                return foe.isDead ? [] : [foe];
+            }
+            return enemies.filter(e => !e.dead);
+        }
+
+        function skillDamage(campaignAmount, duelAmount) {
+            return duel.active ? duelAmount : Math.round(campaignAmount * damageMultiplier());
+        }
+
+        // Works on enemies and fighters alike; bosses shrug off half of it
+        function stun(target, time) {
+            target.frozen = target.type === 'boss' ? time / 2 : time;
+        }
+
+        const centreX = t => t.x + t.width / 2;
+        const sideOf = (from, to) => centreX(to) > centreX(from) ? 'right' : 'left';
+
+        // Định Thân Pháp: a golden seal ripples out and freezes every foe in range
+        function castFreeze(p) {
+            const cx = centreX(p);
+            addShockwave(cx, p.y + p.height, 420, '#fde047');
+            addShake(4);
+            for (const foe of foesOf(p)) {
+                if (Math.abs(centreX(foe) - cx) > 450) continue;
+                stun(foe, duel.active ? DUEL.freezeTime : FREEZE_TIME);
+                createHitSparks(centreX(foe), foe.y + foe.height / 2, '#fde047', 10);
             }
             projectiles = [];
             floatingTexts.push(new FloatingText('ĐỊNH!', p.x - 4, p.y - 20, '#fde047', 16));
         }
 
+        // Landing of a leaping skill (Trụ Thiên, Bụng Đè)
         function groundSlam(p) {
-            const cx = p.x + p.width / 2;
+            const leap = p.leap;
+            const cx = centreX(p);
             const feetY = p.y + p.height;
             addShake(9);
             hitStop = Math.max(hitStop, 0.08);
             playSound('slam');
-            addShockwave(cx, feetY, 170, '#facc15');
+            addShockwave(cx, feetY, leap.radius, '#facc15');
             for (let i = 0; i < 24; i++) {
                 particles.push(new Particle(
                     cx + (Math.random() - 0.5) * 40, feetY - 4,
@@ -2792,20 +3298,326 @@
                     Math.random() < 0.5 ? '#facc15' : '#fde68a', 4, 0.5
                 ));
             }
-            const inRange = t => Math.abs(t.x + t.width / 2 - cx) < 170 && Math.abs(t.y + t.height - feetY) < 110;
-            for (const e of enemies) {
-                if (e.dead) continue;
-                if (inRange(e)) e.takeDamage(Math.round(70 * damageMultiplier()), e.x + e.width / 2 > cx ? 'right' : 'left');
-            }
-            if (duel.active) {
-                const foe = duel.opponentOf(p);
-                if (inRange(foe)) foe.takeDamage(DUEL.slamDamage, foe.x + foe.width / 2 > cx ? 'right' : 'left');
+            for (const foe of foesOf(p)) {
+                if (Math.abs(centreX(foe) - cx) < leap.radius && Math.abs(foe.y + foe.height - feetY) < 110) {
+                    foe.takeDamage(skillDamage(leap.damage, leap.duelDamage), sideOf(p, foe));
+                }
             }
             for (const c of chests) {
-                if (!c.opened && Math.abs(c.x + c.width / 2 - cx) < 170 && Math.abs(c.y + c.height - feetY) < 60) c.open();
+                if (!c.opened && Math.abs(c.x + c.width / 2 - cx) < leap.radius && Math.abs(c.y + c.height - feetY) < 60) c.open();
             }
             for (const w of webs) {
-                if (w.alive && Math.abs(w.x + w.width / 2 - cx) < 200 && Math.abs(w.y + w.height - feetY) < 120) w.cut();
+                if (w.alive && Math.abs(w.x + w.width / 2 - cx) < leap.radius + 30 && Math.abs(w.y + w.height - feetY) < 120) w.cut();
+            }
+        }
+
+        // --- Trư Bát Giới ---
+        function castFeast(p) {
+            const amount = duel.active ? 25 : 35;
+            p.heal(amount);
+            p.invulnerableTimer = Math.max(p.invulnerableTimer, 0.8);
+            playSound('pickup');
+            floatingTexts.push(new FloatingText(`+${amount}`, p.x, p.y - 20, '#86efac', 14));
+            for (let i = 0; i < 12; i++) {
+                particles.push(new Particle(centreX(p), p.y + 20, (Math.random() - 0.5) * 5, -Math.random() * 4, '#f9a8d4', 4, 0.6));
+            }
+        }
+
+        function castSnore(p) {
+            p.skill = 'snore';
+            p.skillTimer = 2.5;
+            p.pulseTimer = 0.3;
+            p.isDashing = false;
+            p.vx = 0;
+        }
+
+        function snorePulse(p) {
+            const cx = centreX(p), feetY = p.y + p.height;
+            addShockwave(cx, feetY, 140, '#e0f2fe');
+            playSound('roar');
+            for (const foe of foesOf(p)) {
+                if (Math.abs(centreX(foe) - cx) < 140 && Math.abs(foe.y + foe.height - feetY) < 90) {
+                    foe.takeDamage(skillDamage(12, 5), sideOf(p, foe));
+                }
+            }
+        }
+
+        // --- Sa Tăng ---
+        function castQuicksand(p) {
+            zones.push({ x: centreX(p) - 110, y: p.y + p.height, w: 220, life: 4, maxLife: 4, tick: 0, owner: p });
+            playSound('slam');
+        }
+
+        function castCounter(p) {
+            p.skill = 'counter';
+            p.skillTimer = 1.2;
+            p.counterUsed = false;
+            p.isDashing = false;
+            p.vx = 0;
+        }
+
+        function counterBlast(p) {
+            const cx = centreX(p);
+            addShockwave(cx, p.y + p.height, 150, '#e2e8f0');
+            addShake(6);
+            playSound('slam');
+            floatingTexts.push(new FloatingText('PHẢN ĐÒN!', p.x - 20, p.y - 20, '#e2e8f0', 12));
+            for (const foe of foesOf(p)) {
+                if (Math.abs(centreX(foe) - cx) < 150 && Math.abs(foe.y - p.y) < 120) {
+                    foe.takeDamage(skillDamage(50, 18), sideOf(p, foe));
+                    stun(foe, duel.active ? 0.6 : 0.8);
+                }
+            }
+            p.skill = null;
+            p.invulnerableTimer = 0.5;
+        }
+
+        function castBeads(p) {
+            heroShots.push(new HeroShot('beads', p));
+        }
+
+        // --- Na Tra ---
+        function castWheels(p) {
+            p.skill = 'wheels';
+            p.skillTimer = 0.5;
+            p.wheelHits = new Set();
+            p.isDashing = false;
+            playSound('slash');
+        }
+
+        function castRing(p) {
+            heroShots.push(new HeroShot('ring', p));
+        }
+
+        function castSash(p) {
+            heroShots.push(new HeroShot('sash', p));
+        }
+
+        // --- Đường Tăng ---
+        function castChant(p) {
+            const cx = centreX(p);
+            addShockwave(cx, p.y + p.height, 420, '#fde047');
+            floatingTexts.push(new FloatingText('KIM CÔ CHÚ!', p.x - 30, p.y - 20, '#fde047', 12));
+            for (const foe of foesOf(p)) {
+                if (Math.abs(centreX(foe) - cx) > 420) continue;
+                foe.takeDamage(skillDamage(15, 6), sideOf(p, foe));
+                stun(foe, duel.active ? 1 : 1.6);
+            }
+        }
+
+        function castHeal(p) {
+            p.healTimer = 2;
+            p.slowTimer = 0;
+            floatingTexts.push(new FloatingText('TỤNG KINH', p.x - 20, p.y - 20, '#86efac', 11));
+        }
+
+        function castSmite(p) {
+            const cx = centreX(p);
+            const targets = foesOf(p)
+                .filter(f => Math.abs(centreX(f) - cx) < 480)
+                .sort((a, b) => Math.abs(centreX(a) - cx) - Math.abs(centreX(b) - cx))
+                .slice(0, 3);
+            for (const foe of targets) {
+                beams.push({ x: centreX(foe), bottom: foe.y + foe.height, life: 0.45 });
+                foe.takeDamage(skillDamage(35, 14), sideOf(p, foe));
+            }
+            if (targets.length) addShake(4);
+        }
+
+        // --- Thrown skill objects: Chuỗi Đầu Lâu, Càn Khôn Quyển, Hỗn Thiên Lăng ---
+        class HeroShot {
+            constructor(kind, owner) {
+                this.kind = kind;
+                this.owner = owner;
+                this.dir = owner.facing === 'right' ? 1 : -1;
+                this.x = centreX(owner) + this.dir * 24;
+                this.y = owner.y + 24;
+                this.travelled = 0;
+                this.returning = false;
+                this.hits = new Set();
+                this.life = 3;
+                this.dead = false;
+            }
+
+            touching(t) {
+                return overlaps({ x: this.x - 12, y: this.y - 12, width: 24, height: 24 }, t);
+            }
+
+            homeTo(tx, ty, speed) {
+                const dx = tx - this.x, dy = ty - this.y;
+                const d = Math.hypot(dx, dy) || 1;
+                this.x += (dx / d) * speed;
+                this.y += (dy / d) * speed;
+                return d;
+            }
+
+            update(dt) {
+                this.life -= dt;
+                const o = this.owner;
+                if (this.kind === 'beads') {
+                    // flies out 300px, then comes back to its owner, hitting on the way out and back
+                    if (!this.returning) {
+                        this.x += this.dir * 9;
+                        this.travelled += 9;
+                        if (this.travelled >= 300) {
+                            this.returning = true;
+                            this.hits.clear();
+                        }
+                    } else if (this.homeTo(centreX(o), o.y + 24, 10) < 24) {
+                        this.dead = true;
+                    }
+                    for (const foe of foesOf(o)) {
+                        if (!this.hits.has(foe) && this.touching(foe)) {
+                            this.hits.add(foe);
+                            foe.takeDamage(skillDamage(22, 10), this.returning ? sideOf(o, foe) : (this.dir > 0 ? 'right' : 'left'));
+                        }
+                    }
+                } else if (this.kind === 'ring') {
+                    // bounces between up to 3 foes, then flies home
+                    const next = this.returning ? null : foesOf(o)
+                        .filter(f => !this.hits.has(f) && Math.hypot(centreX(f) - this.x, f.y + f.height / 2 - this.y) < 400)
+                        .sort((a, b) => Math.hypot(centreX(a) - this.x, a.y - this.y) - Math.hypot(centreX(b) - this.x, b.y - this.y))[0];
+                    if (next) {
+                        this.homeTo(centreX(next), next.y + next.height / 2, 11);
+                        if (this.touching(next)) {
+                            this.hits.add(next);
+                            next.takeDamage(skillDamage(30, 12), sideOf(o, next));
+                            createHitSparks(this.x, this.y, '#facc15', 8);
+                            if (this.hits.size >= 3) this.returning = true;
+                        }
+                    } else {
+                        this.returning = true;
+                        if (this.homeTo(centreX(o), o.y + 24, 12) < 24) this.dead = true;
+                    }
+                } else if (this.kind === 'sash') {
+                    // shoots out 280px; the first foe it touches is bound, then it reels back in
+                    const handX = centreX(o) + this.dir * 16;
+                    if (!this.returning) {
+                        this.x += this.dir * 16;
+                        this.travelled += 16;
+                        for (const foe of foesOf(o)) {
+                            if (this.touching(foe)) {
+                                foe.takeDamage(skillDamage(20, 8), this.dir > 0 ? 'right' : 'left');
+                                stun(foe, duel.active ? 1.2 : 2.5);
+                                floatingTexts.push(new FloatingText('TRÓI!', foe.x, foe.y - 16, '#f87171', 11));
+                                this.returning = true;
+                                break;
+                            }
+                        }
+                        if (this.travelled >= 280) this.returning = true;
+                    } else if (this.homeTo(handX, o.y + 24, 20) < 20) {
+                        this.dead = true;
+                    }
+                }
+                if (this.life <= 0 || o.isDead) this.dead = true;
+            }
+
+            draw(ctx, camX) {
+                const x = this.x - camX, y = this.y;
+                ctx.save();
+                if (this.kind === 'beads') {
+                    // nine skull beads spinning in a ring
+                    for (let i = 0; i < 9; i++) {
+                        const a = worldTime * 10 + (i / 9) * Math.PI * 2;
+                        ctx.fillStyle = i % 3 === 0 ? '#e7e5e4' : '#f5f5f4';
+                        ctx.fillRect(snap(x + Math.cos(a) * 10 - 2), snap(y + Math.sin(a) * 10 - 2), 4, 4);
+                    }
+                } else if (this.kind === 'ring') {
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.globalAlpha = 0.35;
+                    ctx.fillStyle = '#facc15';
+                    ctx.beginPath();
+                    ctx.arc(x, y, 16, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = '#facc15';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 9, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else if (this.kind === 'sash') {
+                    // a wavy red ribbon from Na Tra's hand to the tip
+                    const hx = this.ownerX !== undefined ? this.ownerX - camX : centreX(this.owner) - camX;
+                    const hy = this.ownerY !== undefined ? this.ownerY : this.owner.y + 24;
+                    ctx.strokeStyle = '#dc2626';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    for (let i = 0; i <= 16; i++) {
+                        const t = i / 16;
+                        const px = hx + (x - hx) * t;
+                        const py = hy + (y - hy) * t + Math.sin(t * Math.PI * 4 + worldTime * 20) * 4 * (1 - t);
+                        if (i === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.stroke();
+                    ctx.fillStyle = '#fca5a5';
+                    ctx.fillRect(snap(x - 3), snap(y - 3), 6, 6);
+                }
+                ctx.restore();
+            }
+        }
+
+        let heroShots = [];
+        let zones = [];   // Lưu Sa Hà quicksand pools
+        let beams = [];   // Phật Quang light pillars (visual only)
+
+        function updateSkillEffects(dt) {
+            for (const s of heroShots) s.update(dt);
+            heroShots = heroShots.filter(s => !s.dead);
+
+            for (const z of zones) {
+                z.life -= dt;
+                z.tick -= dt;
+                const bite = z.tick <= 0;
+                if (bite) z.tick = 0.5;
+                for (const foe of foesOf(z.owner)) {
+                    const inside = centreX(foe) > z.x && centreX(foe) < z.x + z.w && Math.abs(foe.y + foe.height - z.y) < 30;
+                    if (!inside) continue;
+                    foe.slowTimer = Math.max(foe.slowTimer || 0, 0.3);
+                    if (bite) foe.takeDamage(skillDamage(4, 2));
+                }
+            }
+            zones = zones.filter(z => z.life > 0);
+
+            for (const b of beams) b.life -= dt;
+            beams = beams.filter(b => b.life > 0);
+        }
+
+        // Quicksand pools sit on the ground, under everyone
+        function drawZones(ctx, camX) {
+            for (const z of zones) {
+                const x = z.x - camX;
+                ctx.save();
+                ctx.globalAlpha = Math.min(1, z.life / 0.5) * 0.8;
+                ctx.fillStyle = '#a16207';
+                ctx.beginPath();
+                ctx.ellipse(x + z.w / 2, z.y, z.w / 2, 10, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#713f12';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 3; i++) {
+                    const a = worldTime * 3 + i * 2;
+                    ctx.beginPath();
+                    ctx.ellipse(x + z.w / 2, z.y, (z.w / 2) * (0.3 + i * 0.25), 3 + i * 2, 0, a, a + 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+
+        function drawShotsAndBeams(ctx, camX) {
+            for (const s of heroShots) s.draw(ctx, camX);
+            for (const b of beams) {
+                const x = b.x - camX;
+                const w = 30 * (b.life / 0.45);
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.fillStyle = 'rgba(253, 224, 71, 0.55)';
+                ctx.fillRect(snap(x - w / 2), 0, w, b.bottom);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.fillRect(snap(x - w / 6), 0, w / 3, b.bottom);
+                ctx.restore();
             }
         }
 
@@ -2832,15 +3644,6 @@
                 this.animTime = Math.random();
             }
 
-            // Enemies in the campaign, the other fighter in a duel
-            targets() {
-                if (duel.active) {
-                    const foe = duel.opponentOf(this.owner);
-                    return foe.isDead ? [] : [foe];
-                }
-                return enemies.filter(e => !e.dead);
-            }
-
             update(dt, platforms) {
                 this.life -= dt;
                 this.animTime += dt;
@@ -2849,7 +3652,7 @@
                 const owner = this.owner;
                 let target = null;
                 let best = 320;
-                for (const e of this.targets()) {
+                for (const e of foesOf(owner)) {
                     const d = Math.abs(e.x + e.width / 2 - (this.x + this.width / 2));
                     if (d < best && Math.abs(e.y - this.y) < 160) {
                         best = d;
@@ -2865,8 +3668,8 @@
                     if (!this.hitDone && this.attackTimer < 0.15) {
                         this.hitDone = true;
                         const reach = { x: this.facing === 'right' ? this.x + this.width : this.x - 80, y: this.y, width: 80, height: 55 };
-                        const damage = duel.active ? DUEL.cloneDamage : Math.round(18 * damageMultiplier());
-                        for (const e of this.targets()) {
+                        const damage = skillDamage(18, DUEL.cloneDamage);
+                        for (const e of foesOf(owner)) {
                             if (overlaps(reach, e)) e.takeDamage(damage, this.facing);
                         }
                     }
@@ -3014,6 +3817,8 @@
                     if (this.hitTimer <= 0) this.isHit = false;
                 }
 
+                if (this.slowTimer > 0) this.slowTimer -= dt;
+
                 // Frozen by Định Thân Pháp: no movement, no contact damage, but can still be hit
                 if (this.frozen > 0) {
                     this.frozen -= dt;
@@ -3031,7 +3836,7 @@
 
                 // Attacked by Player
                 if (player.isAttacking && overlaps(player.attackBox, this)) {
-                    const damage = Math.round((25 + player.attackCombo * 10) * damageMultiplier());
+                    const damage = Math.round((25 + player.attackCombo * 10) * damageMultiplier() * player.char.attack.damage);
                     if (this.takeDamage(damage, player.facing)) player.gainMp(8 + 3 * upgradeLevel('mp'));
                 }
             }
@@ -3071,7 +3876,7 @@
                     }
                 }
 
-                this.x += (stunned ? 0 : this.vx) + this.kvx;
+                this.x += (stunned ? 0 : this.vx * this.slowFactor()) + this.kvx;
                 this.kvx *= 0.85;
 
                 if (this.type === 'cloud') {
@@ -3120,6 +3925,11 @@
                 }
                 this.x += this.kvx;
                 this.kvx *= 0.85;
+            }
+
+            // Lưu Sa Hà quicksand drags enemies to a crawl
+            slowFactor() {
+                return this.slowTimer > 0 ? 0.35 : 1;
             }
 
             applyGravity(platforms) {
@@ -3219,7 +4029,7 @@
                     }
                 }
 
-                this.x += this.vx + this.kvx;
+                this.x += this.vx * this.slowFactor() + this.kvx;
                 this.kvx *= 0.85;
                 this.x = Math.max(this.homeLeft, Math.min(this.homeRight, this.x));
                 this.applyGravity(platforms);
@@ -3670,11 +4480,21 @@
         vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
         vignette.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
 
-        function drawAvatar() {
-            const a = avatarCanvas.getContext('2d');
+        // Face crop from the first idle frame of each sheet
+        const AVATAR_CROPS = { wukong: [24, 15, 14, 14], party: [5, 4, 14, 14] };
+
+        function drawCharacterFace(canvasEl, charId) {
+            const a = canvasEl.getContext('2d');
+            const ch = CHARACTERS[charId];
+            const [sx, sy, sw, sh] = AVATAR_CROPS[charId === 'wukong' ? 'wukong' : 'party'];
             a.imageSmoothingEnabled = false;
-            a.clearRect(0, 0, avatarCanvas.width, avatarCanvas.height);
-            a.drawImage(IMG.hero, 24, 15, 14, 14, 0, 0, avatarCanvas.width, avatarCanvas.height);
+            a.clearRect(0, 0, canvasEl.width, canvasEl.height);
+            a.drawImage(ch.sheet, sx, sy, sw, sh, 0, 0, canvasEl.width, canvasEl.height);
+        }
+
+        function drawAvatar() {
+            drawCharacterFace(avatarCanvas, player.charId);
+            document.getElementById('hud-name').innerText = player.char.name;
         }
 
         // --- GAME INSTANCES ---
@@ -3699,6 +4519,9 @@
             webs = (currentLevel.webs || []).map(w => new Web(w.x, w.y, w.w, w.h));
             clones = [];
             projectiles = [];
+            heroShots = [];
+            zones = [];
+            beams = [];
             shockwaves = [];
             particles = [];
             floatingTexts = [];
@@ -3726,7 +4549,7 @@
         }
 
         function hideOverlays() {
-            for (const el of [startOverlay, gameOverOverlay, clearOverlay, pauseOverlay, shopOverlay, duelOverlay]) el.classList.add('hidden');
+            for (const el of [startOverlay, gameOverOverlay, clearOverlay, pauseOverlay, shopOverlay, duelOverlay, charOverlay]) el.classList.add('hidden');
             shopOpen = false;
         }
 
@@ -3743,6 +4566,7 @@
             runPeaches = 0;
             player.mp = 0;
             loadLevel(levelIndex);
+            drawAvatar();
             setUiFor(gameState);
         }
 
@@ -3759,15 +4583,12 @@
             const stars = 1 + (lives === maxLives ? 1 : 0) + (chests.every(c => c.opened) ? 1 : 0);
             save.stars[i] = Math.max(save.stars[i] || 0, stars);
             save.bestScores[i] = Math.max(save.bestScores[i] || 0, score);
-            save.unlocked = Math.max(save.unlocked, Math.min(i + 1, LEVELS.length - 1));
-
+            // Skill slots that this clear opens for the first time
             const learned = [];
-            for (const id in SKILLS) {
-                if (SKILLS[id].unlockStage === i && !save.skills[id]) {
-                    save.skills[id] = true;
-                    learned.push(SKILLS[id]);
-                }
-            }
+            SLOT_UNLOCK_STAGE.forEach((stage, slot) => {
+                if (stage === i && save.unlocked <= stage) learned.push(slot);
+            });
+            save.unlocked = Math.max(save.unlocked, Math.min(i + 1, LEVELS.length - 1));
             writeSave();
 
             const isFinal = i === LEVELS.length - 1;
@@ -3778,8 +4599,11 @@
             document.getElementById('clear-peaches').innerText = runPeaches;
             const unlockBox = document.getElementById('clear-unlock');
             unlockBox.classList.toggle('hidden', learned.length === 0);
-            unlockBox.innerHTML = learned.map(s =>
-                `Lĩnh ngộ thần thông: <b class="pixel-font text-[10px] text-sky-300">${s.name}</b> (phím ${s.key}, ${s.cost} Pháp Lực)`).join('<br>');
+            unlockBox.innerHTML = learned.map(slot => {
+                const s = SKILLS[player.char.skills[slot]];
+                return `Mở ô thần thông <b class="pixel-font text-[10px] text-sky-300">${SLOT_KEYS[slot]}</b> cho mọi nhân vật · `
+                    + `${player.char.name}: <b class="text-sky-300">${s.name}</b> (${s.cost} Pháp Lực)`;
+            }).join('<br>');
             document.getElementById('next-stage-btn').classList.toggle('hidden', isFinal);
 
             playSound('checkpoint');
@@ -3839,9 +4663,9 @@
             const y = GAME_HEIGHT - 58;
             ctx.save();
             ctx.textAlign = 'center';
-            for (const id in SKILLS) {
-                const s = SKILLS[id];
-                const learned = isSkillLearned(id);
+            for (let slot = 0; slot < SLOT_KEYS.length; slot++) {
+                const s = SKILLS[player.char.skills[slot]];
+                const learned = isSkillLearned(slot);
                 const ready = learned && player.mp >= s.cost;
                 ctx.fillStyle = 'rgba(2, 6, 23, 0.75)';
                 ctx.fillRect(x, y, 48, 44);
@@ -3850,7 +4674,7 @@
                 ctx.strokeRect(x + 1, y + 1, 46, 42);
                 ctx.font = "10px 'Press Start 2P', monospace";
                 ctx.fillStyle = !learned ? '#475569' : ready ? '#e0f2fe' : '#64748b';
-                ctx.fillText(learned ? s.key : '?', x + 24, y + 17);
+                ctx.fillText(learned ? SLOT_KEYS[slot] : '?', x + 24, y + 17);
                 ctx.font = "6px 'Press Start 2P', monospace";
                 ctx.fillText(learned ? s.short : 'KHÓA', x + 24, y + 29);
                 ctx.fillStyle = ready ? '#7dd3fc' : '#475569';
@@ -3913,10 +4737,15 @@
                 if (code === 'KeyB' || code === 'Escape') closeShop();
                 return;
             }
+            if (isCharSelectOpen()) {
+                if (code === 'KeyC' || code === 'Escape') closeCharSelect();
+                return;
+            }
             if (code === 'ArrowLeft' || code === 'KeyA') selectNode(mapState.selected - 1);
             if (code === 'ArrowRight' || code === 'KeyD') selectNode(mapState.selected + 1);
             if (code === 'Enter' || code === 'Space' || code === 'KeyJ') enterSelectedStage();
             if (code === 'KeyB') openShop();
+            if (code === 'KeyC') openCharSelect();
         }
 
         function updateMapUi() {
@@ -3925,7 +4754,7 @@
 
         // Click a node to walk there; click the node you are on to enter it
         canvas.addEventListener('click', (e) => {
-            if (gameState !== 'MAP' || shopOpen || isDuelOverlayOpen()) return;
+            if (gameState !== 'MAP' || shopOpen || isDuelOverlayOpen() || isCharSelectOpen()) return;
             const rect = canvas.getBoundingClientRect();
             const scale = Math.min(rect.width / GAME_WIDTH, rect.height / GAME_HEIGHT);
             const x = (e.clientX - rect.left - (rect.width - GAME_WIDTH * scale) / 2) / scale;
@@ -4038,9 +4867,10 @@
             const hx = a.x + (b.x - a.x) * ease;
             const hy = a.y + (b.y - a.y) * ease;
             const walking = t < 1;
-            const anim = walking ? HERO_ANIMS.run : HERO_ANIMS.idle;
-            const frame = walking ? Math.floor(mapState.t / 0.08) % anim.frames : Math.floor(mapState.t / 0.15) % anim.frames;
-            drawSprite(IMG.hero, anim, frame, hx, hy - 20, b.x < a.x, MAP_HERO_SCALE);
+            // The chosen character walks the map
+            const hero = CHARACTERS[save.character];
+            const [anim, frame] = hero.animFor({ animState: walking ? 'run' : 'idle', animTime: mapState.t, vy: 0 });
+            drawSprite(hero.sheet, anim, frame, hx, hy - 20, b.x < a.x, MAP_HERO_SCALE);
 
             // Info panel for the selected stage
             const sel = MAP_NODES[mapState.selected];
@@ -4061,6 +4891,66 @@
             ctx.fillText(`ĐIỂM CAO ${best}  ·  ←/→ CHỌN  ·  ENTER VÀO ẢI  ·  B CỬA HÀNG`, GAME_WIDTH / 2, 455);
             ctx.restore();
         }
+
+        // --- CHARACTER SELECT ---
+        const charOverlay = document.getElementById('char-overlay');
+        const charList = document.getElementById('char-list');
+
+        function isCharSelectOpen() {
+            return !charOverlay.classList.contains('hidden');
+        }
+
+        function openCharSelect() {
+            renderCharSelect();
+            charOverlay.classList.remove('hidden');
+        }
+
+        function closeCharSelect() {
+            charOverlay.classList.add('hidden');
+        }
+
+        function statBar(value, max) {
+            return `<div class="h-1.5 mt-1 bg-slate-800 rounded"><div class="h-full bg-amber-400 rounded" style="width: ${Math.round((value / max) * 100)}%"></div></div>`;
+        }
+
+        function renderCharSelect() {
+            charList.innerHTML = CHARACTER_IDS.map(id => {
+                const c = CHARACTERS[id];
+                const chosen = id === save.character;
+                const skills = c.skills.map((sid, slot) =>
+                    `<div><span class="text-sky-300">[${SLOT_KEYS[slot]}] ${SKILLS[sid].name}</span> <span class="text-slate-500">· ${SKILLS[sid].desc}</span></div>`).join('');
+                return `
+                    <button data-char="${id}" class="text-left p-3 rounded-xl border-2 space-y-2 cursor-pointer transition ${chosen ? 'border-amber-400 bg-amber-950/40' : 'border-slate-700 bg-slate-900/80 hover:border-slate-500'}">
+                        <div class="flex items-center gap-3">
+                            <canvas data-face="${id}" width="48" height="48" class="w-12 h-12 pixelated rounded-lg bg-slate-800"></canvas>
+                            <div>
+                                <div class="pixel-font text-[11px] text-amber-300">${c.name}</div>
+                                <div class="text-xs text-slate-400">${c.role}</div>
+                            </div>
+                            ${chosen ? '<span class="ml-auto pixel-font text-[9px] text-emerald-400">ĐANG CHỌN</span>' : ''}
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-[10px] text-slate-400">
+                            <div>Máu ${c.hp}${statBar(c.hp, 150)}</div>
+                            <div>Tốc độ${statBar(c.speed, 7)}</div>
+                            <div>Nhảy ${c.jumps}${statBar(c.jumps, 3)}</div>
+                        </div>
+                        <div class="space-y-0.5 text-[11px]">${skills}</div>
+                        <div class="text-[11px] text-emerald-300/80">✦ ${c.passiveText}</div>
+                    </button>`;
+            }).join('');
+            for (const cv of charList.querySelectorAll('canvas[data-face]')) drawCharacterFace(cv, cv.dataset.face);
+        }
+
+        charList.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-char]');
+            if (!btn) return;
+            save.character = btn.dataset.char;
+            writeSave();
+            player.setCharacter(save.character);
+            drawAvatar();
+            playSound('pickup');
+            renderCharSelect();
+        });
 
         // --- SHOP ---
         function openShop() {
@@ -4097,13 +4987,18 @@
                         </button>
                     </div>`;
             });
-            const skills = Object.entries(SKILLS).map(([id, s]) => `
-                <div class="flex justify-between text-xs ${save.skills[id] ? 'text-sky-300' : 'text-slate-600'}">
-                    <span>[${s.key}] ${s.name}</span>
-                    <span>${save.skills[id] ? 'Đã lĩnh ngộ' : `Qua ải ${s.unlockStage + 1} để lĩnh ngộ`}</span>
-                </div>`);
+            const hero = CHARACTERS[save.character];
+            const skills = hero.skills.map((id, slot) => {
+                const s = SKILLS[id];
+                const learned = isSkillLearned(slot);
+                return `
+                <div class="flex justify-between text-xs ${learned ? 'text-sky-300' : 'text-slate-600'}">
+                    <span>[${SLOT_KEYS[slot]}] ${s.name}</span>
+                    <span>${learned ? 'Đã lĩnh ngộ' : `Qua ải ${SLOT_UNLOCK_STAGE[slot] + 1} để lĩnh ngộ`}</span>
+                </div>`;
+            });
             document.getElementById('shop-list').innerHTML = rows.join('') +
-                `<div class="pt-2 space-y-1 border-t border-slate-700/60"><div class="pixel-font text-[9px] text-slate-400 mb-1">THẦN THÔNG</div>${skills.join('')}</div>`;
+                `<div class="pt-2 space-y-1 border-t border-slate-700/60"><div class="pixel-font text-[9px] text-slate-400 mb-1">THẦN THÔNG · ${hero.name}</div>${skills.join('')}</div>`;
         }
 
         document.getElementById('shop-list').addEventListener('click', (e) => {
@@ -4136,7 +5031,7 @@
             roundTime: 90,
             winsNeeded: 2
         };
-        const SKILL_IDS = ['pillar', 'clone', 'freeze'];
+        const COUNTER_KEYS = ['j', 's0', 's1', 's2']; // jump and the three skill slots
 
         const duel = {
             active: false,      // a match is on screen
@@ -4175,7 +5070,14 @@
         const duelLink = document.getElementById('duel-link');
 
         function freshCounters() {
-            return { j: 0, pillar: 0, clone: 0, freeze: 0 };
+            return { j: 0, s0: 0, s1: 0, s2: 0 };
+        }
+
+        const duelCharSelect = document.getElementById('duel-char');
+        duelCharSelect.innerHTML = CHARACTER_IDS.map(id => `<option value="${id}">${CHARACTERS[id].name}</option>`).join('');
+
+        function sendMyCharacter() {
+            if (!duel.isHost) sendDuel({ t: 'char', id: duelCharSelect.value });
         }
 
         function loadPeerJs() {
@@ -4224,6 +5126,7 @@
         function openDuelOverlay() {
             initAudio();
             startMusic();
+            duelCharSelect.value = save.character; // start from the campaign pick
             duelOverlay.classList.remove('hidden');
             showDuelPanel(duelMenu);
         }
@@ -4296,7 +5199,10 @@
             peer.on('open', () => {
                 const conn = peer.connect(PEER_PREFIX + code, { serialization: 'json', reliable: true });
                 setupConnection(conn);
-                conn.on('open', () => setDuelStatus('Đã vào phòng! Chờ chủ phòng bắt đầu...'));
+                conn.on('open', () => {
+                    setDuelStatus('Đã vào phòng! Chờ chủ phòng bắt đầu...');
+                    sendMyCharacter();
+                });
             });
             peer.on('error', (err) => {
                 setDuelStatus(err.type === 'peer-unavailable'
@@ -4318,7 +5224,9 @@
 
         function onDuelMessage(msg) {
             if (msg.t === 'start') {
-                beginDuelMatch(msg.arena);
+                beginDuelMatch(msg.arena, msg.chars);
+            } else if (msg.t === 'char' && duel.isHost) {
+                if (CHARACTERS[msg.id]) duel.guestChar = msg.id;
             } else if (msg.t === 'snap') {
                 applySnapshot(msg);
             } else if (msg.t === 'input' && duel.isHost) {
@@ -4358,20 +5266,21 @@
         }
 
         // --- Match flow ---
-        function beginDuelMatch(arena) {
+        // chars = [host character, guest character]
+        function beginDuelMatch(arena, chars) {
             duel.arena = arena;
             if (!duel.mainPlayer) duel.mainPlayer = player;
 
-            const host = new Player(0, 0);
-            const guest = new Player(0, 0);
+            const host = new Player(0, 0, chars[0]);
+            const guest = new Player(0, 0, chars[1]);
             host.cloneSheet = FLASH.clone;
-            guest.sheet = FLASH.p2;
             guest.cloneSheet = FLASH.p2clone;
+            // Recolour the guest only when both picked the same character
+            if (chars[0] === chars[1]) guest.sheet = guest.char.guestSheet;
             host.input = duel.isHost ? keys : NO_INPUT;
             guest.input = duel.isHost ? duel.remoteInput : NO_INPUT;
             for (const f of [host, guest]) {
-                f.maxHp = DUEL.hp;
-                f.maxJumps = 2;
+                f.maxHp = Math.round(DUEL.hp * f.char.hp / 100);
             }
             duel.fighters = [host, guest];
             duel.localIndex = duel.isHost ? 0 : 1;
@@ -4393,6 +5302,9 @@
             checkpoints = [];
             pickups = [];
             projectiles = [];
+            heroShots = [];
+            zones = [];
+            beams = [];
             particles = [];
             floatingTexts = [];
             shockwaves = [];
@@ -4455,8 +5367,9 @@
         }
 
         function hostStartMatch(arena) {
-            sendDuel({ t: 'start', arena });
-            beginDuelMatch(arena);
+            const chars = [duelCharSelect.value, duel.guestChar || 'wukong'];
+            sendDuel({ t: 'start', arena, chars });
+            beginDuelMatch(arena, chars);
         }
 
         // --- Host side ---
@@ -4466,9 +5379,11 @@
             const seen = duel.remoteCounters;
             if (guest && seen && duel.phase === 'fight') {
                 if (m.j > seen.j) guest.queueJump();
-                for (const id of SKILL_IDS) if (m[id] > seen[id]) guest.useSkill(id);
+                for (let slot = 0; slot < SLOT_KEYS.length; slot++) {
+                    if (m['s' + slot] > seen['s' + slot]) guest.useSkillSlot(slot);
+                }
             }
-            if (seen) Object.assign(seen, { j: m.j, pillar: m.pillar, clone: m.clone, freeze: m.freeze });
+            if (seen) for (const k of COUNTER_KEYS) seen[k] = m[k];
         }
 
         function resolveDuelHits() {
@@ -4496,6 +5411,7 @@
                     f.x = Math.max(0, Math.min(GAME_WIDTH - f.width, f.x));
                 }
                 for (const c of clones) c.update(dt, platforms);
+                updateSkillEffects(dt);
                 clones = clones.filter(c => {
                     if (c.life > 0) return true;
                     cloudPuff(c.x + c.width / 2, c.y + c.height / 2);
@@ -4532,12 +5448,16 @@
                     st: f.animState, at: r2(f.animTime), cb: f.attackCombo, atk: r2(f.attackTimer), ad: f.attackDuration,
                     sk: f.skill, sp: f.skillPhase, skt: r2(f.skillTimer), pb: f.pillarBaseY,
                     g: f.isGrounded ? 1 : 0, dead: f.isDead ? 1 : 0, inv: r2(f.invulnerableTimer),
-                    hp: f.hp, mp: Math.round(f.mp), dash: f.isDashing ? 1 : 0, sl: f.slowed ? 1 : 0, fz: r2(f.frozen)
+                    hp: f.hp, mp: Math.round(f.mp), dash: f.isDashing ? 1 : 0, sl: f.slowed ? 1 : 0, fz: r2(f.frozen),
+                    ct: r2(f.castTimer), lp: f.skill === 'leap' ? Object.keys(LEAPS).find(k => LEAPS[k] === f.leap) : null
                 })),
                 c: clones.map(c => ({
                     x: r1(c.x), y: r1(c.y), vx: r1(c.vx), vy: r1(c.vy), fc: c.facing === 'left' ? 1 : 0,
                     atk: r2(c.attackTimer), g: c.isGrounded ? 1 : 0, life: r2(c.life), o: duel.fighters.indexOf(c.owner)
                 })),
+                hs: heroShots.map(s => ({ k: s.kind, x: r1(s.x), y: r1(s.y), o: duel.fighters.indexOf(s.owner) })),
+                zn: zones.map(z => ({ x: r1(z.x), y: z.y, w: z.w, l: r2(z.life) })),
+                bm: beams.map(b => ({ x: r1(b.x), b: b.bottom, l: r2(b.life) })),
                 m: { round: duel.round, wins: duel.wins, phase: duel.phase, pt: r2(duel.phaseTimer), timer: r1(duel.timer), rw: duel.roundWinner }
             };
         }
@@ -4557,9 +5477,9 @@
                 }
                 if (d.atk > f.attackTimer + 0.05) playSound('slash');
                 if (d.dash && !f.isDashing) playSound('slash');
-                if (d.sk === 'pillar' && !f.skill) playSound('skill');
-                if (d.sp === 'land' && f.skillPhase !== 'land') {
-                    addShockwave(cx, feetY, 170, '#facc15');
+                if ((d.sk && d.sk !== f.skill) || (d.ct > 0 && f.castTimer <= 0)) playSound('skill');
+                if (d.sp === 'land' && f.skillPhase !== 'land' && d.lp) {
+                    addShockwave(cx, feetY, LEAPS[d.lp].radius, '#facc15');
                     addShake(8);
                     playSound('slam');
                 }
@@ -4578,9 +5498,17 @@
                     vx: d.vx, vy: d.vy, facing: d.fc ? 'left' : 'right', animState: d.st, attackCombo: d.cb,
                     attackTimer: d.atk, attackDuration: d.ad, skill: d.sk, skillPhase: d.sp, skillTimer: d.skt,
                     pillarBaseY: d.pb, isGrounded: !!d.g, isDead: !!d.dead, invulnerableTimer: d.inv,
-                    hp: d.hp, mp: d.mp, isDashing: !!d.dash, slowed: !!d.sl, frozen: d.fz
+                    hp: d.hp, mp: d.mp, isDashing: !!d.dash, slowed: !!d.sl, frozen: d.fz,
+                    castTimer: d.ct, leap: d.lp ? LEAPS[d.lp] : null
                 });
             });
+
+            // Thrown skills, quicksand and light pillars are drawn from the host's copies
+            heroShots = s.hs.map(d => Object.assign(Object.create(HeroShot.prototype), {
+                kind: d.k, x: d.x, y: d.y, owner: duel.fighters[d.o]
+            }));
+            zones = s.zn.map(d => ({ x: d.x, y: d.y, w: d.w, life: d.l }));
+            beams = s.bm.map(d => ({ x: d.x, bottom: d.b, life: d.l }));
 
             const before = clones.length;
             clones = s.c.map(d => Object.assign(Object.create(Clone.prototype), {
@@ -4642,15 +5570,15 @@
             player.queueJump();
         }
 
-        function localSkill(id) {
+        function localSkill(slot) {
             if (duel.active) {
                 if (duel.phase !== 'fight') return;
                 if (!duel.isHost) {
-                    duel.localCounters[id]++;
+                    duel.localCounters['s' + slot]++;
                     return;
                 }
             }
-            player.useSkill(id);
+            player.useSkillSlot(slot);
         }
 
         // --- Drawing ---
@@ -4707,8 +5635,10 @@
             ctx.save();
             applyShake(ctx);
             drawEnvironment(ctx, currentLevel, 0);
+            drawZones(ctx, 0);
             for (const c of clones) c.draw(ctx, 0);
             for (const f of duel.fighters) f.draw(ctx, 0);
+            drawShotsAndBeams(ctx, 0);
             drawShockwaves(ctx, 0);
             for (const p of particles) p.draw(ctx, 0);
             ctx.restore();
@@ -4730,6 +5660,10 @@
         document.getElementById('duel-start-btn').addEventListener('click', () => hostStartMatch(document.getElementById('duel-arena').value));
         document.getElementById('duel-rematch-btn').addEventListener('click', () => hostStartMatch(duel.arena));
         document.getElementById('duel-close-btn').addEventListener('click', leaveDuel);
+        duelCharSelect.addEventListener('change', () => {
+            duelCharSelect.blur();
+            sendMyCharacter();
+        });
         document.getElementById('duel-copy-btn').addEventListener('click', () => {
             duelLink.select();
             if (navigator.clipboard) navigator.clipboard.writeText(duelLink.value).catch(() => document.execCommand('copy'));
@@ -4765,9 +5699,9 @@
         bindTouch('btn-jump', 'jump', localJump);
         bindTouch('btn-attack', 'attack');
         bindTouch('btn-dash', 'dash');
-        bindTouch('btn-skill1', 'skill1', () => localSkill('pillar'));
-        bindTouch('btn-skill2', 'skill2', () => localSkill('clone'));
-        bindTouch('btn-skill3', 'skill3', () => localSkill('freeze'));
+        bindTouch('btn-skill1', 'skill1', () => localSkill(0));
+        bindTouch('btn-skill2', 'skill2', () => localSkill(1));
+        bindTouch('btn-skill3', 'skill3', () => localSkill(2));
 
         // Platforms with `move` drift side to side; whoever stands on one rides along
         function moveClouds(platforms) {
@@ -4809,6 +5743,7 @@
                 cloudPuff(c.x + c.width / 2, c.y + c.height / 2);
                 return false;
             });
+            updateSkillEffects(dt);
             for (const p of pickups) p.update(dt, player, platforms);
             pickups = pickups.filter(p => !p.collected);
             for (const p of projectiles) p.update(dt, player, platforms);
@@ -4911,6 +5846,7 @@
                 for (const w of webs) w.draw(ctx, camX);
                 portal.draw(ctx, camX);
                 for (const p of pickups) p.draw(ctx, camX);
+                drawZones(ctx, camX);
 
                 for (let enemy of enemies) {
                     enemy.draw(ctx, camX);
@@ -4918,6 +5854,7 @@
 
                 for (const c of clones) c.draw(ctx, camX);
                 player.draw(ctx, camX);
+                drawShotsAndBeams(ctx, camX);
                 for (const p of projectiles) p.draw(ctx, camX);
                 drawShockwaves(ctx, camX);
             }
@@ -4973,6 +5910,8 @@
         document.getElementById('resume-btn').addEventListener('click', () => setPaused(false));
         document.getElementById('map-play-btn').addEventListener('click', enterSelectedStage);
         document.getElementById('map-shop-btn').addEventListener('click', openShop);
+        document.getElementById('map-char-btn').addEventListener('click', openCharSelect);
+        document.getElementById('char-close-btn').addEventListener('click', closeCharSelect);
         document.getElementById('shop-close-btn').addEventListener('click', closeShop);
         for (const btn of document.querySelectorAll('.to-map-btn')) btn.addEventListener('click', goToMap);
 
@@ -5037,6 +5976,8 @@
             }
             buildProceduralSprites();
             buildThemes();
+            buildCharacters();
+            player.setCharacter(save.character);
             buildScenery(currentLevel, THEMES[currentLevel.theme]);
             resetAmbient(THEMES[currentLevel.theme].ambient);
             drawAvatar();
