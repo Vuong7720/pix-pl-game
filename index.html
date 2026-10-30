@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tây Du Ký: Tề Thiên Đại Thánh Truyền Kỳ</title>
+    <title>Tây Du Ký: Thiên Mệnh Phá Toái</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Anek+Malayalam:wght@600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Anek+Malayalam:wght@600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap');
 
         body {
             background-color: #0d0f12;
@@ -26,6 +26,11 @@
 
         .pixelated {
             image-rendering: pixelated;
+        }
+
+        /* Story text: a serif with full Vietnamese diacritics (the pixel font lacks them) */
+        .story-font {
+            font-family: 'Noto Serif', serif;
         }
 
         /* Glassmorphism containers */
@@ -101,10 +106,11 @@
                     <i class="fa-solid fa-dragon text-5xl text-amber-500 animate-pulse"></i>
                 </div>
                 <h1 class="pixel-font text-2xl md:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-red-600 tracking-wider">
-                    TÂY DU KÝ: NGỘ KHÔNG
+                    TÂY DU KÝ
                 </h1>
-                <p class="text-slate-300 text-sm md:text-base font-medium leading-relaxed max-w-md mx-auto">
-                    Thiên Cung dậy sóng, Yêu ma quấy nhiễu! Hãy cầm Gậy Như Ý tiêu diệt yêu ma, vượt qua các kiếp nạn để bảo vệ chúng sinh!
+                <div class="story-font font-bold text-xl md:text-2xl text-amber-200 tracking-[0.2em] -mt-3">THIÊN MỆNH PHÁ TOÁI</div>
+                <p class="story-font text-slate-300 text-sm md:text-base leading-relaxed max-w-md mx-auto">
+                    Bầu trời nứt vỡ, thiên binh đổ xuống Hoa Quả Sơn nhân danh một thứ gọi là Thiên Mệnh. Lần này Đại Thánh lên trời không để đòi danh hiệu, mà để tìm kẻ đang viết lại số phận của mình.
                 </p>
 
                 <!-- Controls Guide -->
@@ -199,6 +205,23 @@
                 <button id="resume-btn" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 pixel-font text-xs rounded-xl transition cursor-pointer">TIẾP TỤC</button>
                 <button class="to-map-btn w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 pixel-font text-xs rounded-xl transition cursor-pointer">VỀ BẢN ĐỒ</button>
             </div>
+        </div>
+
+        <!-- STORY: title cards and dialogue (click / Space / Enter: next · Esc: skip) -->
+        <div id="story-overlay" class="hidden absolute inset-0 z-30 flex flex-col justify-end p-4 md:p-8 cursor-pointer">
+            <div id="story-title" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center px-6 space-y-4">
+                <div id="story-title-main" class="story-font font-bold text-3xl md:text-5xl text-amber-400 tracking-wide drop-shadow-lg"></div>
+                <div id="story-title-sub" class="story-font text-lg md:text-2xl text-amber-100/90 tracking-widest"></div>
+            </div>
+            <div id="story-box" class="glass-panel w-full max-w-3xl mx-auto rounded-2xl border-amber-500/40 p-4 flex gap-4 items-start">
+                <canvas id="story-face" width="72" height="72" class="pixelated w-16 h-16 md:w-[72px] md:h-[72px] shrink-0 rounded-xl border border-amber-500/50 bg-slate-950"></canvas>
+                <div id="story-icon" class="hidden w-16 h-16 md:w-[72px] md:h-[72px] shrink-0 rounded-xl border bg-slate-950 flex items-center justify-center text-3xl"></div>
+                <div class="flex-1 min-h-[72px]">
+                    <div id="story-name" class="story-font font-bold text-sm tracking-wider mb-1"></div>
+                    <p id="story-text" class="story-font text-slate-100 text-base md:text-lg leading-relaxed"></p>
+                </div>
+            </div>
+            <div class="w-full max-w-3xl mx-auto mt-2 text-right text-xs text-slate-400 relative">Chạm / Space: tiếp · Esc: bỏ qua</div>
         </div>
 
         <!-- WORLD MAP BOTTOM BAR -->
@@ -413,7 +436,8 @@
                 bestScores: [],   // best score per stage
                 upgrades: {},     // upgrade id -> level bought
                 character: 'wukong',
-                loadouts: {}      // character id -> the 3 skills picked from its skill pool
+                loadouts: {},     // character id -> the 3 skills picked from its skill pool
+                storySeen: {}     // story parts already shown ('opening', '<stage>-<part>')
             };
         }
         let save = freshSave();
@@ -467,6 +491,14 @@
         window.addEventListener('keydown', (e) => {
             // Typing a room code must not move the monkey or pick map nodes
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+            // Story on screen: keys only page through it
+            if (gameState === 'STORY') {
+                e.preventDefault();
+                if (e.repeat) return;
+                if (e.code === 'Escape') endStory();
+                else if (['Space', 'Enter', 'KeyJ'].includes(e.code)) advanceStory();
+                return;
+            }
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
             if (e.code === 'KeyW' || e.code === 'ArrowUp' || e.code === 'Space') {
@@ -672,6 +704,11 @@
             treeRed: 'tree-red.png',
             treeDark: 'tree-dark.png',
             tiles: 'tiles.png',
+            hqsSky: 'hqs-sky.png',
+            hqsFar: 'hqs-far.png',
+            hqsNear: 'hqs-near.png',
+            hqsTiles: 'hqs-tiles.png',
+            bossAfternoon: 'boss-afternoon.png',
             hero: 'hero-wukong.png',
             wukongEyes: 'wukong-eyes.png',
             heroNezha: 'hero-nezha.png',
@@ -851,12 +888,28 @@
             erlang:    { fw: 24, fh: 24, frames: 2, ax: 9, foot: 23 }
         };
 
+        // Afternoon Tà (boss-afternoon.png): a floating head, one 210x180 cell per frame, faces right.
+        // `start` picks frames further along a row.
+        const afCell = (row, frames, start = 0) => ({ fw: 210, fh: 180, frames, row, start, ax: 88, foot: 143 });
+        const AFTERNOON_ANIMS = {
+            walk: afCell(0, 11),
+            windup: afCell(1, 3),     // telegraph
+            strike: afCell(1, 3, 3),  // charge
+            jump: afCell(2, 4),
+            hurt: afCell(3, 4),
+            death: afCell(4, 4),
+            rage: afCell(5, 6)        // roar / enraged (Địa Ngục Phán Xét)
+        };
+
         // Source rectangles inside tiles.png (16px grid)
         const TILE = {
             grass: { sx: 0, sw: 80, left: 16, right: 16, topY: 8, topH: 24, fillY: 32, fillH: 32, surface: 10 },
             stone: { sx: 0, sw: 80, left: 16, right: 16, topY: 88, topH: 24, fillY: 112, fillH: 32, surface: 8 },
             plank: { sx: 81, sw: 46, left: 16, right: 16, sy: 96, sh: 10, surface: 0 },
-            moss:  { sx: 178, sw: 45, left: 14, right: 15, sy: 238, sh: 17, surface: 2 }
+            moss:  { sx: 178, sw: 45, left: 14, right: 15, sy: 238, sh: 17, surface: 2 },
+            // Hoa Quả Sơn sheet (hqs-tiles.png), drawn at its own scale
+            hqsGround: { sx: 0, sw: 416, left: 48, right: 48, topY: 0, topH: 239, fillY: 120, fillH: 119, surface: 14, scale: 0.5 },
+            hqsLedge:  { sx: 0, sw: 464, left: 72, right: 72, sy: 243, sh: 96, surface: 4, scale: 0.5 }
         };
         const PROPS = {
             mushA:    { x: 257, y: 247, w: 30, h: 25 },
@@ -868,7 +921,9 @@
             rockB:    { x: 80,  y: 336, w: 80, h: 32 },
             rockC:    { x: 160, y: 336, w: 80, h: 32 },
             chest:     { x: 289, y: 277, w: 30, h: 27 },
-            chestOpen: { x: 321, y: 275, w: 30, h: 29 }
+            chestOpen: { x: 321, y: 275, w: 30, h: 29 },
+            hqsFlower: { x: 0,   y: 343, w: 98, h: 90,  img: 'hqsTiles', scale: 0.5 },
+            hqsRock:   { x: 102, y: 343, w: 96, h: 101, img: 'hqsTiles', scale: 0.5 }
         };
         const BUSH = { x: 274, w: 124, h: 43, rowY: 5, rowStep: 48 };
         // Inside the tree sheets (every colour variant shares this layout)
@@ -887,16 +942,21 @@
 
         const THEMES = {};
         function buildThemes() {
+            // Hoa Quả Sơn: painted sky, mountain and pine/peach layers, its own ground sheet
             THEMES.forest = {
-                sky: IMG.sky,
-                bgTrees: IMG.bgTrees,
-                trees: IMG.treeGreen,
-                treesMid: tintImage(IMG.treeGreen, '#0b2018', 0.3),
+                sky: IMG.hqsSky,
+                layers: [
+                    { img: IMG.hqsFar, parallax: 0.12, scale: 0.65, bottom: GAME_HEIGHT - 90 },
+                    { img: tintImage(IMG.hqsNear, '#0b1a12', 0.4), parallax: 0.3, scale: 0.42, bottom: GAME_HEIGHT }
+                ],
+                trees: null,
+                treesMid: null,
                 tiles: IMG.tiles,
-                ground: 'grass',
-                ledge: 'plank',
-                bushRow: 0,
-                props: ['mushA', 'mushB', 'mushC', 'flower', 'lavender', 'flower'],
+                groundTiles: IMG.hqsTiles,
+                ground: 'hqsGround',
+                ledge: 'hqsLedge',
+                bushRow: null,
+                props: ['hqsFlower', 'hqsRock', 'hqsFlower', 'flower'],
                 fog: 'rgba(220, 255, 235, 0.18)',
                 ambient: 'firefly',
                 boss: 'boarRunBlack',
@@ -914,8 +974,12 @@
                 props: ['rockA', 'rockB', 'rockC'],
                 fog: 'rgba(255, 110, 40, 0.22)',
                 ambient: 'ember',
-                boss: 'boarRunBlack',
-                bossGlow: '#ef4444'
+                boss: 'bossAfternoon',
+                bossAnim: AFTERNOON_ANIMS.walk,
+                bossAnims: AFTERNOON_ANIMS,
+                bossFacesRight: true,
+                bossScale: 1.1,
+                bossGlow: '#a855f7'
             };
             THEMES.bone = {
                 sky: tintImage(IMG.sky, '#1e1b4b', 0.82),
@@ -994,7 +1058,7 @@
 
             const enemySheets = ['boarRun', 'boarRunBlack', 'boarRunWhite', 'snailWalk', 'beeFly', 'beeAttack',
                 'fishSwim', 'crabWalk', 'jellyFloat', 'dragonKing', 'spiderCrawl', 'spiderQueen',
-                'soldierWalk', 'stormCloud', 'erlang'];
+                'soldierWalk', 'stormCloud', 'erlang', 'bossAfternoon'];
             FLASH.gold = {};
             for (const key of enemySheets) {
                 FLASH[key] = tintImage(IMG[key], '#ffffff', 1);
@@ -1006,7 +1070,7 @@
             FLASH.p2 = tintImage(IMG.hero, '#3b82f6', 0.4);
             FLASH.p2clone = tintImage(IMG.hero, '#7dd3fc', 0.45);
             FLASH.rage = {};
-            for (const key of ['boarRunBlack', 'boarRunWhite', 'dragonKing', 'spiderQueen', 'erlang']) FLASH.rage[key] = tintImage(IMG[key], '#dc2626', 0.35);
+            for (const key of ['boarRunBlack', 'boarRunWhite', 'dragonKing', 'spiderQueen', 'erlang', 'bossAfternoon']) FLASH.rage[key] = tintImage(IMG[key], '#dc2626', 0.35);
         }
 
         // Builds a tiny sprite from rows of palette characters ('.' = transparent)
@@ -1612,7 +1676,7 @@
                 portalY: 400
             },
             {
-                name: "CẢNH 2: HỎA DIỆM SƠN - NGƯU MA VƯƠNG",
+                name: "CẢNH 2: HỎA DIỆM SƠN - AFTERNOON TÀ",
                 theme: 'fire',
                 worldWidth: 2500,
                 bgGradient: ['#450a0a', '#7f1d1d', '#180202'],
@@ -1636,8 +1700,8 @@
                     { x: 1400, y: 280, type: 'slime' },
                     { x: 2100, y: 400, type: 'boss' },
                 ],
-                bossName: 'NGƯU MA VƯƠNG',
-                bossShot: '#fb923c',
+                bossName: 'AFTERNOON TÀ',
+                bossShot: '#a855f7', // Lửa Hắc Ám
                 checkpoints: [{ x: 1150, y: 480 }, { x: 1740, y: 480 }],
                 peaches: [{ x: 280, y: 320 }, { x: 490, y: 230 }, { x: 1080, y: 250 }, { x: 1410, y: 320 }],
                 chests: [{ x: 860, y: 480 }, { x: 1240, y: 140 }],
@@ -2006,6 +2070,144 @@
 
         function addShockwave(x, y, radius, color) {
             shockwaves.push({ x, y, radius, color, life: 0.4, maxLife: 0.4 });
+        }
+
+        // --- BASIC ATTACK SLASHES ---
+        // Drawn from the attacker's swing state and sized to its hit box, so the arc shows exactly what a swing reaches
+        const SLASH_STYLE = {
+            wukong: { edge: '#fffbeb', body: '#fde047', glow: 'rgba(245, 158, 11, 0.45)', spark: '#fde047' },
+            bajie:  { edge: '#fff7ed', body: '#fdba74', glow: 'rgba(194, 65, 12, 0.45)', spark: '#fb923c', claws: true },
+            sha:    { edge: '#ecfeff', body: '#67e8f9', glow: 'rgba(8, 145, 178, 0.45)', spark: '#a5f3fc' },
+            nezha:  { edge: '#fff7ed', body: '#fb923c', glow: 'rgba(239, 68, 68, 0.5)', spark: '#f97316' },
+            tang:   { edge: '#ffffff', body: '#fef3c7', glow: 'rgba(251, 191, 36, 0.4)', spark: '#fde68a' }
+        };
+        // Per combo step: sweep from/to (degrees, 0 = straight ahead, negative = up) and blade thickness
+        const SLASH_ARCS = {
+            1: { from: -75, to: 45, w: 0.5 },
+            2: { from: 60, to: -60, w: 0.45 },
+            3: { from: -115, to: 75, w: 0.6 }
+        };
+        const SLASH_SQUASH = 0.6; // arcs are flattened to the hit box height
+
+        function slashReach(p) {
+            return p.width / 2 + (p.char.attack.reach[p.attackCombo] || 75);
+        }
+
+        function drawSlash(ctx, p, camX) {
+            if (!(p.attackTimer > 0) || !p.attackDuration || p.isDead) return;
+            const style = SLASH_STYLE[p.charId] || SLASH_STYLE.wukong;
+            const arc = SLASH_ARCS[p.attackCombo] || SLASH_ARCS[1];
+            const t = 1 - p.attackTimer / p.attackDuration;
+            const head = 1 - (1 - Math.min(1, t / 0.45)) ** 3;      // blade tip races ahead (ease-out)
+            const tail = Math.max(0, (t - 0.2) / 0.8) ** 1.5;       // the trail follows and closes up
+            const a0 = arc.from * Math.PI / 180, a1 = arc.to * Math.PI / 180;
+            const aHead = a0 + (a1 - a0) * head, aTail = a0 + (a1 - a0) * tail;
+            if (Math.abs(aHead - aTail) < 0.05) return;
+
+            const R = slashReach(p), thick = R * arc.w;
+            const N = 18;
+            ctx.save();
+            ctx.translate(p.x + p.width / 2 - camX, p.y + 28);
+            ctx.scale(p.facing === 'right' ? 1 : -1, SLASH_SQUASH);
+            ctx.globalAlpha = Math.min(1, (1 - t) * 2.5);
+            // Crescent: outer edge at full reach, inner edge tapering to a point at the tail
+            ctx.beginPath();
+            for (let i = 0; i <= N; i++) {
+                const a = aTail + (aHead - aTail) * (i / N);
+                ctx.lineTo(Math.cos(a) * R, Math.sin(a) * R);
+            }
+            for (let i = N; i >= 0; i--) {
+                const a = aTail + (aHead - aTail) * (i / N);
+                const r = R - thick * Math.pow(i / N, 0.7);
+                ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+            }
+            ctx.closePath();
+            ctx.shadowColor = style.glow;
+            ctx.shadowBlur = p.attackCombo === 3 ? 22 : 14;
+            // Solid at the cutting edge, fading out toward the wielder
+            const fade = ctx.createRadialGradient(0, 0, R - thick, 0, 0, R);
+            fade.addColorStop(0, style.body + '00');
+            fade.addColorStop(0.55, style.body + '73');
+            fade.addColorStop(1, style.body + 'f2');
+            ctx.fillStyle = fade;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            // Bright cutting edge
+            ctx.strokeStyle = style.edge;
+            ctx.lineWidth = p.attackCombo === 3 ? 5 : 3.5;
+            ctx.beginPath();
+            ctx.arc(0, 0, R, Math.min(aTail, aHead), Math.max(aTail, aHead));
+            ctx.stroke();
+            // Bát Giới's rake leaves claw marks through the blade
+            if (style.claws) {
+                ctx.strokeStyle = 'rgba(124, 45, 18, 0.7)';
+                ctx.lineWidth = 2;
+                for (const k of [0.35, 0.65]) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, R - thick * k, Math.min(aTail, aHead), Math.max(aTail, aHead));
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
+        }
+
+        // Sparks thrown off the blade tip when a swing starts
+        function slashSparks(p) {
+            const style = SLASH_STYLE[p.charId] || SLASH_STYLE.wukong;
+            const dir = p.facing === 'right' ? 1 : -1;
+            const x = p.x + p.width / 2 + dir * slashReach(p) * 0.9;
+            for (let i = 0; i < (p.attackCombo === 3 ? 8 : 4); i++) {
+                particles.push(new Particle(x, p.y + 28 + (Math.random() - 0.5) * 40,
+                    dir * (2 + Math.random() * 3), -1 - Math.random() * 2, style.spark, 3, 0.25));
+            }
+        }
+
+        // Star-shaped flash where a swing connects
+        let impacts = [];
+
+        function addImpact(attacker, target) {
+            const style = SLASH_STYLE[attacker.charId] || SLASH_STYLE.wukong;
+            const big = attacker.attackCombo === 3;
+            const fromRight = attacker.x > target.x;
+            const x = fromRight ? target.x + target.width * 0.75 : target.x + target.width * 0.25;
+            const y = Math.max(target.y + 8, Math.min(attacker.y + 28, target.y + target.height - 8));
+            impacts.push({ x, y, color: style.spark, size: big ? 46 : 30, rot: Math.random() * Math.PI, life: 0.16, maxLife: 0.16 });
+            createHitSparks(x, y, style.spark, big ? 14 : 7);
+            if (big) addShake(5);
+        }
+
+        function updateImpacts(dt) {
+            for (const s of impacts) s.life -= dt;
+            impacts = impacts.filter(s => s.life > 0);
+        }
+
+        function drawImpacts(ctx, camX) {
+            for (const s of impacts) {
+                const k = s.life / s.maxLife;
+                const r = s.size * (1.25 - k * 0.5);
+                ctx.save();
+                ctx.translate(s.x - camX, s.y);
+                ctx.rotate(s.rot);
+                ctx.globalAlpha = k;
+                // Two crossed spikes: coloured outer, white core
+                for (const [color, w] of [[s.color, 0.22], ['#ffffff', 0.1]]) {
+                    ctx.fillStyle = color;
+                    for (let i = 0; i < 4; i++) {
+                        ctx.rotate(Math.PI / 2);
+                        ctx.beginPath();
+                        ctx.moveTo(0, -r * w);
+                        ctx.lineTo(i % 2 ? r * 0.6 : r, 0);
+                        ctx.lineTo(0, r * w);
+                        ctx.fill();
+                    }
+                }
+                ctx.strokeStyle = s.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, r * 0.7, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
         }
 
         // --- PICKUPS (Đào Tiên) ---
@@ -2892,6 +3094,7 @@
                     this.attackCooldown = this.attackDuration + 0.08;
                     this.comboWindow = this.attackDuration + 0.5;
                     playSound('slash');
+                    slashSparks(this);
                 }
 
                 if (this.isAttacking) {
@@ -4283,7 +4486,10 @@
                 // Attacked by Player
                 if (player.isAttacking && overlaps(player.attackBox, this)) {
                     const damage = Math.round((25 + player.attackCombo * 10) * damageMultiplier() * player.attackPower());
-                    if (this.takeDamage(damage, player.facing)) player.gainMp(8 + 3 * upgradeLevel('mp'));
+                    if (this.takeDamage(damage, player.facing)) {
+                        player.gainMp(8 + 3 * upgradeLevel('mp'));
+                        addImpact(player, this);
+                    }
                 }
             }
 
@@ -4407,6 +4613,7 @@
                         this.setState('roar', 1.0);
                         playSound('roar');
                         addShake(6);
+                        storyBeat(currentLevelIndex, 'boss');
                     }
                     this.applyGravity(platforms);
                     return;
@@ -4539,6 +4746,7 @@
                         this.fireRain = 0;
                         for (let i = 0; i < 6; i++) pickups.push(new Pickup(cx, this.y + 20, true));
                         floatingTexts.push(new FloatingText('CỔNG ĐÃ MỞ!', cx - 60, this.y - 40, '#facc15', 14));
+                        storyDelay = { part: 'after', t: 1.6 };
                     } else {
                         hitStop = Math.max(hitStop, 0.08);
                         if (Math.random() < 0.35) pickups.push(new Pickup(cx, this.y + 10, true));
@@ -4564,6 +4772,18 @@
                         : { key: 'beeFly', anim: ENEMY_ANIMS.beeFly, fps: 14, scale: ART_SCALE };
                 }
                 const theme = THEMES[currentLevel.theme];
+                if (theme.bossAnims) {
+                    // A boss with a row per action
+                    const A = theme.bossAnims;
+                    const glow = this.phase === 2 ? '#dc2626' : theme.bossGlow;
+                    const base = { key: theme.boss, scale: theme.bossScale, glow, facesRight: theme.bossFacesRight };
+                    if (this.isHit) return { ...base, anim: A.hurt, fps: 16 };
+                    if (this.state === 'telegraph') return { ...base, anim: A.windup, fps: 6 };
+                    if (this.state === 'charge') return { ...base, anim: A.strike, fps: 14 };
+                    if (this.state === 'leap') return { ...base, anim: A.jump, fps: 6 };
+                    if (this.state === 'roar') return { ...base, anim: A.rage, fps: 10 };
+                    return { ...base, anim: this.phase === 2 ? A.rage : A.walk, fps: 10 };
+                }
                 const fps = this.state === 'charge' ? 22 : this.state === 'telegraph' || this.state === 'roar' ? 0 : 10;
                 return {
                     key: theme.boss,
@@ -4580,15 +4800,21 @@
                 let cx = this.x + this.width / 2 - camX;
                 if (cx < -150 || cx > GAME_WIDTH + 150) return;
                 const feetY = this.y + this.height;
-                const flip = this.facing === 'right'; // mob sheets face left
-                const { key, anim, fps, scale, glow } = this.sprite();
-                const frame = Math.floor(this.animTime * fps) % anim.frames;
+                const { key, anim, fps, scale, glow, facesRight } = this.sprite();
+                const flip = facesRight ? this.facing === 'left' : this.facing === 'right'; // mob sheets face left
+                const frame = (anim.start || 0) + Math.floor(this.animTime * fps) % anim.frames;
 
                 ctx.save();
                 if (this.dead) {
                     const elapsed = ENEMY_DEATH_TIME - this.deathTimer;
+                    const deathAnim = this.type === 'boss' && THEMES[currentLevel.theme].bossAnims?.death;
                     if (this.type === 'slime') {
                         drawSprite(IMG.snailDead, ENEMY_ANIMS.snailDead, Math.min(7, Math.floor(elapsed / 0.075)), cx, feetY, flip);
+                    } else if (deathAnim) {
+                        // Its own death frames, fading out as they play
+                        ctx.globalAlpha = Math.min(1, this.deathTimer / ENEMY_DEATH_TIME * 1.5);
+                        const f = Math.min(deathAnim.frames - 1, Math.floor(elapsed / ENEMY_DEATH_TIME * deathAnim.frames));
+                        drawSprite(IMG[key], deathAnim, f, cx, feetY - elapsed * 20, flip, scale);
                     } else {
                         // Flash white and fade upward
                         ctx.globalAlpha = this.deathTimer / ENEMY_DEATH_TIME;
@@ -4624,7 +4850,9 @@
                 ctx.shadowBlur = 0;
 
                 if (this.isHit || (winding && Math.floor(this.animTime * 12) % 2 === 0)) {
-                    ctx.globalAlpha = this.isHit ? 0.85 : 0.45;
+                    // Painted bosses already play a hurt row, so their flash is lighter
+                    const painted = this.type === 'boss' && THEMES[currentLevel.theme].bossAnims;
+                    ctx.globalAlpha = this.isHit ? (painted ? 0.45 : 0.85) : 0.45;
                     drawSprite(FLASH[key], anim, frame, cx, feetY, flip, scale);
                     ctx.globalAlpha = 1;
                 }
@@ -4716,7 +4944,7 @@
 
                 if (!player.isDead && overlaps(player, this)) {
                     if (!this.locked) {
-                        stageClear();
+                        storyBeat(currentLevelIndex, 'clear', stageClear);
                     } else if (this.hintTimer <= 0) {
                         this.hintTimer = 1.5;
                         floatingTexts.push(new FloatingText('HẠ BOSS ĐỂ MỞ CỔNG', this.x - 80, this.y - 10, '#fca5a5', 10));
@@ -4794,12 +5022,35 @@
         }
 
         // --- ENVIRONMENT RENDERING ---
-        // Tiles a horizontally seamless strip with parallax, bottom-aligned
-        function drawStrip(img, r, offset, bottom) {
-            const w = r.w * ART_SCALE, h = r.h * ART_SCALE;
-            const start = -snap(((offset % w) + w) % w);
-            for (let x = start; x < GAME_WIDTH; x += w) {
-                ctx.drawImage(img, r.x, r.y, r.w, r.h, x, bottom - h, w, h);
+        // Tiles a strip with parallax, bottom-aligned. `mirror` flips every other copy,
+        // which makes any image seamless.
+        function drawStrip(img, r, offset, bottom, scale = ART_SCALE, mirror = false) {
+            const w = r.w * scale, h = r.h * scale;
+            const first = Math.floor(offset / w);
+            for (let i = first, x = -snap(offset - first * w); x < GAME_WIDTH; i++, x += w) {
+                if (mirror && i % 2 !== 0) {
+                    ctx.save();
+                    ctx.translate(x + w, 0);
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(img, r.x, r.y, r.w, r.h, 0, bottom - h, w, h);
+                    ctx.restore();
+                } else {
+                    ctx.drawImage(img, r.x, r.y, r.w, r.h, x, bottom - h, w, h);
+                }
+            }
+        }
+
+        // Sky, then the far and near background strips
+        function drawBackdrop(theme, camX) {
+            const sky = theme.sky, skyW = sky.width * GAME_HEIGHT / sky.height;
+            ctx.drawImage(sky, -snap(Math.min(camX * 0.03, skyW - GAME_WIDTH)), 0, skyW, GAME_HEIGHT);
+            if (theme.layers) {
+                for (const l of theme.layers) {
+                    drawStrip(l.img, { x: 0, y: 0, w: l.img.width, h: l.img.height }, camX * l.parallax, l.bottom, l.scale, true);
+                }
+            } else {
+                drawStrip(theme.bgTrees, BG_STRIP.far, camX * 0.12, GAME_HEIGHT - 70);
+                drawStrip(theme.bgTrees, BG_STRIP.near, camX * 0.25, GAME_HEIGHT + 20);
             }
         }
 
@@ -4825,7 +5076,7 @@
         }
 
         function drawRowSlices(img, d, sy, sh, x, w, dy) {
-            const S = ART_SCALE;
+            const S = d.scale || ART_SCALE;
             const L = d.left * S, R = d.right * S, dh = sh * S;
             const midSx = d.sx + d.left, midSw = d.sw - d.left - d.right, midW = midSw * S;
             ctx.drawImage(img, d.sx, sy, d.left, sh, x, dy, L, dh);
@@ -4841,22 +5092,23 @@
         }
 
         function drawPlatform(theme, p, drawX) {
-            const S = ART_SCALE;
+            const img = theme.groundTiles || theme.tiles;
             if (p.h >= 40) {
                 // Solid ground: top edge row, then fill rows down to the bottom of the platform
                 const d = TILE[theme.ground];
+                const S = d.scale || ART_SCALE;
                 let dy = p.y - d.surface * S;
-                drawRowSlices(theme.tiles, d, d.topY, d.topH, drawX, p.w, dy);
+                drawRowSlices(img, d, d.topY, d.topH, drawX, p.w, dy);
                 dy += d.topH * S;
                 while (dy < p.y + p.h) {
-                    drawRowSlices(theme.tiles, d, d.fillY, d.fillH, drawX, p.w, dy);
+                    drawRowSlices(img, d, d.fillY, d.fillH, drawX, p.w, dy);
                     dy += d.fillH * S;
                 }
             } else if (theme.ledge === 'cloud') {
                 drawCloudLedge(drawX, p.y, p.w);
             } else {
                 const d = TILE[theme.ledge];
-                drawRowSlices(theme.tiles, d, d.sy, d.sh, drawX, p.w, p.y - d.surface * S);
+                drawRowSlices(img, d, d.sy, d.sh, drawX, p.w, p.y - d.surface * (d.scale || ART_SCALE));
             }
         }
 
@@ -4872,10 +5124,10 @@
                 drawCodeProp(ctx, item.name, x, item.y);
             } else {
                 const r = PROPS[item.name];
-                const w = r.w * S, h = r.h * S;
+                const w = r.w * (r.scale || S), h = r.h * (r.scale || S);
                 if (x + w < 0 || x > GAME_WIDTH) return;
                 const sink = item.name.startsWith('rock') ? 10 : 2;
-                ctx.drawImage(theme.tiles, r.x, r.y, r.w, r.h, x, item.y + sink - h, w, h);
+                ctx.drawImage(r.img ? IMG[r.img] : theme.tiles, r.x, r.y, r.w, r.h, x, item.y + sink - h, w, h);
             }
         }
 
@@ -4891,9 +5143,7 @@
             if (!theme) return; // assets still loading
 
             // Parallax layers, far to near
-            ctx.drawImage(theme.sky, snap(-camX * 0.03), 0, theme.sky.width * 2, theme.sky.height * 2);
-            drawStrip(theme.bgTrees, BG_STRIP.far, camX * 0.12, GAME_HEIGHT - 70);
-            drawStrip(theme.bgTrees, BG_STRIP.near, camX * 0.25, GAME_HEIGHT + 20);
+            drawBackdrop(theme, camX);
 
             for (const t of scenery.shadows) {
                 drawTree(theme.trees, TREES[t.kind], t.x - camX * 0.45, GAME_HEIGHT + 30, 1);
@@ -4970,6 +5220,7 @@
             gazes = [];
             cutIn.timer = 0;
             shockwaves = [];
+            impacts = [];
             particles = [];
             floatingTexts = [];
 
@@ -4980,6 +5231,7 @@
             levelIndicator.innerText = `CẢNH ${currentLevelIndex + 1}`;
             levelBanner.text = currentLevel.name;
             levelBanner.timer = BANNER_TIME;
+            storyDelay = null;
             updateHUD();
         }
 
@@ -4996,9 +5248,255 @@
         }
 
         function hideOverlays() {
-            for (const el of [startOverlay, gameOverOverlay, clearOverlay, pauseOverlay, shopOverlay, duelOverlay, charOverlay]) el.classList.add('hidden');
+            for (const el of [startOverlay, gameOverOverlay, clearOverlay, pauseOverlay, shopOverlay, duelOverlay, charOverlay, storyOverlay]) el.classList.add('hidden');
+            clearInterval(story.timer);
             shopOpen = false;
         }
+
+        // --- STORY (Thiên Mệnh Phá Toái, kich_ban/) ---
+        // A line is [speaker, text] or ['title', main, sub] for a full-screen title card
+        const SPEAKERS = {
+            narrator: { name: '' },
+            wukong:   { name: 'TÔN NGỘ KHÔNG', color: '#fbbf24', char: 'wukong' },
+            tang:     { name: 'ĐƯỜNG TĂNG', color: '#fde68a', char: 'tang' },
+            bajie:    { name: 'TRƯ BÁT GIỚI', color: '#f9a8d4', char: 'bajie' },
+            sha:      { name: 'SA TĂNG', color: '#7dd3fc', char: 'sha' },
+            nezha:    { name: 'NA TRA', color: '#fb7185', char: 'nezha' },
+            general:  { name: 'THIÊN TƯỚNG', color: '#e2e8f0', icon: 'fa-shield-halved' },
+            afternoon: { name: 'AFTERNOON TÀ', color: '#e879f9', face: { img: 'bossAfternoon', sx: 46, sy: 46, sw: 84, sh: 84 } },
+            bone:     { name: 'BẠCH CỐT TINH', color: '#c4b5fd', icon: 'fa-skull' },
+            dragon:   { name: 'ĐÔNG HẢI LONG VƯƠNG', color: '#22d3ee', icon: 'fa-dragon' },
+            spider:   { name: 'NHỆN TINH BÀN TƠ', color: '#c084fc', icon: 'fa-spider' },
+            erlang:   { name: 'NHỊ LANG THẦN', color: '#fde047', icon: 'fa-eye' }
+        };
+
+        const OPENING = [
+            ['narrator', 'Người đời kể rằng Tề Thiên Đại Thánh từng đại náo Thiên Cung, bị đè dưới Ngũ Hành Sơn, rồi hộ tống Đường Tăng vượt chín chín tám mươi mốt kiếp nạn để lấy chân kinh.'],
+            ['narrator', 'Nhưng không ai kể rằng, khi chân kinh được mang về, có một trang đã tự biến mất.'],
+            ['narrator', 'Ba năm sau. Hoa Quả Sơn, đêm thứ bảy.'],
+            ['tang', 'Ngộ Không, con có nghe thấy không? Tiếng chuông ấy... không thuộc về bất kỳ ngôi chùa nào ta từng đi qua.'],
+            ['wukong', 'Chuông của Thiên Đình. Nhưng tại sao nó lại vang lên ở Hoa Quả Sơn?'],
+            ['narrator', 'Trên trời, một vì sao biến mất. Rồi đến ngôi thứ hai. Rồi thứ ba.'],
+            ['narrator', 'Ở nơi tận cùng của Thiên Giới, một cánh cổng đã ngủ yên từ thuở khai thiên chậm rãi mở ra.'],
+            ['general', 'Phụng Thiên Mệnh! Phong tỏa Hoa Quả Sơn! Thu hồi linh thạch nguyên thủy!'],
+            ['wukong', 'Các ngươi vừa nói... Thiên Mệnh?'],
+            ['wukong', 'Được. Lão Tôn đã lâu chưa lên trời. Lần này, ta muốn xem kẻ nào dám ra lệnh cho ta!'],
+            ['title', 'TÂY DU KÝ', 'THIÊN MỆNH PHÁ TOÁI']
+        ];
+
+        // Per stage: intro (entering), boss (boss wakes), after (boss defeated), clear (reaching the gate)
+        const STORY = [
+            { // Hoa Quả Sơn
+                intro: [
+                    ['title', 'HỒI I', 'ĐẠI THÁNH TRỞ LẠI'],
+                    ['narrator', 'Thiên binh không đến bắt Đại Thánh. Chúng đào sâu vào lòng núi, tìm một thứ đang nằm dưới Hoa Quả Sơn.'],
+                    ['wukong', 'Lũ tiểu yêu trong rừng cũng phát cuồng rồi. Linh khí ở đây... có mùi của Thiên Đình.'],
+                    ['tang', 'Ngộ Không, đừng ra tay quá nặng. Chúng đang bị thứ gì đó điều khiển.']
+                ],
+                clear: [
+                    ['narrator', 'Dưới gốc đào già, Ngộ Không nhặt được một mảnh phù văn cổ. Trên đó khắc chính dấu ấn của hắn.'],
+                    ['wukong', 'Dấu của lão Tôn? Lão Tôn chưa từng khắc thứ này...'],
+                    ['narrator', 'Phía tây, trời đỏ rực. Hỏa Diệm Sơn đang cháy dữ dội hơn bao giờ hết.']
+                ]
+            },
+            { // Hỏa Diệm Sơn
+                intro: [
+                    ['title', 'HỒI II', 'TAM GIỚI NỔI LOẠN'],
+                    ['narrator', 'Linh lực từ Thiên Đình đang hút cạn mạch đất. Hỏa Diệm Sơn bùng cháy, và yêu quái nơi đây không thể rời đi.'],
+                    ['wukong', 'Lũ yêu này không muốn đánh. Trên trán chúng... là phù ấn.']
+                ],
+                boss: [
+                    ['narrator', 'Giữa biển lửa, một cái đầu khổng lồ lơ lửng, hắc khí cuộn quanh như tóc rối.'],
+                    ['afternoon', 'Tề Thiên Đại Thánh... Ta đã chờ ngươi từ trưa đến tận chiều tà.'],
+                    ['wukong', 'Ngươi là thứ yêu quái gì? Chỉ còn mỗi cái đầu mà cũng dám chặn đường lão Tôn?'],
+                    ['afternoon', 'Ta là Afternoon Tà. Phụng Thiên Mệnh... tiêu diệt biến số thứ nhất!']
+                ],
+                after: [
+                    ['narrator', 'Hắc khí tan dần. Trên trán Afternoon Tà, một đạo phù ấn nứt vỡ.'],
+                    ['afternoon', 'Ta... không còn nhớ mình là ai trước khi bị dán thứ phù ấn này.'],
+                    ['afternoon', 'Nó gọi ngươi là "biến số thứ nhất"... Thiên Môn đã mở rồi, Đại Thánh. Cẩn thận.'],
+                    ['wukong', 'Biến số? Lão Tôn không phải con số của ai cả.']
+                ]
+            },
+            { // Bạch Cốt Động
+                intro: [
+                    ['narrator', 'Trong Bạch Cốt Động, xác thiên binh và yêu quái nằm lẫn với nhau. Tất cả đều mang cùng một loại phù ấn.'],
+                    ['wukong', 'Thiên binh cũng bị khống chế? Kẻ đứng sau không đứng về phe nào cả.']
+                ],
+                boss: [
+                    ['bone', 'Lại là ngươi, con khỉ đá. Lần trước ngươi đánh ta ba lần, thầy ngươi đuổi ngươi đi.'],
+                    ['bone', 'Lần này ta không biến hóa nữa. Ta bị buộc phải canh giữ nơi này... cho đến khi ngươi chết.'],
+                    ['wukong', 'Vậy để lão Tôn cắt đứt sợi dây đang buộc ngươi.']
+                ],
+                after: [
+                    ['bone', 'Ngươi tưởng yêu và thần đánh nhau vì thù hận sao? Có kẻ muốn các phe tự cắn xé lẫn nhau.'],
+                    ['bone', 'Đi hỏi Long Vương đi. Lão giữ một mảnh phù văn giống hệt của ngươi.'],
+                    ['wukong', 'Kích động chiến tranh để Tam Giới tự diệt nhau... Thủ đoạn thật bẩn.']
+                ]
+            },
+            { // Long Cung
+                intro: [
+                    ['title', 'HỒI III', 'LONG CUNG CHÌM VÀO BÓNG TỐI'],
+                    ['narrator', 'Long tộc phong tỏa cửa biển. Linh khí đại dương bị hút về Thiên Đình, cung điện cổ xưa mất dần ánh sáng.'],
+                    ['wukong', 'Lão Long Vương, lần trước lão Tôn đến mượn gậy. Lần này đến mượn sự thật.']
+                ],
+                boss: [
+                    ['dragon', 'Ngộ Không, mảnh phù văn này là chiếc khóa cuối cùng bảo vệ Tam Giới khỏi hỗn loạn.'],
+                    ['dragon', 'Ta không ghét ngươi. Nhưng ta không thể để nó rơi vào tay ngươi.'],
+                    ['wukong', 'Lão sợ lão Tôn, hay sợ thứ đang ra lệnh cho lão?']
+                ],
+                after: [
+                    ['dragon', 'Năm xưa ngươi đại náo Thiên Cung... Đó là lần đầu Thiên Mệnh nhận ra nó không thể điều khiển ngươi.'],
+                    ['dragon', 'Nên nó đổi kế hoạch. Không giết ngươi, mà khiến ngươi tự tay đánh bại tất cả những ai có thể giúp ngươi.'],
+                    ['wukong', 'Afternoon Tà, Bạch Cốt Tinh, giờ đến lão... Tất cả đều là quân cờ đặt sẵn trên đường ta đi?'],
+                    ['narrator', 'Lần đầu tiên, Tề Thiên Đại Thánh không chắc con đường dưới chân có phải do chính mình chọn.']
+                ]
+            },
+            { // Bàn Tơ Động
+                intro: [
+                    ['title', 'HỒI IV', 'KẺ THÙ TRÊN ĐỈNH TRỜI'],
+                    ['narrator', 'Mỗi sợi tơ trong Bàn Tơ Động giữ một ký ức: ký ức của những sinh linh đã bị Thiên Mệnh xóa khỏi lịch sử.'],
+                    ['sha', 'Đại sư huynh, ghi chép về cuộc đại chiến cổ xưa trên Thiên Đình đã bị sửa. Nếu sự thật còn ở đâu, thì là ở đây.']
+                ],
+                boss: [
+                    ['spider', 'Ta giữ ký ức của những kẻ bị buộc phải quên chính mình. Ngươi muốn chúng để làm gì, Đại Thánh? Để đập phá thêm lần nữa?'],
+                    ['wukong', 'Để không ai phải bị lãng quên thêm lần nào nữa.'],
+                    ['spider', 'Lời hay lắm. Chứng minh đi.']
+                ],
+                after: [
+                    ['spider', 'Cầm lấy. Đây là ký ức về cuộc đại chiến, trước khi Thiên Đình được dựng nên.'],
+                    ['narrator', 'Trong sợi tơ, Ngộ Không thấy những vị thần chiến thắng dựng nên một pháp trận khổng lồ, và gọi nó là Thiên Mệnh.'],
+                    ['wukong', 'Không phải thần, không phải Phật. Chỉ là một cỗ pháp trận... quyết định ai được sống theo cách nào.']
+                ]
+            },
+            { // Thiên Cung
+                intro: [
+                    ['narrator', 'Thiên Môn đã ở ngay trước mắt. Thiên binh xếp hàng dày đặc trên biển mây.'],
+                    ['bajie', 'Hầu ca, Thiên Đình vừa sai người đến, hứa trả lại chức Thiên Bồng Nguyên Soái cho lão Trư...'],
+                    ['bajie', 'Lão Trư từ chối rồi. Làm nguyên soái mà không được tự chọn bữa ăn thì có gì vui.']
+                ],
+                boss: [
+                    ['erlang', 'Ngộ Không. Nếu Thiên Mệnh sụp đổ, Tam Giới sẽ chìm vào chiến tranh vô tận.'],
+                    ['erlang', 'Ta không hận ngươi. Nhưng vì chúng sinh, ta phải ngăn ngươi lại.'],
+                    ['wukong', 'Lần trước ngươi thắng nhờ có người giúp. Lần này, chỉ có ta và ngươi.']
+                ],
+                after: [
+                    ['narrator', 'Ngộ Không giơ sợi tơ ký ức lên. Nhị Lang Thần nhìn thấy những cuộc chiến do chính Thiên Mệnh dựng nên.'],
+                    ['erlang', 'Một trật tự phải dùng xiềng xích để giữ... còn đáng để ta bảo vệ sao?'],
+                    ['erlang', 'Sau Thiên Môn là trung tâm Thiên Mệnh. Nó được nuôi bằng linh lực của mọi kiếp nạn, kể cả tám mươi mốt kiếp của các ngươi.'],
+                    ['nezha', 'Ta nhận lệnh bắt ngươi, Ngộ Không. Nhưng hôm nay, Na Tra chọn đứng về phía ngươi.'],
+                    ['tang', 'Ngộ Không... trang kinh biến mất năm ấy không phải tự nhiên mà mất. Chân kinh chính là chiếc khóa cuối cùng của Thiên Mệnh.'],
+                    ['title', 'HỒI V', 'THIÊN MÔN VÔ TỰ · CÒN TIẾP']
+                ]
+            }
+        ];
+
+        const storyOverlay = document.getElementById('story-overlay');
+        const storyBox = document.getElementById('story-box');
+        const storyTitle = document.getElementById('story-title');
+        const storyFace = document.getElementById('story-face');
+        const storyIcon = document.getElementById('story-icon');
+        const storyName = document.getElementById('story-name');
+        const storyText = document.getElementById('story-text');
+        const story = { lines: [], i: 0, typed: 0, timer: null, full: false, resume: 'PLAYING', onDone: null };
+        let storyDelay = null; // { part, t }: a beat waiting a moment (lets the boss death play out)
+
+        function playStory(lines, onDone, full = false) {
+            releaseKeys();
+            Object.assign(story, { lines, i: 0, full, resume: gameState, onDone });
+            gameState = 'STORY';
+            // In a stage the box sits at the top so the boss on the ground stays visible
+            storyOverlay.classList.toggle('justify-end', full);
+            storyOverlay.classList.toggle('justify-start', !full);
+            storyOverlay.classList.remove('hidden');
+            setUiFor(gameState);
+            showStoryLine();
+        }
+
+        // Plays one part of a stage's story the first time it comes up; otherwise goes straight on
+        function storyBeat(stage, part, onDone = () => {}) {
+            const lines = STORY[stage] && STORY[stage][part];
+            const key = `${stage}-${part}`;
+            if (!lines || save.storySeen[key]) {
+                onDone();
+                return;
+            }
+            save.storySeen[key] = true;
+            writeSave();
+            playStory(lines, onDone);
+        }
+
+        function showStoryLine() {
+            const [who, text, sub] = story.lines[story.i];
+            clearInterval(story.timer);
+            const isTitle = who === 'title';
+            storyTitle.classList.toggle('hidden', !isTitle);
+            storyBox.classList.toggle('hidden', isTitle);
+            storyOverlay.style.background = isTitle || story.full
+                ? `rgba(2, 6, 23, ${isTitle ? 0.92 : 0.8})`
+                : 'linear-gradient(to bottom, rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0) 50%)';
+            if (isTitle) {
+                document.getElementById('story-title-main').innerText = text;
+                document.getElementById('story-title-sub').innerText = sub || '';
+                story.typed = text.length;
+                return;
+            }
+            const sp = SPEAKERS[who];
+            storyName.innerText = sp.name;
+            storyName.style.color = sp.color || '';
+            storyText.classList.toggle('italic', who === 'narrator');
+            storyText.classList.toggle('text-slate-300', who === 'narrator');
+            storyFace.classList.toggle('hidden', !sp.char && !sp.face);
+            storyIcon.classList.toggle('hidden', !sp.icon);
+            if (sp.char) drawCharacterFace(storyFace, sp.char);
+            if (sp.face) {
+                // Portrait cut from a boss sheet
+                const g = storyFace.getContext('2d'), f = sp.face;
+                g.clearRect(0, 0, storyFace.width, storyFace.height);
+                g.imageSmoothingEnabled = true; // painted art, not pixel art
+                g.drawImage(IMG[f.img], f.sx, f.sy, f.sw, f.sh, 0, 0, storyFace.width, storyFace.height);
+            }
+            if (sp.icon) {
+                storyIcon.innerHTML = `<i class="fa-solid ${sp.icon}"></i>`;
+                storyIcon.style.color = sp.color;
+                storyIcon.style.borderColor = sp.color;
+            }
+            // Typewriter reveal
+            story.typed = 0;
+            storyText.innerText = '';
+            story.timer = setInterval(() => {
+                story.typed++;
+                storyText.innerText = text.slice(0, story.typed);
+                if (story.typed >= text.length) clearInterval(story.timer);
+            }, 22);
+        }
+
+        function advanceStory() {
+            const text = story.lines[story.i][1];
+            if (story.typed < text.length) {
+                // First press finishes the line being typed
+                clearInterval(story.timer);
+                story.typed = text.length;
+                storyText.innerText = text;
+                return;
+            }
+            story.i++;
+            if (story.i < story.lines.length) showStoryLine();
+            else endStory();
+        }
+
+        function endStory() {
+            clearInterval(story.timer);
+            storyOverlay.classList.add('hidden');
+            releaseKeys();
+            gameState = story.resume;
+            setUiFor(gameState);
+            const done = story.onDone;
+            story.onDone = null;
+            if (done) done();
+        }
+
+        storyOverlay.addEventListener('click', advanceStory);
 
         function startRun(levelIndex) {
             initAudio();
@@ -5015,6 +5513,9 @@
             loadLevel(levelIndex);
             drawAvatar();
             setUiFor(gameState);
+            // Stage title shows once the intro (if any) is over
+            levelBanner.timer = 0;
+            storyBeat(levelIndex, 'intro', () => { levelBanner.timer = BANNER_TIME; });
         }
 
         function setPaused(paused) {
@@ -5233,10 +5734,7 @@
             mapState.t += dt;
             if (mapState.walkT < 1) mapState.walkT = Math.min(1, mapState.walkT + dt / 0.4);
 
-            const theme = THEMES.forest;
-            ctx.drawImage(theme.sky, 0, 0, theme.sky.width * 2, theme.sky.height * 2);
-            drawStrip(theme.bgTrees, BG_STRIP.far, mapState.t * 6, GAME_HEIGHT - 40);
-            drawStrip(theme.bgTrees, BG_STRIP.near, mapState.t * 12, GAME_HEIGHT + 70);
+            drawBackdrop(THEMES.forest, mapState.t * 50);
             ctx.fillStyle = 'rgba(8, 12, 24, 0.5)';
             ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
@@ -5793,6 +6291,7 @@
             particles = [];
             floatingTexts = [];
             shockwaves = [];
+            impacts = [];
             levelBanner.timer = 0;
 
             duel.active = true;
@@ -5881,6 +6380,7 @@
                     if (b.takeDamage(Math.round(DUEL.damage[a.attackCombo] * a.attackPower()), a.facing)) {
                         a.gainMp(DUEL.mpPerHit);
                         hitStop = Math.max(hitStop, 0.05);
+                        addImpact(a, b);
                     }
                 }
             }
@@ -6133,9 +6633,13 @@
             drawEnvironment(ctx, currentLevel, 0);
             drawZones(ctx, 0);
             for (const c of clones) c.draw(ctx, 0);
-            for (const f of duel.fighters) f.draw(ctx, 0);
+            for (const f of duel.fighters) {
+                f.draw(ctx, 0);
+                drawSlash(ctx, f, 0);
+            }
             drawShotsAndBeams(ctx, 0);
             drawShockwaves(ctx, 0);
+            drawImpacts(ctx, 0);
             for (const p of particles) p.draw(ctx, 0);
             ctx.restore();
 
@@ -6216,6 +6720,12 @@
 
         // --- MAIN GAME LOOP ---
         function updateWorld(dt) {
+            if (storyDelay && (storyDelay.t -= dt) <= 0) {
+                const part = storyDelay.part;
+                storyDelay = null;
+                storyBeat(currentLevelIndex, part);
+            }
+
             if (comboCount > 0) {
                 comboTimer -= dt;
                 if (comboTimer <= 0) {
@@ -6260,6 +6770,7 @@
         // Particles, floating numbers and shockwave rings (shared by the campaign and duels)
         function updateEffects(dt) {
             updateShockwaves(dt);
+            updateImpacts(dt);
 
             for (let i = particles.length - 1; i >= 0; i--) {
                 particles[i].update(dt);
@@ -6351,9 +6862,11 @@
 
                 for (const c of clones) c.draw(ctx, camX);
                 player.draw(ctx, camX);
+                drawSlash(ctx, player, camX);
                 drawShotsAndBeams(ctx, camX);
                 for (const p of projectiles) p.draw(ctx, camX);
                 drawShockwaves(ctx, camX);
+                drawImpacts(ctx, camX);
             }
 
             for (let p of particles) {
@@ -6388,6 +6901,14 @@
         startBtn.addEventListener('click', () => {
             initAudio();
             startMusic();
+            if (!save.storySeen.opening && !inviteRoom) {
+                // First launch: the opening scene, then the map
+                save.storySeen.opening = true;
+                writeSave();
+                startOverlay.classList.add('hidden');
+                playStory(OPENING, goToMap, true);
+                return;
+            }
             goToMap();
             if (inviteRoom) {
                 openDuelOverlay();
