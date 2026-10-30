@@ -219,9 +219,10 @@
                 <div class="flex-1 min-h-[72px]">
                     <div id="story-name" class="story-font font-bold text-sm tracking-wider mb-1"></div>
                     <p id="story-text" class="story-font text-slate-100 text-base md:text-lg leading-relaxed"></p>
+                    <div id="story-options" class="hidden mt-3 grid grid-cols-1 md:grid-cols-2 gap-2"></div>
                 </div>
             </div>
-            <div class="w-full max-w-3xl mx-auto mt-2 text-right text-xs text-slate-400 relative">Chạm / Space: tiếp · Esc: bỏ qua</div>
+            <div class="w-full max-w-3xl mx-auto mt-2 text-right text-xs text-slate-400 relative">Chạm / Space: tiếp · 1–4: chọn đáp án · Esc: bỏ qua</div>
         </div>
 
         <!-- WORLD MAP BOTTOM BAR -->
@@ -495,7 +496,9 @@
             if (gameState === 'STORY') {
                 e.preventDefault();
                 if (e.repeat) return;
+                const digit = /^(Digit|Numpad)([1-4])$/.exec(e.code);
                 if (e.code === 'Escape') endStory();
+                else if (digit) answerQuiz(+digit[2] - 1);
                 else if (['Space', 'Enter', 'KeyJ'].includes(e.code)) advanceStory();
                 return;
             }
@@ -1868,6 +1871,55 @@
                 portalY: 400
             }
         ];
+
+        // --- LONGER STAGES ---
+        // Generated stretches are inserted just before each boss arena (the stage's last ground platform),
+        // using the stage's own monsters. Seeded, so a stage is the same every time.
+        const EXTRA_CHUNKS = 2;
+        const CHUNK_W = 1000;
+        const FLYER_HEIGHT = { demon: 300, fish: 320, jelly: 300, spider: 40, cloud: 150 }; // spawn y of flying monsters
+
+        function extendLevel(level, chunks) {
+            const rand = seededRandom(level.worldWidth * 7 + 3);
+            const pick = list => list[Math.floor(rand() * list.length)];
+            const arena = level.platforms.filter(p => p.h >= 40).reduce((a, p) => (p.x > a.x ? p : a));
+            const split = arena.x, shift = chunks * CHUNK_W;
+            for (const key of ['platforms', 'enemies', 'checkpoints', 'peaches', 'chests', 'hazards', 'webs', 'currents']) {
+                for (const o of level[key] || []) if (o.x >= split) o.x += shift;
+            }
+            level.portalX += shift;
+            level.worldWidth += shift;
+
+            const types = [...new Set(level.enemies.map(e => e.type).filter(t => t !== 'boss'))];
+            const walkers = types.filter(t => !(t in FLYER_HEIGHT));
+            const flyers = types.filter(t => t in FLYER_HEIGHT);
+            const walker = () => pick(walkers.length ? walkers : flyers);
+            const ledgeType = level.platforms.find(p => p.h < 40).type;
+            for (let c = 0; c < chunks; c++) {
+                const x = split + c * CHUNK_W;
+                // Two grounds with a jumpable gap, three ledges (the middle one over the gap)
+                const groundA = 340 + rand() * 80, gap = 110 + rand() * 30, bx = x + groundA + gap;
+                const l1 = { x: x + 80 + rand() * 60, y: 340 + rand() * 30, w: 160, h: 20, type: ledgeType };
+                const l2 = { x: x + groundA - 50, y: 250 + rand() * 30, w: 150, h: 20, type: ledgeType };
+                const l3 = { x: bx + 180 + rand() * 80, y: 320 + rand() * 30, w: 170, h: 20, type: ledgeType };
+                level.platforms.push(
+                    { x, y: 480, w: groundA, h: 60, type: arena.type },
+                    { x: bx, y: 480, w: x + CHUNK_W - bx, h: 60, type: arena.type },
+                    l1, l2, l3);
+                level.peaches.push({ x: l2.x + 70, y: l2.y - 30 });
+                level.checkpoints.push({ x: bx + 40, y: 480 });
+                level.enemies.push(
+                    { x: x + 150 + rand() * 100, y: 420, type: walker() },
+                    { x: l1.x + 60, y: l1.y - 60, type: walker() },
+                    { x: bx + 120, y: 420, type: walker() },
+                    { x: x + CHUNK_W - 160, y: 420, type: walker() });
+                for (const fx of [x + groundA + gap / 2, x + CHUNK_W * 0.7]) {
+                    const t = flyers.length ? pick(flyers) : walker();
+                    level.enemies.push({ x: fx, y: FLYER_HEIGHT[t] || 420, type: t });
+                }
+            }
+        }
+        for (const level of LEVELS) extendLevel(level, EXTRA_CHUNKS);
 
         // --- CAMERA SYSTEM ---
         const camera = {
@@ -4392,6 +4444,179 @@
 
         // --- ENEMY CLASS ---
         // barLift = how far above the hitbox the HP bar sits (clears wings / tall sprites)
+        // --- MONSTER CHATTER (speech bubbles over ordinary monsters) ---
+        // Each monster gets a mood: daily small talk, poetry (read a couplet at a time) or taunts aimed at the hero
+        const CHATTER = {
+            daily: [
+                'Hôm nay ăn gì nhỉ...',
+                'Lương tháng này chưa về, mà tiền nhà đã về rồi.',
+                'Ai lấy đôi dép của tôi vậy?',
+                'Mai được nghỉ không ta?',
+                'Trời hôm nay đẹp ghê. Hợp để... đứng im.',
+                'Tôi chỉ là quái phụ thôi, tôi còn đang trả góp xe.',
+                'Sáng nay hình như quên tắt bếp. Ủa mà tôi sống trong hang mà.',
+                'Làm quái vật mà không có bảo hiểm xã hội.',
+                'Vợ dặn mua nước mắm, quên mất rồi.',
+                'Hôm qua mơ thấy mình được làm boss. Tỉnh dậy vẫn là quái thường.',
+                'Wifi chỗ này yếu quá.',
+                'Đứng canh chỗ này ba năm rồi, chưa ai trả lương.',
+                'Ủa, nãy tôi định nói gì nhỉ?',
+                'Đi qua đi lại cả ngày, được tám nghìn bước rồi.',
+                'Cuối tuần này team building ở Hỏa Diệm Sơn. Nóng chết.',
+                'Boss bảo hôm nay cho về sớm. Boss nói dối.',
+                'Tôi đang tập thiền. Đừng làm phiền... à thôi, đánh nhau đi.',
+                'Nghe nói ải sau có quái lương cao hơn.',
+                'Tối nay có đá bóng không nhỉ?',
+                'Ăn sáng chưa? Chưa à? Tôi cũng chưa.'
+            ],
+            taunt: [
+                'Ê {ai}, đánh gì mà nhẹ như gãi lưng vậy?',
+                '{ai} ơi, nhảy cao thế mà trình không cao lên tí nào.',
+                'Lại là {ai}. Đi đâu cũng gặp, chán ghê.',
+                'Máu tôi trâu lắm, {ai} đánh đến mai cũng chưa xong.',
+                '{ai} ơi, Tây Thiên rẽ trái nhé. À không, rẽ phải.',
+                'Nhìn {ai} chạy mà tôi thấy mệt giùm.',
+                'Đánh tôi xong nhớ đánh giá năm sao nhé {ai}.',
+                'Combo ba đòn mà tôi vẫn đứng đây. Xấu hổ chưa {ai}?',
+                'Đẹp trai như tôi mà {ai} cũng nỡ đánh à?',
+                'Có giỏi thì đứng yên đó! ...Ơ, đứng yên thật à?',
+                '{ai} có biết mình đang đi ngược đường không?',
+                'Né được đòn của tôi thì tôi gọi {ai} là đại ca.'
+            ],
+            hurt: ['Á!', 'Ui da!', 'Nhẹ tay thôi!', 'Đau thế!', 'Tôi mách mẹ!', 'Chơi xấu!', 'Còn nhiều máu lắm, đừng mừng!', 'Báo cáo, tôi bị đánh!'],
+            dying: ['Ta sẽ quay lại... ở ải sau.', 'Nhớ... trả lương... cho tôi...', 'Cuối cùng cũng được nghỉ.', 'Hẹn gặp lại khi bạn chơi lại màn này.', 'Chưa kịp ăn trưa...', 'Nói với vợ tôi... nước mắm...']
+        };
+        // How each monster calls the hero, per character
+        const TAUNT_NAMES = { wukong: 'con khỉ', bajie: 'con heo', sha: 'ông râu', nezha: 'nhóc Na Tra', tang: 'sư thầy' };
+        // Thơ nhảm (tho/): read two lines at a time
+        const POEMS = [
+            ['Đường đời thật lắm gian truân,', 'Hồi nhỏ còn trẻ, sống lâu thì già.', 'Muốn vui thì phải cười ca,', 'Khi nào mệt quá là ta... nghỉ liền.'],
+            ['Nắng mưa là bệnh của trời,', 'Đêm đến không ngủ thì ngồi chờ sáng.', 'Khi yêu thì rất lãng mạn,', 'Hết yêu thì hết làm bạn với nhau.'],
+            ['Sống là phải có niềm tin,', 'Nhắm mắt lại thấy tối thui một màu.', 'Răng hỏng thì sẽ bị đau,', 'Nước sôi dội xuống là mau xù lông.'],
+            ['Ngày mai là của hôm sau,', 'Hôm nay chưa tới thì đâu biết gì.', 'Bánh mì phải có mứt vi,', 'Đi đâu mà vội, đứng im một chỗ!'],
+            ['Ăn cơm thì phải có thìa,', 'Đang nằm trên giường thì đừng ngủ gật.', 'Lòng người tráo trở thật thà,', 'Ăn nhiều quá tải thì ra nhà cầu.'],
+            ['Đang đi mà thấy trời mưa,', 'Mặc áo mưa vào thì sẽ bớt ướt.', 'Con đường mình tự mình bước,', 'Ngoảnh lại đằng sau thấy vết chân đi.'],
+            ['Chuối chín thì có màu vàng,', 'Cơm sôi bớt lửa kẻo màng nó khê.', 'Đêm nằm mơ thấy rồng mê,', 'Tỉnh ra mới biết là mê... ngủ rồi.'],
+            ['Bút chót vót là bút chì,', 'Xe mà hết xăng thì đi bằng niềm.', 'Tìm hoài không thấy thì tìm,', 'Đến khi thấy được là tìm ra rồi.'],
+            ['Bạn bè lúc khó có nhau,', 'Đang vui tự nhiên... hết vui giữa chừng.', 'Đi đâu cũng nhớ lưng chừng,', 'Đang yên đang lành tự nhiên thấy mệt.'],
+            ['Muốn giàu thì phải có tiền,', 'Muốn không suy nghĩ thì đừng tư duy.', 'Cuộc đời là chuyến đi đi,', 'Chừng nào dừng lại là không đi nữa.'],
+            ['Thà rằng uống chén rượu cay,', 'Còn hơn uống nước mắm chay không đường.', 'Nhìn em đứng ở ven đường,', 'Mới hay em đứng... ngay đường em đi.'],
+            ['Con gà nó đẻ ra trứng,', 'Quả trứng lại nở con gà.', 'Nếu mà không đẻ nữa nha,', 'Thì làm đĩa luộc chấm qua muối tiêu.'],
+            ['Trời mưa thì đất nó ướt,', 'Nắng lên thì đất nó khô.', 'Chè ngọt thì ngọt bằng đường,', 'Con sông thì chảy ra đường biển xa.'],
+            ['Chạy nhiều thì sẽ thấy mệt,', 'Mệt rồi thì phải thở dốc.', 'Tóc dài thì gọi là tóc,', 'Cắt xong thì gọi là tóc ngắn hơn.'],
+            ['Chén trà ngon phải có nước sôi,', 'Muốn uống nước nguội thì chờ nó nguội.'],
+            ['Khi xưa ta bé ta thơ,', 'Bây giờ ta lớn ta hết thơ bé.'],
+            ['Yêu nhau thương nhau là thật,', 'Nhưng lúc cãi nhau là hết thương.'],
+            ['Đứng cao nhìn xuống thấy thấp,', 'Ngồi xuống nhìn lên thấy cao hơn.'],
+            ['Sông sâu còn có kẻ dò,', 'Lòng người nông sâu... kệ người ta đi!']
+        ];
+        const MAX_CHATTING = 3; // idle bubbles on screen at once (reactions don't count)
+        const BUBBLE_STYLE = {
+            daily: { fill: '#f8fafc', stroke: '#334155', text: '#0f172a', font: '600' },
+            poet:  { fill: '#fef3c7', stroke: '#b45309', text: '#78350f', font: 'italic 600' },
+            taunt: { fill: '#fee2e2', stroke: '#b91c1c', text: '#7f1d1d', font: '600' },
+            hurt:  { fill: '#ffffff', stroke: '#ef4444', text: '#b91c1c', font: '700' },
+            dying: { fill: '#e2e8f0', stroke: '#64748b', text: '#334155', font: 'italic 600' }
+        };
+        const pickOne = list => list[Math.floor(Math.random() * list.length)];
+        let bubbles = [];
+
+        function newChatter() {
+            const r = Math.random();
+            return { mood: r < 0.4 ? 'daily' : r < 0.7 ? 'poet' : 'taunt', timer: 2 + Math.random() * 8,
+                poem: Math.floor(Math.random() * POEMS.length), verse: 0 };
+        }
+
+        function say(enemy, text, kind, time) {
+            bubbles = bubbles.filter(b => b.owner !== enemy);
+            bubbles.push({ owner: enemy, kind, text, life: time, maxLife: time, x: 0, y: 0, lines: null });
+        }
+
+        // An idle line from the monster's mood; poets carry on through their poem
+        function chatterLine(c, hero) {
+            if (c.mood === 'daily') return pickOne(CHATTER.daily);
+            if (c.mood === 'taunt') {
+                const line = pickOne(CHATTER.taunt).replace(/\{ai\}/g, TAUNT_NAMES[hero.charId] || 'ngươi');
+                return line[0].toUpperCase() + line.slice(1);
+            }
+            const poem = POEMS[c.poem];
+            const text = poem.slice(c.verse, c.verse + 2).join('\n');
+            c.verse += 2;
+            if (c.verse >= poem.length) {
+                c.verse = 0;
+                c.poem = Math.floor(Math.random() * POEMS.length);
+            }
+            return text;
+        }
+
+        function updateBubbles(dt) {
+            for (const b of bubbles) {
+                b.life -= dt;
+                // Follow the speaker while alive; a dying line stays where it fell
+                if (b.owner && !(b.owner.dead && b.kind !== 'dying')) {
+                    b.x = b.owner.x + b.owner.width / 2;
+                    b.y = b.owner.y - b.owner.barLift - 6;
+                }
+            }
+            bubbles = bubbles.filter(b => b.life > 0 && !(b.owner && b.owner.dead && b.kind !== 'dying'));
+        }
+
+        function wrapBubble(text, maxW) {
+            const out = [];
+            for (const para of text.split('\n')) {
+                let line = '';
+                for (const word of para.split(' ')) {
+                    const next = line ? `${line} ${word}` : word;
+                    if (line && ctx.measureText(next).width > maxW) {
+                        out.push(line);
+                        line = word;
+                    } else {
+                        line = next;
+                    }
+                }
+                out.push(line);
+            }
+            return out;
+        }
+
+        function drawBubbles(ctx, camX) {
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            for (const b of bubbles) {
+                const st = BUBBLE_STYLE[b.kind];
+                ctx.font = `${st.font} 11px 'Noto Serif', serif`;
+                if (!b.lines) b.lines = wrapBubble(b.text, 180);
+                const lh = 14;
+                const w = Math.max(...b.lines.map(l => ctx.measureText(l).width)) + 14;
+                const h = b.lines.length * lh + 10;
+                const sx = b.x - camX;
+                if (sx < -100 || sx > GAME_WIDTH + 100) continue;
+                const x = Math.max(4, Math.min(GAME_WIDTH - w - 4, sx - w / 2));
+                const y = b.y - h - 8;
+                ctx.globalAlpha = Math.max(0, Math.min(1, (b.maxLife - b.life) / 0.15, b.life / 0.3));
+                ctx.fillStyle = st.fill;
+                ctx.strokeStyle = st.stroke;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.roundRect(x, y, w, h, 6);
+                // Tail pointing down at the speaker
+                const tx = Math.max(x + 8, Math.min(x + w - 8, sx));
+                ctx.moveTo(tx - 5, y + h);
+                ctx.lineTo(tx, y + h + 7);
+                ctx.lineTo(tx + 5, y + h);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = st.text;
+                b.lines.forEach((l, i) => ctx.fillText(l, x + w / 2, y + 6 + i * lh));
+            }
+            ctx.restore();
+        }
+
+        // Boss and monster toughness, on top of ENEMY_STATS hp
+        const MOB_HP_SCALE = 3;
+        const BOSS_HP_SCALE = 2;
+
         const ENEMY_STATS = {
             slime:  { width: 36,  height: 30, hp: 30,  speed: 1.8, damage: 10, scoreValue: 100,  barLift: 10 },
             goblin: { width: 54,  height: 42, hp: 60,  speed: 2.5, damage: 15, scoreValue: 200,  barLift: 10 },
@@ -4415,7 +4640,9 @@
                 this.y = y;
                 this.type = type;
                 Object.assign(this, ENEMY_STATS[type]);
+                this.hp = Math.round(this.hp * (type === 'boss' ? BOSS_HP_SCALE : MOB_HP_SCALE));
                 this.maxHp = this.hp;
+                this.chatter = type === 'boss' ? null : newChatter();
 
                 // Bees (demon) and fish hover around their spawn point and chase; jellyfish just drift up and down
                 // Hanging spiders sit on a thread at their spawn height and drop onto the player
@@ -4465,6 +4692,8 @@
                     this.hitTimer -= dt;
                     if (this.hitTimer <= 0) this.isHit = false;
                 }
+
+                if (this.chatter) this.chat(dt, player);
 
                 if (this.slowTimer > 0) this.slowTimer -= dt;
 
@@ -4577,6 +4806,17 @@
                 }
                 this.x += this.kvx;
                 this.kvx *= 0.85;
+            }
+
+            // Now and then says something in its mood, if the hero is near and the screen isn't too chatty
+            chat(dt, player) {
+                const c = this.chatter;
+                c.timer -= dt;
+                if (c.timer > 0) return;
+                c.timer = 6 + Math.random() * 8;
+                const busy = bubbles.filter(b => b.kind !== 'hurt' && b.kind !== 'dying').length >= MAX_CHATTING;
+                if (busy || Math.abs(this.x - player.x) > 650 || bubbles.some(b => b.owner === this)) return;
+                say(this, chatterLine(c, player), c.mood, c.mood === 'poet' ? 5 : 3.5);
             }
 
             // Lưu Sa Hà quicksand drags enemies to a crawl
@@ -4729,6 +4969,7 @@
 
                 createHitSparks(this.x + this.width / 2, this.y + this.height / 2, '#fef08a', 8);
                 floatingTexts.push(new FloatingText(`${amount}`, this.x + 10, this.y - 10, '#fef08a', 14));
+                if (this.hp > 0 && this.chatter && Math.random() < 0.2) say(this, pickOne(CHATTER.hurt), 'hurt', 1.4);
 
                 if (this.hp <= 0) {
                     this.dead = true;
@@ -4750,6 +4991,7 @@
                     } else {
                         hitStop = Math.max(hitStop, 0.08);
                         if (Math.random() < 0.35) pickups.push(new Pickup(cx, this.y + 10, true));
+                        if (Math.random() < 0.4) say(this, pickOne(CHATTER.dying), 'dying', 2.5);
                     }
                     updateHUD();
                 }
@@ -5223,6 +5465,7 @@
             impacts = [];
             particles = [];
             floatingTexts = [];
+            bubbles = [];
 
             const theme = THEMES[currentLevel.theme];
             buildScenery(currentLevel, theme);
@@ -5254,7 +5497,8 @@
         }
 
         // --- STORY (Thiên Mệnh Phá Toái, kich_ban/) ---
-        // A line is [speaker, text] or ['title', main, sub] for a full-screen title card
+        // A line is [speaker, text], ['title', main, sub] for a full-screen title card,
+        // or a quiz: { quiz: speaker, q, options, answer, right, wrong }. Any answer moves on; a right one pays Đào Tiên.
         const SPEAKERS = {
             narrator: { name: '' },
             wukong:   { name: 'TÔN NGỘ KHÔNG', color: '#fbbf24', char: 'wukong' },
@@ -5269,124 +5513,177 @@
             spider:   { name: 'NHỆN TINH BÀN TƠ', color: '#c084fc', icon: 'fa-spider' },
             erlang:   { name: 'NHỊ LANG THẦN', color: '#fde047', icon: 'fa-eye' }
         };
+        const QUIZ_REWARD = 5; // Đào Tiên for a right answer
 
         const OPENING = [
-            ['narrator', 'Người đời kể rằng Tề Thiên Đại Thánh từng đại náo Thiên Cung, bị đè dưới Ngũ Hành Sơn, rồi hộ tống Đường Tăng vượt chín chín tám mươi mốt kiếp nạn để lấy chân kinh.'],
-            ['narrator', 'Nhưng không ai kể rằng, khi chân kinh được mang về, có một trang đã tự biến mất.'],
-            ['narrator', 'Ba năm sau. Hoa Quả Sơn, đêm thứ bảy.'],
+            ['narrator', 'Người đời kể rằng Tề Thiên Đại Thánh từng đại náo Thiên Cung, bị đè dưới Ngũ Hành Sơn năm trăm năm, rồi hộ tống Đường Tăng đi bộ mười vạn tám nghìn dặm mà không có nổi một đôi giày thể thao.'],
+            ['narrator', 'Nhưng không ai kể rằng, khi chân kinh được mang về, có một trang đã biến mất. Nghi phạm số một: Bát Giới. Lý do: trang đó có hình cái bánh bao.'],
+            ['narrator', 'Ba năm sau. Hoa Quả Sơn, đêm thứ bảy. Wifi yếu.'],
             ['tang', 'Ngộ Không, con có nghe thấy không? Tiếng chuông ấy... không thuộc về bất kỳ ngôi chùa nào ta từng đi qua.'],
-            ['wukong', 'Chuông của Thiên Đình. Nhưng tại sao nó lại vang lên ở Hoa Quả Sơn?'],
-            ['narrator', 'Trên trời, một vì sao biến mất. Rồi đến ngôi thứ hai. Rồi thứ ba.'],
-            ['narrator', 'Ở nơi tận cùng của Thiên Giới, một cánh cổng đã ngủ yên từ thuở khai thiên chậm rãi mở ra.'],
-            ['general', 'Phụng Thiên Mệnh! Phong tỏa Hoa Quả Sơn! Thu hồi linh thạch nguyên thủy!'],
-            ['wukong', 'Các ngươi vừa nói... Thiên Mệnh?'],
-            ['wukong', 'Được. Lão Tôn đã lâu chưa lên trời. Lần này, ta muốn xem kẻ nào dám ra lệnh cho ta!'],
-            ['title', 'TÂY DU KÝ', 'THIÊN MỆNH PHÁ TOÁI']
+            ['wukong', 'Dạ, chuông báo thức của Thiên Đình đó sư phụ. Họ đặt nhầm múi giờ năm trăm năm nay rồi.'],
+            ['tang', 'Khoảnh khắc này thật thiêng liêng. Vi sư xin đọc một bài thơ.'],
+            ['tang', '"Trăng kia ai vẽ mà tròn / Ngộ Không ai dạy mà còn... nghịch ngu."'],
+            ['wukong', 'Sư phụ, vần đó ép quá rồi.'],
+            ['narrator', 'Trên trời, một vì sao biến mất. Rồi ngôi thứ hai. Rồi thứ ba. Có lẽ ai đó quên đóng tiền điện.'],
+            ['general', 'Phụng Thiên Mệnh! Phong tỏa Hoa Quả Sơn! Thu hồi linh thạch nguyên thủy! À, thu luôn phí vệ sinh tháng này!'],
+            ['wukong', 'Các ngươi vừa nói... Thiên Mệnh? Là ai? Có Facebook không?'],
+            ['general', 'Thiên Mệnh không cần Facebook. Thiên Mệnh là thuật toán.'],
+            ['wukong', 'Được. Lão Tôn đã lâu chưa lên trời. Lần này ta muốn xem cái thuật toán nào dám đề xuất ta!'],
+            ['title', 'TÂY DU KÝ', 'THIÊN MỆNH PHÁ TOÁI (VÀ HƠI NHẢM)']
         ];
 
         // Per stage: intro (entering), boss (boss wakes), after (boss defeated), clear (reaching the gate)
         const STORY = [
             { // Hoa Quả Sơn
                 intro: [
-                    ['title', 'HỒI I', 'ĐẠI THÁNH TRỞ LẠI'],
-                    ['narrator', 'Thiên binh không đến bắt Đại Thánh. Chúng đào sâu vào lòng núi, tìm một thứ đang nằm dưới Hoa Quả Sơn.'],
-                    ['wukong', 'Lũ tiểu yêu trong rừng cũng phát cuồng rồi. Linh khí ở đây... có mùi của Thiên Đình.'],
-                    ['tang', 'Ngộ Không, đừng ra tay quá nặng. Chúng đang bị thứ gì đó điều khiển.']
+                    ['title', 'HỒI I', 'ĐẠI THÁNH TRỞ LẠI SAU KỲ NGHỈ PHÉP DÀI NHẤT LỊCH SỬ'],
+                    ['narrator', 'Thiên binh không đến bắt Đại Thánh. Chúng đến... đo đất. Nghe đồn dưới Hoa Quả Sơn sắp lên dự án.'],
+                    ['general', 'Đứng lại! Muốn đi qua đây, ngươi phải giải được bài toán của Thiên Đình!'],
+                    ['wukong', 'Lão Tôn học 72 phép biến hóa rồi, toán thì... thầy dạy toán bỏ chạy giữa chừng nên chưa biết mình giỏi cỡ nào.'],
+                    { quiz: 'general', q: 'Một con khỉ ăn 3 quả đào mỗi phút. Hỏi 5 con khỉ ăn hết 15 quả đào trong bao lâu?',
+                      options: ['1 phút', '5 phút', '15 phút', 'Đào đâu ra mà nhiều thế?'], answer: 0,
+                      right: 'Đúng... Khoan, sao một con khỉ lại tính nhanh hơn cả phòng kế toán Thiên Đình?',
+                      wrong: 'Sai bét. Nhưng ta cũng không chắc đáp án lắm. Thôi qua đi, ta hết ca rồi.' },
+                    ['tang', 'Ngộ Không, ra tay nhẹ thôi. Lũ tiểu yêu chỉ là nạn nhân của hệ thống.']
                 ],
                 clear: [
-                    ['narrator', 'Dưới gốc đào già, Ngộ Không nhặt được một mảnh phù văn cổ. Trên đó khắc chính dấu ấn của hắn.'],
-                    ['wukong', 'Dấu của lão Tôn? Lão Tôn chưa từng khắc thứ này...'],
-                    ['narrator', 'Phía tây, trời đỏ rực. Hỏa Diệm Sơn đang cháy dữ dội hơn bao giờ hết.']
+                    ['narrator', 'Dưới gốc đào già, Ngộ Không nhặt được một mảnh phù văn cổ. Trên đó khắc chính dấu ấn của hắn, kèm một dòng chữ nhỏ: "Made in Thiên Đình".'],
+                    ['wukong', 'Dấu của lão Tôn? Đứa nào làm hàng nhái thương hiệu của ta?'],
+                    ['narrator', 'Phía tây, trời đỏ rực. Hỏa Diệm Sơn đang cháy. Có thể là núi lửa. Cũng có thể ai đó quên tắt bếp.']
                 ]
             },
             { // Hỏa Diệm Sơn
                 intro: [
-                    ['title', 'HỒI II', 'TAM GIỚI NỔI LOẠN'],
-                    ['narrator', 'Linh lực từ Thiên Đình đang hút cạn mạch đất. Hỏa Diệm Sơn bùng cháy, và yêu quái nơi đây không thể rời đi.'],
-                    ['wukong', 'Lũ yêu này không muốn đánh. Trên trán chúng... là phù ấn.']
+                    ['title', 'HỒI II', 'TAM GIỚI NỔI LOẠN (VÌ NÓNG QUÁ)'],
+                    ['narrator', 'Hỏa Diệm Sơn nóng bốn nghìn độ. Yêu quái nơi đây không thể rời đi vì điều hòa ở nhà vẫn còn đang trả góp.'],
+                    ['bajie', 'Hầu ca, lão Trư thử nướng củ khoai trên tảng đá này. Ba giây là chín. Mở quán ở đây được đấy.'],
+                    ['wukong', 'Lũ yêu này không muốn đánh. Trên trán chúng có phù ấn... ghi là "Làm thêm giờ, không lương".']
                 ],
                 boss: [
-                    ['narrator', 'Giữa biển lửa, một cái đầu khổng lồ lơ lửng, hắc khí cuộn quanh như tóc rối.'],
+                    ['narrator', 'Giữa biển lửa, một cái đầu khổng lồ lơ lửng. Không thân. Không cổ. Chỉ có ánh mắt của người vừa bị gọi đi họp lúc năm giờ chiều.'],
                     ['afternoon', 'Tề Thiên Đại Thánh... Ta đã chờ ngươi từ trưa đến tận chiều tà.'],
-                    ['wukong', 'Ngươi là thứ yêu quái gì? Chỉ còn mỗi cái đầu mà cũng dám chặn đường lão Tôn?'],
-                    ['afternoon', 'Ta là Afternoon Tà. Phụng Thiên Mệnh... tiêu diệt biến số thứ nhất!']
+                    ['wukong', 'Sao ngươi chỉ có mỗi cái đầu?'],
+                    ['afternoon', 'Thân ta đang ngồi họp. Đầu ta ra đây đánh ngươi. Người ta gọi đó là đa nhiệm.'],
+                    ['afternoon', 'Ta tặng ngươi một câu triết lý: "Buổi sáng là để mong buổi trưa. Buổi trưa là để mong buổi chiều. Buổi chiều là để mong... được về."'],
+                    ['wukong', 'Thâm thúy thật... nhưng lão Tôn chẳng hiểu gì.'],
+                    { quiz: 'afternoon', q: 'Muốn đánh ta thì trả lời đã: Deadline là thứ Sáu, hôm nay thứ Năm, việc cần làm ba ngày. Ngươi làm gì?',
+                      options: ['Thức xuyên đêm', 'Xin dời deadline', 'Dùng Bách Phân Thân, chia ba con làm', 'Đánh boss cho nhanh'], answer: 2,
+                      right: 'Hừm... đúng là lời giải của kẻ có 72 phép biến hóa. Nhưng ba phân thân vẫn chỉ được tính một suất lương thôi!',
+                      wrong: 'Sai! Đáp án là Bách Phân Thân. Có phép mà không biết dùng, đúng là nhân viên mới.' },
+                    ['afternoon', 'Phụng Thiên Mệnh... tiêu diệt biến số thứ nhất! Và tiện thể chấm công luôn!']
                 ],
                 after: [
-                    ['narrator', 'Hắc khí tan dần. Trên trán Afternoon Tà, một đạo phù ấn nứt vỡ.'],
-                    ['afternoon', 'Ta... không còn nhớ mình là ai trước khi bị dán thứ phù ấn này.'],
-                    ['afternoon', 'Nó gọi ngươi là "biến số thứ nhất"... Thiên Môn đã mở rồi, Đại Thánh. Cẩn thận.'],
-                    ['wukong', 'Biến số? Lão Tôn không phải con số của ai cả.']
+                    ['narrator', 'Hắc khí tan dần. Trên trán Afternoon Tà, phù ấn nứt vỡ, rơi ra một tờ giấy: "Đơn xin nghỉ phép: KHÔNG DUYỆT".'],
+                    ['afternoon', 'Ta... nhớ ra rồi. Ta chỉ là một cái đầu bình thường, thích uống trà chiều. Rồi Thiên Mệnh giao KPI cho ta.'],
+                    ['afternoon', 'Nó gọi ngươi là "biến số thứ nhất". Cẩn thận, Đại Thánh. Thiên Môn đã mở... và nghe nói bên trong không có máy lạnh.'],
+                    ['wukong', 'Biến số? Lão Tôn không phải con số của ai cả. Lão Tôn là chữ cái.'],
+                    ['bajie', 'Chữ gì vậy Hầu ca?'],
+                    ['wukong', 'Chữ... KHÔNG. Ngộ KHÔNG.']
                 ]
             },
             { // Bạch Cốt Động
                 intro: [
-                    ['narrator', 'Trong Bạch Cốt Động, xác thiên binh và yêu quái nằm lẫn với nhau. Tất cả đều mang cùng một loại phù ấn.'],
-                    ['wukong', 'Thiên binh cũng bị khống chế? Kẻ đứng sau không đứng về phe nào cả.']
+                    ['narrator', 'Bạch Cốt Động. Xương nhiều đến mức có thể mở một cửa hàng canxi.'],
+                    ['sha', 'Đại sư huynh, thiên binh và yêu quái nằm lẫn với nhau. Tất cả đều mang cùng một loại phù ấn.'],
+                    ['wukong', 'Kẻ đứng sau không đứng về phe nào cả. Hắn đứng về phe... bảng tính Excel.']
                 ],
                 boss: [
                     ['bone', 'Lại là ngươi, con khỉ đá. Lần trước ngươi đánh ta ba lần, thầy ngươi đuổi ngươi đi.'],
-                    ['bone', 'Lần này ta không biến hóa nữa. Ta bị buộc phải canh giữ nơi này... cho đến khi ngươi chết.'],
-                    ['wukong', 'Vậy để lão Tôn cắt đứt sợi dây đang buộc ngươi.']
+                    ['tang', 'Phải, và vi sư vẫn chưa xin lỗi. Ngộ Không, vi sư xin lỗi. Giờ đánh tiếp đi con.'],
+                    ['bone', 'Ta tặng ngươi một bài thơ: "Xương ta trắng, lòng ta đen / Ngươi mà thắng được, ta... đi khen."'],
+                    ['wukong', 'Thơ con cóc.'],
+                    ['bone', 'Con cóc cũng có xương! Ăn nói cho tôn trọng!'],
+                    { quiz: 'bone', q: 'Câu đố: Cái gì càng giặt càng bẩn?',
+                      options: ['Quần áo', 'Nước', 'Tâm hồn Bát Giới', 'Bộ xương của ta'], answer: 1,
+                      right: 'Là nước. Ngươi thông minh hơn ta tưởng... ta cứ tưởng ngươi là khỉ thường.',
+                      wrong: 'Sai! Là nước. Về học lại lớp ba đi!' },
+                    ['bone', 'Lần này ta không biến hóa nữa. Ta lười. Đánh thẳng luôn!']
                 ],
                 after: [
-                    ['bone', 'Ngươi tưởng yêu và thần đánh nhau vì thù hận sao? Có kẻ muốn các phe tự cắn xé lẫn nhau.'],
-                    ['bone', 'Đi hỏi Long Vương đi. Lão giữ một mảnh phù văn giống hệt của ngươi.'],
-                    ['wukong', 'Kích động chiến tranh để Tam Giới tự diệt nhau... Thủ đoạn thật bẩn.']
+                    ['bone', 'Ngươi tưởng yêu và thần đánh nhau vì thù hận sao? Không. Có kẻ ngồi bấm nút cho các phe cắn nhau... để tăng tương tác.'],
+                    ['bone', 'Đi hỏi Long Vương đi. Lão giữ một mảnh phù văn giống hệt của ngươi. Và lão còn nợ ta tiền.'],
+                    ['wukong', 'Kích động chiến tranh để Tam Giới tự diệt nhau... Thủ đoạn thật bẩn. Bẩn hơn cả nước giặt.']
                 ]
             },
             { // Long Cung
                 intro: [
-                    ['title', 'HỒI III', 'LONG CUNG CHÌM VÀO BÓNG TỐI'],
-                    ['narrator', 'Long tộc phong tỏa cửa biển. Linh khí đại dương bị hút về Thiên Đình, cung điện cổ xưa mất dần ánh sáng.'],
-                    ['wukong', 'Lão Long Vương, lần trước lão Tôn đến mượn gậy. Lần này đến mượn sự thật.']
+                    ['title', 'HỒI III', 'LONG CUNG CHÌM VÀO BÓNG TỐI (VÌ CHƯA ĐÓNG TIỀN ĐIỆN)'],
+                    ['narrator', 'Linh khí đại dương bị hút về Thiên Đình. Cung điện cổ xưa mất dần ánh sáng. Cá thì vẫn bơi bình thường, chẳng con nào quan tâm.'],
+                    ['wukong', 'Lão Long Vương, lần trước lão Tôn đến mượn gậy. Lần này đến mượn sự thật. Lần sau chắc mượn tiền.']
                 ],
                 boss: [
-                    ['dragon', 'Ngộ Không, mảnh phù văn này là chiếc khóa cuối cùng bảo vệ Tam Giới khỏi hỗn loạn.'],
-                    ['dragon', 'Ta không ghét ngươi. Nhưng ta không thể để nó rơi vào tay ngươi.'],
-                    ['wukong', 'Lão sợ lão Tôn, hay sợ thứ đang ra lệnh cho lão?']
+                    ['dragon', 'Ngộ Không! Mảnh phù văn này là chiếc khóa cuối cùng bảo vệ Tam Giới!'],
+                    ['dragon', 'Mà cây Như Ý năm xưa ngươi mượn, bao giờ trả? Tính lãi năm trăm năm thì...'],
+                    ['wukong', 'Ơ, gậy đó lão tặng mà?'],
+                    ['dragon', 'Ta nói "cầm đi", chứ không phải "cầm luôn"! Tiếng Việt khó lắm!'],
+                    { quiz: 'dragon', q: 'Trả lời đúng thì ta xóa nợ: Biển rộng bao nhiêu?',
+                      options: ['Rất rộng', 'Bằng ba cái hồ bơi', 'Không đo được vì cá cứ bơi qua bơi lại', 'Bằng tấm lòng của Long Vương'], answer: 3,
+                      right: 'Chính xác! Ngươi biết cách nói chuyện đấy. Nợ xóa một nửa.',
+                      wrong: 'Sai. Đáp án là "bằng tấm lòng của Long Vương". Nợ nhân đôi.' },
+                    ['dragon', 'Ta không ghét ngươi. Nhưng hôm nay ta phải đánh ngươi, vì trong hợp đồng ghi thế.']
                 ],
                 after: [
-                    ['dragon', 'Năm xưa ngươi đại náo Thiên Cung... Đó là lần đầu Thiên Mệnh nhận ra nó không thể điều khiển ngươi.'],
-                    ['dragon', 'Nên nó đổi kế hoạch. Không giết ngươi, mà khiến ngươi tự tay đánh bại tất cả những ai có thể giúp ngươi.'],
+                    ['dragon', 'Năm xưa ngươi đại náo Thiên Cung... Đó là lần đầu Thiên Mệnh bị lỗi 404: không tìm thấy sự vâng lời.'],
+                    ['dragon', 'Nên nó đổi kế hoạch. Không diệt ngươi, mà để ngươi tự tay đánh bại tất cả những ai có thể giúp ngươi.'],
                     ['wukong', 'Afternoon Tà, Bạch Cốt Tinh, giờ đến lão... Tất cả đều là quân cờ đặt sẵn trên đường ta đi?'],
-                    ['narrator', 'Lần đầu tiên, Tề Thiên Đại Thánh không chắc con đường dưới chân có phải do chính mình chọn.']
+                    ['dragon', 'Ừ. Và ta là quân Xe. Quân đắt nhất.'],
+                    ['narrator', 'Lần đầu tiên, Tề Thiên Đại Thánh không chắc con đường dưới chân là do chính mình chọn. Hay do Google Maps.']
                 ]
             },
             { // Bàn Tơ Động
                 intro: [
-                    ['title', 'HỒI IV', 'KẺ THÙ TRÊN ĐỈNH TRỜI'],
-                    ['narrator', 'Mỗi sợi tơ trong Bàn Tơ Động giữ một ký ức: ký ức của những sinh linh đã bị Thiên Mệnh xóa khỏi lịch sử.'],
-                    ['sha', 'Đại sư huynh, ghi chép về cuộc đại chiến cổ xưa trên Thiên Đình đã bị sửa. Nếu sự thật còn ở đâu, thì là ở đây.']
+                    ['title', 'HỒI IV', 'KẺ THÙ TRÊN ĐỈNH TRỜI (VÀ TRONG HANG NHỆN)'],
+                    ['narrator', 'Mỗi sợi tơ trong Bàn Tơ Động giữ một ký ức đã bị Thiên Mệnh xóa. Và vài cái mật khẩu wifi.'],
+                    ['sha', 'Đại sư huynh, ghi chép về cuộc đại chiến cổ xưa trên Thiên Đình đã bị sửa. Nếu sự thật còn ở đâu, thì là ở đây.'],
+                    ['bajie', 'Hoặc trong lịch sử trình duyệt. Thứ đó không ai xóa sạch được đâu.']
                 ],
                 boss: [
-                    ['spider', 'Ta giữ ký ức của những kẻ bị buộc phải quên chính mình. Ngươi muốn chúng để làm gì, Đại Thánh? Để đập phá thêm lần nữa?'],
-                    ['wukong', 'Để không ai phải bị lãng quên thêm lần nào nữa.'],
-                    ['spider', 'Lời hay lắm. Chứng minh đi.']
+                    ['spider', 'Ta giữ ký ức của những kẻ bị buộc phải quên. Ngươi muốn chúng để làm gì, Đại Thánh?'],
+                    ['wukong', 'Để không ai phải bị lãng quên nữa.'],
+                    ['spider', 'Câu trả lời đẹp đấy. Nghe như văn mẫu. Ta tặng ngươi một câu triết lý thật:'],
+                    ['spider', '"Đời là một tấm lưới. Ai giăng thì không vướng. Ai vướng thì... thôi xong."'],
+                    { quiz: 'spider', q: 'Ta có tám cái chân, mỗi chân đi một đôi tất. Hỏi ta phải mua bao nhiêu chiếc tất?',
+                      options: ['8 chiếc', '16 chiếc', '4 đôi', 'Nhện không đi tất'], answer: 1,
+                      right: 'Đúng, mười sáu chiếc! Ngươi có biết giá tất bây giờ bao nhiêu không? Đó là lý do ta làm phản.',
+                      wrong: 'Sai! Mười sáu chiếc. Toán lớp hai đấy. Ta thất vọng về nền giáo dục Hoa Quả Sơn.' },
+                    ['spider', 'Giờ thì chứng minh lời ngươi nói bằng nắm đấm đi.']
                 ],
                 after: [
-                    ['spider', 'Cầm lấy. Đây là ký ức về cuộc đại chiến, trước khi Thiên Đình được dựng nên.'],
-                    ['narrator', 'Trong sợi tơ, Ngộ Không thấy những vị thần chiến thắng dựng nên một pháp trận khổng lồ, và gọi nó là Thiên Mệnh.'],
-                    ['wukong', 'Không phải thần, không phải Phật. Chỉ là một cỗ pháp trận... quyết định ai được sống theo cách nào.']
+                    ['spider', 'Cầm lấy. Đây là ký ức về cuộc đại chiến trước khi Thiên Đình được dựng nên. Đừng làm rối, ta mất ba tuần mới cuộn xong.'],
+                    ['narrator', 'Trong sợi tơ, Ngộ Không thấy các vị thần chiến thắng dựng nên một pháp trận khổng lồ, đặt tên là Thiên Mệnh... rồi quên mật khẩu quản trị.'],
+                    ['wukong', 'Không phải thần, không phải Phật. Chỉ là một cỗ pháp trận quyết định ai sống thế nào. Và không ai tắt được.'],
+                    ['sha', 'Đã thử tắt đi bật lại chưa?'],
+                    ['wukong', '...']
                 ]
             },
             { // Thiên Cung
                 intro: [
-                    ['narrator', 'Thiên Môn đã ở ngay trước mắt. Thiên binh xếp hàng dày đặc trên biển mây.'],
-                    ['bajie', 'Hầu ca, Thiên Đình vừa sai người đến, hứa trả lại chức Thiên Bồng Nguyên Soái cho lão Trư...'],
-                    ['bajie', 'Lão Trư từ chối rồi. Làm nguyên soái mà không được tự chọn bữa ăn thì có gì vui.']
+                    ['narrator', 'Thiên Môn ở ngay trước mắt. Thiên binh xếp hàng dày đặc trên biển mây, như hàng chờ mua trà sữa ngày khai trương.'],
+                    ['bajie', 'Hầu ca, Thiên Đình vừa nhắn tin hứa trả lại chức Thiên Bồng Nguyên Soái cho lão Trư.'],
+                    ['bajie', 'Lão Trư từ chối rồi. Làm nguyên soái mà căng tin không có món giò heo thì sống làm gì.']
                 ],
                 boss: [
-                    ['erlang', 'Ngộ Không. Nếu Thiên Mệnh sụp đổ, Tam Giới sẽ chìm vào chiến tranh vô tận.'],
-                    ['erlang', 'Ta không hận ngươi. Nhưng vì chúng sinh, ta phải ngăn ngươi lại.'],
-                    ['wukong', 'Lần trước ngươi thắng nhờ có người giúp. Lần này, chỉ có ta và ngươi.']
+                    ['erlang', 'Ngộ Không. Nếu Thiên Mệnh sụp đổ, Tam Giới sẽ chìm vào hỗn loạn.'],
+                    ['wukong', 'Tam Giới vốn đã hỗn loạn rồi. Ngươi chưa thấy cái đầu bay ở Hỏa Diệm Sơn à?'],
+                    ['erlang', 'Ta có ba mắt. Ta thấy hết. Kể cả những thứ ta không muốn thấy.'],
+                    { quiz: 'erlang', q: 'Câu hỏi cuối: Ta có ba mắt. Nếu ta nhắm một mắt để ngắm bắn, ta còn mấy mắt mở?',
+                      options: ['1', '2', '3', 'Tùy hôm đó có buồn ngủ không'], answer: 1,
+                      right: 'Chính xác. Ngươi đã vượt qua bài kiểm tra thị lực của Thiên Đình.',
+                      wrong: 'Sai. Còn hai. Người cần đi khám mắt là ngươi, không phải ta.' },
+                    ['erlang', 'Ta không hận ngươi. Nhưng vì chúng sinh, và vì phiếu đánh giá cuối năm, ta phải ngăn ngươi lại.'],
+                    ['wukong', 'Lần trước ngươi thắng nhờ con chó cắn lén. Lần này chỉ có ta và ngươi.'],
+                    ['erlang', 'Hao Thiên Khuyển đang nghỉ ốm. Đúng là chỉ có ta và ngươi.']
                 ],
                 after: [
-                    ['narrator', 'Ngộ Không giơ sợi tơ ký ức lên. Nhị Lang Thần nhìn thấy những cuộc chiến do chính Thiên Mệnh dựng nên.'],
+                    ['narrator', 'Ngộ Không giơ sợi tơ ký ức lên. Nhị Lang Thần nhìn thấy những cuộc chiến do chính Thiên Mệnh dàn dựng. Cả ba con mắt đều rưng rưng.'],
                     ['erlang', 'Một trật tự phải dùng xiềng xích để giữ... còn đáng để ta bảo vệ sao?'],
                     ['erlang', 'Sau Thiên Môn là trung tâm Thiên Mệnh. Nó được nuôi bằng linh lực của mọi kiếp nạn, kể cả tám mươi mốt kiếp của các ngươi.'],
-                    ['nezha', 'Ta nhận lệnh bắt ngươi, Ngộ Không. Nhưng hôm nay, Na Tra chọn đứng về phía ngươi.'],
+                    ['bajie', 'Tức là bao nhiêu năm lão Trư nhịn đói là để sạc pin cho cái máy đó à?!'],
+                    ['nezha', 'Ta nhận lệnh bắt ngươi, Ngộ Không. Nhưng hôm nay Na Tra chọn đứng về phía ngươi. Vì bên kia không cho ta nghỉ trưa.'],
                     ['tang', 'Ngộ Không... trang kinh biến mất năm ấy không phải tự nhiên mà mất. Chân kinh chính là chiếc khóa cuối cùng của Thiên Mệnh.'],
-                    ['title', 'HỒI V', 'THIÊN MÔN VÔ TỰ · CÒN TIẾP']
+                    ['tang', 'Và không, không phải Bát Giới ăn mất. Vi sư xin lỗi Bát Giới.'],
+                    ['bajie', 'Ba năm rồi mới xin lỗi...'],
+                    ['title', 'HỒI V', 'THIÊN MÔN VÔ TỰ · CÒN TIẾP (KHI NÀO DEV RẢNH)']
                 ]
             }
         ];
@@ -5398,12 +5695,16 @@
         const storyIcon = document.getElementById('story-icon');
         const storyName = document.getElementById('story-name');
         const storyText = document.getElementById('story-text');
-        const story = { lines: [], i: 0, typed: 0, timer: null, full: false, resume: 'PLAYING', onDone: null };
+        const storyOptions = document.getElementById('story-options');
+        const story = { lines: [], i: 0, typed: 0, timer: null, full: false, resume: 'PLAYING', onDone: null, answered: false };
         let storyDelay = null; // { part, t }: a beat waiting a moment (lets the boss death play out)
+
+        const lineText = line => line.quiz ? line.q : line[1];
 
         function playStory(lines, onDone, full = false) {
             releaseKeys();
-            Object.assign(story, { lines, i: 0, full, resume: gameState, onDone });
+            // A copy: quiz replies get spliced in after the question
+            Object.assign(story, { lines: [...lines], i: 0, full, resume: gameState, onDone });
             gameState = 'STORY';
             // In a stage the box sits at the top so the boss on the ground stays visible
             storyOverlay.classList.toggle('justify-end', full);
@@ -5427,8 +5728,12 @@
         }
 
         function showStoryLine() {
-            const [who, text, sub] = story.lines[story.i];
+            const line = story.lines[story.i];
+            const who = line.quiz || line[0];
+            const text = lineText(line);
             clearInterval(story.timer);
+            story.answered = false;
+            storyOptions.classList.add('hidden');
             const isTitle = who === 'title';
             storyTitle.classList.toggle('hidden', !isTitle);
             storyBox.classList.toggle('hidden', isTitle);
@@ -5437,7 +5742,7 @@
                 : 'linear-gradient(to bottom, rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0) 50%)';
             if (isTitle) {
                 document.getElementById('story-title-main').innerText = text;
-                document.getElementById('story-title-sub').innerText = sub || '';
+                document.getElementById('story-title-sub').innerText = line[2] || '';
                 story.typed = text.length;
                 return;
             }
@@ -5461,25 +5766,53 @@
                 storyIcon.style.color = sp.color;
                 storyIcon.style.borderColor = sp.color;
             }
-            // Typewriter reveal
+            // Typewriter reveal; a quiz shows its answers once the question is fully typed
             story.typed = 0;
             storyText.innerText = '';
             story.timer = setInterval(() => {
                 story.typed++;
                 storyText.innerText = text.slice(0, story.typed);
-                if (story.typed >= text.length) clearInterval(story.timer);
+                if (story.typed >= text.length) finishTyping();
             }, 22);
         }
 
+        function finishTyping() {
+            const line = story.lines[story.i];
+            clearInterval(story.timer);
+            story.typed = lineText(line).length;
+            storyText.innerText = lineText(line);
+            if (!line.quiz) return;
+            storyOptions.innerHTML = line.options.map((o, k) =>
+                `<button data-answer="${k}" class="text-left px-3 py-2 rounded-lg bg-slate-800/90 hover:bg-amber-700 border border-amber-500/40 text-slate-100 story-font text-sm cursor-pointer"><b class="text-amber-400">${k + 1}.</b> ${o}</button>`).join('');
+            storyOptions.classList.remove('hidden');
+        }
+
+        function answerQuiz(k) {
+            const line = story.lines[story.i];
+            if (!line.quiz || story.answered || story.typed < line.q.length || !line.options[k]) return;
+            story.answered = true;
+            const right = k === line.answer;
+            let reply = right ? line.right : line.wrong;
+            if (right) {
+                save.peaches += QUIZ_REWARD;
+                writeSave();
+                updateHUD();
+                reply += ` (+${QUIZ_REWARD} Đào Tiên)`;
+            }
+            playSound(right ? 'checkpoint' : 'hit');
+            story.lines.splice(story.i + 1, 0, [line.quiz, reply]);
+            story.i++;
+            showStoryLine();
+        }
+
         function advanceStory() {
-            const text = story.lines[story.i][1];
-            if (story.typed < text.length) {
+            const line = story.lines[story.i];
+            if (story.typed < lineText(line).length) {
                 // First press finishes the line being typed
-                clearInterval(story.timer);
-                story.typed = text.length;
-                storyText.innerText = text;
+                finishTyping();
                 return;
             }
+            if (line.quiz) return; // waits for an answer
             story.i++;
             if (story.i < story.lines.length) showStoryLine();
             else endStory();
@@ -5496,7 +5829,11 @@
             if (done) done();
         }
 
-        storyOverlay.addEventListener('click', advanceStory);
+        storyOverlay.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-answer]');
+            if (btn) answerQuiz(+btn.dataset.answer);
+            else advanceStory();
+        });
 
         function startRun(levelIndex) {
             initAudio();
@@ -6751,6 +7088,7 @@
                 return false;
             });
             updateSkillEffects(dt);
+            updateBubbles(dt);
             for (const p of pickups) p.update(dt, player, platforms);
             pickups = pickups.filter(p => !p.collected);
             for (const p of projectiles) p.update(dt, player, platforms);
@@ -6880,6 +7218,7 @@
             ctx.fillStyle = vignette;
             ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
+            drawBubbles(ctx, camX);
             for (let ft of floatingTexts) {
                 ft.draw(ctx, camX);
             }
