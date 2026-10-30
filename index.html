@@ -403,6 +403,14 @@
         let comboCount = 0;
         let comboTimer = 0;
         let lastTime = 0;
+        // Movement is applied per update, so the campaign updates at a fixed 60 Hz on any monitor
+        const STEP = 1 / 60;
+        let stepAcc = 0;
+        // Horizontal speed of heroes and monsters (1 = original pace); lower is calmer and easier to read
+        const MOVE_SCALE = 0.85;
+        // Speech bubbles: seconds of reading time per character, and a floor for short lines
+        const BUBBLE_READ_RATE = 0.065;
+        const BUBBLE_MIN_TIME = 1.6;
 
         const BASE_LIVES = 3;
         let lives = BASE_LIVES;
@@ -2897,7 +2905,7 @@
                 this.charId = id;
                 this.char = CHARACTERS[id];
                 this.skills = skills || loadoutOf(id);
-                this.speed = this.char.speed;
+                this.speed = this.char.speed * MOVE_SCALE;
                 this.maxJumps = this.char.jumps;
                 this.maxHp = this.char.hp;
                 this.attackDuration = this.char.attack.timings[1];
@@ -3276,7 +3284,7 @@
                     this.isDashing = true;
                     this.dashTimer = 0.22;
                     this.dashCooldown = 0.8 - 0.15 * upgradeLevel('dash');
-                    this.vx = (this.facing === 'right' ? 1 : -1) * 16;
+                    this.vx = (this.facing === 'right' ? 1 : -1) * 16 * MOVE_SCALE;
                     playSound('slash');
                     for (let i = 0; i < 8; i++) {
                         particles.push(new Particle(
@@ -4735,6 +4743,8 @@
         // idle: small talk, which is capped on screen; reactions (hurt, begging, shouts) always show
         function say(enemy, text, kind, time, idle = false) {
             bubbles = bubbles.filter(b => b.owner !== enemy);
+            // Long lines stay up long enough to read
+            time = Math.max(time, BUBBLE_MIN_TIME + text.length * BUBBLE_READ_RATE);
             bubbles.push({ owner: enemy, kind, text, idle, life: time, maxLife: time, x: 0, y: 0, lines: null });
         }
 
@@ -4794,9 +4804,9 @@
             ctx.textBaseline = 'top';
             for (const b of bubbles) {
                 const st = BUBBLE_STYLE[b.kind];
-                ctx.font = `${st.font} 11px 'Noto Serif', serif`;
-                if (!b.lines) b.lines = wrapBubble(b.text, 180);
-                const lh = 14;
+                ctx.font = `${st.font} 12px 'Noto Serif', serif`;
+                if (!b.lines) b.lines = wrapBubble(b.text, 190);
+                const lh = 15;
                 const w = Math.max(...b.lines.map(l => ctx.measureText(l).width)) + 14;
                 const h = b.lines.length * lh + 10;
                 const sx = b.x - camX;
@@ -5048,7 +5058,8 @@
                 this.y = y;
                 this.type = type;
                 Object.assign(this, ENEMY_STATS[type]);
-                this.hp = Math.round(this.hp * (type === 'boss' ? BOSS_HP_SCALE : MOB_HP_SCALE));
+                this.speed *= MOVE_SCALE;
+                this.hp =Math.round(this.hp * (type === 'boss' ? BOSS_HP_SCALE : MOB_HP_SCALE));
                 this.maxHp = this.hp;
                 this.chatter = type === 'boss' ? null : newChatter();
                 // Monster AI (see updateMob): patrol -> chase -> windup -> strike -> recover, or flee when scared
@@ -5416,7 +5427,7 @@
                         }
                         break;
                     case 'strike':
-                        move = this.strikeDir * Math.max(6, this.speed * 3);
+                        move = this.strikeDir * Math.max(6 * MOVE_SCALE, this.speed * 3);
                         if (this.stateTimer <= 0) {
                             this.attackCooldown = 1.1 + Math.random() * 0.9;
                             this.setMobState('recover', 0.6);
@@ -5513,7 +5524,7 @@
                     case 'strike':
                         tx = this.diveTo.x;
                         ty = this.diveTo.y;
-                        speed = 7;
+                        speed = 7 * MOVE_SCALE;
                         if (this.stateTimer <= 0 || Math.hypot(tx - cx, ty - cy) < 8) {
                             this.attackCooldown = 1.2 + Math.random();
                             this.setMobState('recover', 0.7);
@@ -5675,7 +5686,7 @@
                         }
                         break;
                     case 'charge':
-                        this.vx = (this.facing === 'right' ? 1 : -1) * (this.phase === 2 ? 11 : 9);
+                        this.vx = (this.facing === 'right' ? 1 : -1) * (this.phase === 2 ? 11 : 9) * MOVE_SCALE;
                         if (Math.random() < 0.6) {
                             particles.push(new Particle(this.x + this.width / 2, this.y + this.height, -this.vx * 0.2, -Math.random() * 2, '#a8a29e', 4, 0.4));
                         }
@@ -8094,9 +8105,16 @@
             }
 
             if (gameState === 'PLAYING') {
-                // Hit-stop freezes the world for a few frames to sell heavy impacts
-                if (hitStop > 0) hitStop -= dt;
-                else updateWorld(dt);
+                // Whole 60 Hz steps; the accumulator may dip slightly below zero so a 60 Hz screen gets exactly one per frame
+                stepAcc = Math.min(stepAcc + dt, STEP * 5);
+                while (stepAcc > STEP / 2 && gameState === 'PLAYING') {
+                    stepAcc -= STEP;
+                    // Hit-stop freezes the world for a few frames to sell heavy impacts
+                    if (hitStop > 0) hitStop -= STEP;
+                    else updateWorld(STEP);
+                }
+            } else {
+                stepAcc = 0;
             }
 
             const camX = snap(camera.x);
