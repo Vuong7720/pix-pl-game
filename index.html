@@ -296,11 +296,13 @@
         </div>
 
         <!-- DEV PANEL (open the game with ?dev in the URL; toggle with the ` key) -->
-        <div id="dev-panel" class="hidden fixed bottom-3 right-3 z-40 w-60 glass-panel rounded-xl p-3 text-xs text-slate-200 space-y-2">
-            <div class="flex justify-between items-center">
+        <div id="dev-panel" class="hidden fixed bottom-3 right-3 z-40 w-60 glass-panel rounded-xl p-3 text-xs text-slate-200">
+            <div class="flex justify-between items-center gap-2">
                 <span class="pixel-font text-[9px] text-emerald-400">DEV MODE</span>
-                <span class="text-slate-500">ẩn/hiện: phím `</span>
+                <span class="text-slate-500 flex-1 text-right">phím `</span>
+                <button id="dev-collapse" title="Thu gọn / mở rộng" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 cursor-pointer"><i class="fa-solid fa-chevron-down"></i></button>
             </div>
+            <div id="dev-body" class="space-y-2 pt-2">
             <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="dev-god" checked> Bất tử (không mất máu, rơi vực thì về điểm hồi sinh)</label>
             <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="dev-mp" checked> Pháp Lực vô hạn</label>
             <div class="pixel-font text-[8px] text-slate-400 pt-1">VÀO ẢI</div>
@@ -312,6 +314,7 @@
                 <button data-dev="map" class="py-1.5 rounded bg-slate-800 hover:bg-slate-700 cursor-pointer">Bản đồ</button>
             </div>
             <div class="text-[10px] text-slate-500">Mọi ải và kỹ năng đều mở. Tiến trình không được lưu khi bật dev.</div>
+            </div>
         </div>
 
         <!-- SHOP OVERLAY (Cửa Hàng Thổ Địa) -->
@@ -489,48 +492,135 @@
             dash: false
         };
 
-        window.addEventListener('keydown', (e) => {
-            // Typing a room code must not move the monkey or pick map nodes
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+        function pressKey(code, repeat) {
             // Story on screen: keys only page through it
             if (gameState === 'STORY') {
-                e.preventDefault();
-                if (e.repeat) return;
-                const digit = /^(Digit|Numpad)([1-4])$/.exec(e.code);
-                if (e.code === 'Escape') endStory();
+                if (repeat) return;
+                const digit = /^(Digit|Numpad)([1-4])$/.exec(code);
+                if (code === 'Escape') endStory();
                 else if (digit) answerQuiz(+digit[2] - 1);
-                else if (['Space', 'Enter', 'KeyJ'].includes(e.code)) advanceStory();
+                else if (['Space', 'Enter', 'KeyJ'].includes(code)) advanceStory();
                 return;
             }
-            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
-            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
-            if (e.code === 'KeyW' || e.code === 'ArrowUp' || e.code === 'Space') {
+            if (code === 'KeyA' || code === 'ArrowLeft') keys.left = true;
+            if (code === 'KeyD' || code === 'ArrowRight') keys.right = true;
+            if (code === 'KeyW' || code === 'ArrowUp' || code === 'Space') {
                 if (!keys.up && (gameState === 'PLAYING' || gameState === 'DUEL')) localJump();
                 keys.up = true;
             }
-            if (e.code === 'KeyJ') keys.attack = true;
-            if (e.code === 'KeyK' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.dash = true;
-            if (e.repeat) return;
+            if (code === 'KeyJ') keys.attack = true;
+            if (code === 'KeyK' || code === 'ShiftLeft' || code === 'ShiftRight') keys.dash = true;
+            if (repeat) return;
             if (gameState === 'PLAYING' || gameState === 'DUEL') {
-                if (e.code === 'KeyU') localSkill(0);
-                if (e.code === 'KeyI') localSkill(1);
-                if (e.code === 'KeyO') localSkill(2);
-                if (gameState === 'PLAYING' && (e.code === 'Escape' || e.code === 'KeyP')) setPaused(true);
+                if (code === 'KeyU') localSkill(0);
+                if (code === 'KeyI') localSkill(1);
+                if (code === 'KeyO') localSkill(2);
+                if (gameState === 'PLAYING' && (code === 'Escape' || code === 'KeyP')) setPaused(true);
             } else if (gameState === 'PAUSED') {
-                if (e.code === 'Escape' || e.code === 'KeyP') setPaused(false);
+                if (code === 'Escape' || code === 'KeyP') setPaused(false);
             } else if (gameState === 'MAP') {
-                handleMapKey(e.code);
+                handleMapKey(code);
             }
-            if (e.code === 'KeyM') toggleMusic();
-            if (e.code === 'Backquote' && DEV) document.getElementById('dev-panel').classList.toggle('hidden');
+            if (code === 'KeyM') toggleMusic();
+            if (code === 'Backquote' && DEV) document.getElementById('dev-panel').classList.toggle('hidden');
+        }
+
+        function releaseKey(code) {
+            if (code === 'KeyA' || code === 'ArrowLeft') keys.left = false;
+            if (code === 'KeyD' || code === 'ArrowRight') keys.right = false;
+            if (code === 'KeyW' || code === 'ArrowUp' || code === 'Space') keys.up = false;
+            if (code === 'KeyJ') keys.attack = false;
+            if (code === 'KeyK' || code === 'ShiftLeft' || code === 'ShiftRight') keys.dash = false;
+        }
+
+        // --- Vietnamese typing tools (Unikey, EVKey, OpenKey) ---
+        // In Telex they swallow some letter presses (aa→â, dd→đ, w→ư, j→dấu nặng...) and send Backspaces
+        // plus Unicode characters instead, which carry no e.code. Work out the physical key from what changed.
+        const IME_MARK_KEYS = { '̣': 'KeyJ', '́': 'KeyS', '̀': 'KeyF', '̉': 'KeyR', '̃': 'KeyX', '̛': 'KeyW', '̆': 'KeyW' };
+        const IME_HOLD = 700; // ms an inferred key stays down without a repeat (its real keyup may never arrive)
+        const ime = { typed: '', burst: null, timer: 0, held: {} };
+
+        // The keys a piece of text "remembers": đ → D, â → A, dấu nặng → J...
+        function imeMarks(text) {
+            const out = [];
+            for (const ch of text) {
+                if (ch === 'đ' || ch === 'Đ') {
+                    out.push('KeyD');
+                    continue;
+                }
+                const [base, ...marks] = ch.normalize('NFD');
+                for (const m of marks) out.push(m === '̂' ? 'Key' + base.toUpperCase() : IME_MARK_KEYS[m]);
+            }
+            return out.filter(Boolean);
+        }
+
+        function minusMarks(a, b) {
+            const rest = [...b];
+            return a.filter(x => {
+                const i = rest.indexOf(x);
+                if (i < 0) return true;
+                rest.splice(i, 1);
+                return false;
+            });
+        }
+
+        function imeFinish() {
+            const { removed, added } = ime.burst;
+            ime.burst = null;
+            if (!added) return; // a real Backspace
+            const before = imeMarks(removed), after = imeMarks(added);
+            // A new mark tells which key made it; a vanished one means the same key was pressed again (undo)
+            let code = minusMarks(after, before)[0] || minusMarks(before, after)[0];
+            if (!code) {
+                const last = added.slice(-1).toUpperCase();
+                if (/[A-Z]/.test(last)) code = 'Key' + last;
+                else if (/[0-9]/.test(last)) code = 'Digit' + last;
+            }
+            if (!code) return;
+            const repeat = code in ime.held;
+            clearTimeout(ime.held[code]);
+            ime.held[code] = setTimeout(() => {
+                delete ime.held[code];
+                releaseKey(code);
+            }, IME_HOLD);
+            pressKey(code, repeat);
+        }
+
+        function imeInjected(e) {
+            if (!ime.burst) ime.burst = { removed: '', added: '' };
+            if (e.key === 'Backspace') {
+                ime.burst.removed = ime.typed.slice(-1) + ime.burst.removed;
+                ime.typed = ime.typed.slice(0, -1);
+            } else {
+                ime.burst.added += e.key;
+                ime.typed += e.key;
+            }
+            clearTimeout(ime.timer);
+            ime.timer = setTimeout(imeFinish, 25);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            // Typing a room code must not move the monkey or pick map nodes
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+            if (gameState === 'STORY') e.preventDefault();
+            const injected = !e.code || e.code === 'Unidentified';
+            if (e.key === 'Backspace' || (injected && e.key.length === 1)) {
+                imeInjected(e);
+                return;
+            }
+            if (injected) return;
+            // Track what the typing tool thinks is in its current word; non-letters end the word
+            ime.typed = /^[a-zA-Z0-9]$/.test(e.key) ? (ime.typed + e.key).slice(-20) : '';
+            pressKey(e.code, e.repeat);
         });
 
         window.addEventListener('keyup', (e) => {
-            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
-            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
-            if (e.code === 'KeyW' || e.code === 'ArrowUp' || e.code === 'Space') keys.up = false;
-            if (e.code === 'KeyJ') keys.attack = false;
-            if (e.code === 'KeyK' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.dash = false;
+            if (!e.code || e.code === 'Unidentified') return; // the typing tool's injected characters
+            if (e.code in ime.held) {
+                clearTimeout(ime.held[e.code]);
+                delete ime.held[e.code];
+            }
+            releaseKey(e.code);
         });
 
         window.addEventListener('mousedown', (e) => {
@@ -1875,7 +1965,7 @@
         // --- LONGER STAGES ---
         // Generated stretches are inserted just before each boss arena (the stage's last ground platform),
         // using the stage's own monsters. Seeded, so a stage is the same every time.
-        const EXTRA_CHUNKS = 2;
+        const EXTRA_CHUNKS = 4;
         const CHUNK_W = 1000;
         const FLYER_HEIGHT = { demon: 300, fish: 320, jelly: 300, spider: 40, cloud: 150 }; // spawn y of flying monsters
 
@@ -1897,25 +1987,53 @@
             const ledgeType = level.platforms.find(p => p.h < 40).type;
             for (let c = 0; c < chunks; c++) {
                 const x = split + c * CHUNK_W;
-                // Two grounds with a jumpable gap, three ledges (the middle one over the gap)
-                const groundA = 340 + rand() * 80, gap = 110 + rand() * 30, bx = x + groundA + gap;
-                const l1 = { x: x + 80 + rand() * 60, y: 340 + rand() * 30, w: 160, h: 20, type: ledgeType };
-                const l2 = { x: x + groundA - 50, y: 250 + rand() * 30, w: 150, h: 20, type: ledgeType };
-                const l3 = { x: bx + 180 + rand() * 80, y: 320 + rand() * 30, w: 170, h: 20, type: ledgeType };
-                level.platforms.push(
-                    { x, y: 480, w: groundA, h: 60, type: arena.type },
-                    { x: bx, y: 480, w: x + CHUNK_W - bx, h: 60, type: arena.type },
-                    l1, l2, l3);
-                level.peaches.push({ x: l2.x + 70, y: l2.y - 30 });
-                level.checkpoints.push({ x: bx + 40, y: 480 });
-                level.enemies.push(
-                    { x: x + 150 + rand() * 100, y: 420, type: walker() },
-                    { x: l1.x + 60, y: l1.y - 60, type: walker() },
-                    { x: bx + 120, y: 420, type: walker() },
-                    { x: x + CHUNK_W - 160, y: 420, type: walker() });
-                for (const fx of [x + groundA + gap / 2, x + CHUNK_W * 0.7]) {
-                    const t = flyers.length ? pick(flyers) : walker();
-                    level.enemies.push({ x: fx, y: FLYER_HEIGHT[t] || 420, type: t });
+                const ledge = (lx, ly, w) => ({ x: lx, y: ly, w, h: 20, type: ledgeType });
+                let flyX;
+                if (c % 2 === 0) {
+                    // Two grounds with a jumpable gap, three ledges (the middle one over the gap)
+                    const groundA = 340 + rand() * 80, gap = 110 + rand() * 30, bx = x + groundA + gap;
+                    const l1 = ledge(x + 80 + rand() * 60, 340 + rand() * 30, 160);
+                    const l2 = ledge(x + groundA - 50, 250 + rand() * 30, 150);
+                    const l3 = ledge(bx + 180 + rand() * 80, 320 + rand() * 30, 170);
+                    level.platforms.push(
+                        { x, y: 480, w: groundA, h: 60, type: arena.type },
+                        { x: bx, y: 480, w: x + CHUNK_W - bx, h: 60, type: arena.type },
+                        l1, l2, l3);
+                    level.peaches.push({ x: l2.x + 70, y: l2.y - 30 });
+                    level.checkpoints.push({ x: bx + 40, y: 480 });
+                    level.enemies.push(
+                        { x: x + 150 + rand() * 100, y: 420, type: walker() },
+                        { x: l1.x + 60, y: l1.y - 60, type: walker() },
+                        { x: bx + 120, y: 420, type: walker() },
+                        { x: x + CHUNK_W - 160, y: 420, type: walker() });
+                    flyX = [x + groundA + gap / 2, x + CHUNK_W * 0.7];
+                } else {
+                    // One long field: a low ledge at each end and a high one in the middle
+                    const l1 = ledge(x + 120 + rand() * 60, 350 + rand() * 20, 180);
+                    const l2 = ledge(x + 420 + rand() * 60, 240 + rand() * 30, 160);
+                    const l3 = ledge(x + 700 + rand() * 60, 350 + rand() * 20, 180);
+                    level.platforms.push({ x, y: 480, w: CHUNK_W, h: 60, type: arena.type }, l1, l2, l3);
+                    level.peaches.push({ x: l2.x + 70, y: l2.y - 30 });
+                    level.checkpoints.push({ x: x + 40, y: 480 });
+                    level.enemies.push(
+                        { x: x + 250, y: 420, type: walker() },
+                        { x: x + 500, y: 420, type: walker() },
+                        { x: x + 780, y: 420, type: walker() },
+                        { x: l2.x + 50, y: l2.y - 60, type: walker() });
+                    flyX = [x + 350, x + 650];
+                }
+                for (const fx of flyX) {
+                    if (flyers.length) {
+                        const t = pick(flyers);
+                        level.enemies.push({ x: fx, y: FLYER_HEIGHT[t], type: t });
+                        continue;
+                    }
+                    // No flyers in this stage: a walker instead, standing on the lowest platform under the spot
+                    // (the ledge when the spot is over the gap), never in mid-air over a pit
+                    const under = level.platforms
+                        .filter(p => p.x + 10 <= fx - 30 && fx + 30 <= p.x + p.w - 10)
+                        .sort((a, b) => b.y - a.y)[0];
+                    if (under) level.enemies.push({ x: fx - 27, y: under.y - 60, type: walker() });
                 }
             }
         }
@@ -2761,6 +2879,7 @@
                 this.swimCooldown = 0;
                 this.slowTimer = 0;
                 this.slowed = false;
+                this.troll = null;       // a quái dị's prank: { kind: 'chicken' | 'flip' | 'shrink' | 'unarmed', timer }
 
                 // Duel support: where the controls come from, an optional sheet override, knockback and freeze
                 this.input = keys;
@@ -2806,14 +2925,36 @@
                 this.kbx = 0;
                 this.frozen = 0;
                 this.slowTimer = 0;
+                this.endTroll(true);
                 this.animState = 'idle';
                 this.animTime = 0;
                 updateHUD();
             }
 
-            // Damage multiplier of basic swings (Tam Đầu Lục Tý hits harder)
+            // Damage multiplier of basic swings (Tam Đầu Lục Tý hits harder; pranks make it feeble)
             attackPower() {
-                return this.char.attack.damage * (this.buff && this.buff.kind === 'sixarms' ? 1.6 : 1);
+                const prank = this.troll ? TROLL[this.troll.kind].power : 1;
+                return this.char.attack.damage * (this.buff && this.buff.kind === 'sixarms' ? 1.6 : 1) * prank;
+            }
+
+            // A quái dị's prank: harmless, just silly for a few seconds
+            setTroll(kind) {
+                if (this.isDead) return;
+                this.endTroll(true);
+                this.troll = { kind, timer: TROLL[kind].time };
+                if (kind !== 'unarmed') transformPuff(this);
+            }
+
+            endTroll(quiet = false) {
+                const t = this.troll;
+                if (!t) return;
+                this.troll = null;
+                if (t.kind === 'unarmed') {
+                    for (const e of enemies) e.hasStaff = false;
+                    if (!quiet) floatingTexts.push(new FloatingText('LẤY LẠI GẬY!', this.x - 30, this.y - 24, '#facc15', 12));
+                } else if (!quiet) {
+                    transformPuff(this);
+                }
             }
 
             gainMp(amount) {
@@ -2841,6 +2982,10 @@
 
             useSkill(id) {
                 if (this.isDead || this.skill || this.frozen > 0) return;
+                if (this.troll && this.troll.kind === 'chicken') {
+                    floatingTexts.push(new FloatingText('GÀ KHÔNG BIẾT PHÉP', this.x - 50, this.y - 16, '#fde68a', 9));
+                    return;
+                }
                 const s = SKILLS[id];
                 if (this.mp < s.cost) {
                     floatingTexts.push(new FloatingText('THIẾU PHÁP LỰC', this.x - 40, this.y - 16, '#7dd3fc', 9));
@@ -3059,8 +3204,14 @@
                 }
                 // Caught in a web or hit by a web ball: sluggish and sticky
                 this.slowed = this.slowTimer > 0 || inWeb(this);
+                if (this.troll) {
+                    this.troll.timer -= dt;
+                    if (this.troll.timer <= 0 || this.isDead) this.endTroll(this.isDead);
+                }
                 // Frozen by an opponent's Định Thân Pháp: controls do nothing
-                const input = this.frozen > 0 ? NO_INPUT : this.input;
+                let input = this.frozen > 0 ? NO_INPUT : this.input;
+                // Yêu Đảo Ngược: left is right and right is left
+                if (this.troll && this.troll.kind === 'flip') input = { ...input, left: input.right, right: input.left };
 
                 if (this.isDead) {
                     this.vx *= 0.9;
@@ -3104,7 +3255,8 @@
                         this.isDashing = false;
                     }
                 } else {
-                    const speed = this.speed * (currentLevel.water ? 0.85 : 1) * (this.slowed ? 0.4 : 1);
+                    const chicken = this.troll && this.troll.kind === 'chicken';
+                    const speed = this.speed * (currentLevel.water ? 0.85 : 1) * (this.slowed ? 0.4 : 1) * (chicken ? 0.6 : 1);
                     if (input.left) {
                         this.vx = -speed;
                         this.facing = 'left';
@@ -3147,6 +3299,9 @@
                     this.comboWindow = this.attackDuration + 0.5;
                     playSound('slash');
                     slashSparks(this);
+                    if (this.troll && this.troll.kind === 'chicken' && Math.random() < 0.5) {
+                        floatingTexts.push(new FloatingText(pickOne(['Ò Ó O!', 'Cục tác!', 'Mổ nè!']), this.x, this.y - 20, '#fde68a', 10));
+                    }
                 }
 
                 if (this.isAttacking) {
@@ -3299,7 +3454,7 @@
                     return true;
                 }
                 if (this.isGrounded || this.jumpCount < this.maxJumps) {
-                    this.vy = this.slowed ? this.jumpForce * 0.6 : this.jumpForce;
+                    this.vy = this.jumpForce * (this.slowed ? 0.6 : 1) * (this.troll && this.troll.kind === 'chicken' ? 0.75 : 1);
                     this.jumpCount++;
                     this.isGrounded = false;
                     playSound('jump');
@@ -3348,7 +3503,7 @@
                 this.invulnerableTimer = duel.active ? 0.35 : 1.0;
                 if (knockbackDir) {
                     // Bát Giới's passive: too heavy to be pushed around
-                    const push = this.char.passive === 'heavy' ? 2 : 7;
+                    const push = (this.char.passive === 'heavy' ? 2 : 7) * (this.troll && this.troll.kind === 'shrink' ? 2 : 1);
                     this.kbx = (knockbackDir === 'right' ? 1 : -1) * push;
                 }
                 playSound('hit');
@@ -3399,10 +3554,27 @@
                     ctx.ellipse(cx, feetY, 16, 4, 0, 0, Math.PI * 2);
                     ctx.fill();
                 }
+                if (this.troll && !this.isDead) drawTrollTag(ctx, this, cx);
 
                 const flip = this.facing === 'left';
+                if (this.troll && this.troll.kind === 'chicken' && !this.isDead) {
+                    // Turned into a chicken: waddles, flaps when airborne
+                    const s = CHICKEN_SCALE, w = CHICKEN_SPRITE.width * s, h = CHICKEN_SPRITE.height * s;
+                    const bob = this.isGrounded && Math.abs(this.vx) > 0.8 ? Math.abs(Math.sin(this.animTime * 14)) * 3 : 0;
+                    ctx.save();
+                    ctx.translate(snap(cx), snap(feetY - bob));
+                    if (flip) ctx.scale(-1, 1);
+                    if (this.isAttacking) ctx.rotate(0.35); // pecking
+                    ctx.drawImage(CHICKEN_SPRITE, -w / 2, -h, w, h);
+                    if (!this.isGrounded && Math.floor(this.animTime * 16) % 2 === 0) {
+                        ctx.fillStyle = '#e2e8f0';
+                        ctx.fillRect(-w * 0.3, -h * 0.55, w * 0.3, 4);
+                    }
+                    ctx.restore();
+                    return;
+                }
                 const [anim, frame] = this.animFrame();
-                const scale = anim.scale || this.char.scale;
+                const scale = (anim.scale || this.char.scale) * (this.troll && this.troll.kind === 'shrink' && !this.isDead ? 0.5 : 1);
                 if (this.charId === 'wukong' && this.animState === 'dash') {
                     // Cân Đẩu Vân: a golden cloud carries the somersaulting monkey
                     ctx.save();
@@ -4483,7 +4655,37 @@
                 '{ai} có biết mình đang đi ngược đường không?',
                 'Né được đòn của tôi thì tôi gọi {ai} là đại ca.'
             ],
-            hurt: ['Á!', 'Ui da!', 'Nhẹ tay thôi!', 'Đau thế!', 'Tôi mách mẹ!', 'Chơi xấu!', 'Còn nhiều máu lắm, đừng mừng!', 'Báo cáo, tôi bị đánh!'],
+            // Hit, most moods: talks back
+            hurt: [
+                'Đánh thế thôi à? Muỗi đốt còn đau hơn.',
+                'Gãi ngứa à?',
+                'Cú này yếu như lương tháng của tao.',
+                'Mày đánh tao à? Mày biết bố tao là ai không?',
+                'Ơ, đánh thật à? Được, tới luôn!',
+                'Còn non lắm!',
+                'Đánh nữa đi, tao chưa thấy đau!',
+                'Hết sức rồi à? Ăn cơm chưa đấy?',
+                'Tao báo Thiên Đình đấy!',
+                'Đánh lén! Đồ đánh lén!',
+                'Máu tao còn cả cây, mừng sớm thế.',
+                'Ui... không đau! Không đau tí nào!'
+            ],
+            // Hit, cowards: begs, then runs
+            beg: [
+                'Tha cho em! Em còn mẹ già!',
+                'Đừng đánh mặt! Em còn đi làm!',
+                'Em xin, em xin!',
+                'Em chỉ là quái phụ thôi mà!',
+                'Em nhận sai rồi! Sai gì cũng nhận!',
+                'Á á á! Chạy thôi!',
+                'Cứu với! Có khỉ đánh người!',
+                'Em có ba đứa con nhỏ... à không, chưa có, nhưng sẽ có!'
+            ],
+            // Cowards when there is nowhere left to run
+            cornered: ['Cùng đường rồi... liều mạng!', 'Đã thế thì đánh luôn!', 'Thỏ cùng đường còn cắn đấy!'],
+            // Shouted as a monster lunges
+            shout: ['Ăn này!', 'Hự!', 'Đỡ này!', 'Hây da!', 'Chết này!'],
+            cowardIdle: ['Đừng thấy em... đừng thấy em...', 'Em chỉ đứng đây hóng gió thôi.', 'Hôm nay mình trốn ở đâu nhỉ?', 'Ước gì được nghỉ ốm.'],
             dying: ['Ta sẽ quay lại... ở ải sau.', 'Nhớ... trả lương... cho tôi...', 'Cuối cùng cũng được nghỉ.', 'Hẹn gặp lại khi bạn chơi lại màn này.', 'Chưa kịp ăn trưa...', 'Nói với vợ tôi... nước mắm...']
         };
         // How each monster calls the hero, per character
@@ -4515,6 +4717,8 @@
             daily: { fill: '#f8fafc', stroke: '#334155', text: '#0f172a', font: '600' },
             poet:  { fill: '#fef3c7', stroke: '#b45309', text: '#78350f', font: 'italic 600' },
             taunt: { fill: '#fee2e2', stroke: '#b91c1c', text: '#7f1d1d', font: '600' },
+            coward: { fill: '#e0f2fe', stroke: '#0369a1', text: '#0c4a6e', font: '600' },
+            weird: { fill: '#f3e8ff', stroke: '#7e22ce', text: '#581c87', font: '700' },
             hurt:  { fill: '#ffffff', stroke: '#ef4444', text: '#b91c1c', font: '700' },
             dying: { fill: '#e2e8f0', stroke: '#64748b', text: '#334155', font: 'italic 600' }
         };
@@ -4523,18 +4727,22 @@
 
         function newChatter() {
             const r = Math.random();
-            return { mood: r < 0.4 ? 'daily' : r < 0.7 ? 'poet' : 'taunt', timer: 2 + Math.random() * 8,
+            const mood = r < 0.3 ? 'daily' : r < 0.55 ? 'poet' : r < 0.8 ? 'taunt' : 'coward';
+            return { mood, timer: 2 + Math.random() * 8,
                 poem: Math.floor(Math.random() * POEMS.length), verse: 0 };
         }
 
-        function say(enemy, text, kind, time) {
+        // idle: small talk, which is capped on screen; reactions (hurt, begging, shouts) always show
+        function say(enemy, text, kind, time, idle = false) {
             bubbles = bubbles.filter(b => b.owner !== enemy);
-            bubbles.push({ owner: enemy, kind, text, life: time, maxLife: time, x: 0, y: 0, lines: null });
+            bubbles.push({ owner: enemy, kind, text, idle, life: time, maxLife: time, x: 0, y: 0, lines: null });
         }
 
         // An idle line from the monster's mood; poets carry on through their poem
         function chatterLine(c, hero) {
             if (c.mood === 'daily') return pickOne(CHATTER.daily);
+            if (c.mood === 'coward') return pickOne(CHATTER.cowardIdle);
+            if (c.mood === 'weird') return nameLine(pickOne(WEIRD[c.kind].lines), hero);
             if (c.mood === 'taunt') {
                 const line = pickOne(CHATTER.taunt).replace(/\{ai\}/g, TAUNT_NAMES[hero.charId] || 'ngươi');
                 return line[0].toUpperCase() + line.slice(1);
@@ -4555,7 +4763,8 @@
                 // Follow the speaker while alive; a dying line stays where it fell
                 if (b.owner && !(b.owner.dead && b.kind !== 'dying')) {
                     b.x = b.owner.x + b.owner.width / 2;
-                    b.y = b.owner.y - b.owner.barLift - 6;
+                    // Above a quái dị's name tag; a minion held up by the bully talks above the bully's line
+                    b.y = b.owner.y - b.owner.barLift - (b.owner.weird ? 30 : 6) - (b.owner.carriedBy ? 36 : 0);
                 }
             }
             bubbles = bubbles.filter(b => b.life > 0 && !(b.owner && b.owner.dead && b.kind !== 'dying'));
@@ -4613,9 +4822,208 @@
             ctx.restore();
         }
 
+        // --- QUÁI DỊ: a few rare oddballs per stage with prank skills. The pranks barely hurt; they just mess with the hero ---
+        const WEIRD = {
+            morph: { name: 'Yêu Biến Hình', color: '#c084fc', prank: 'chicken', lines: [
+                'Bảy mươi hai phép biến hoá mà giờ thành gà à? Để tao biến hộ!',
+                'Ê {ai}, làm gà một lúc cho đời nó lành.',
+                'Ò ó o! Chào buổi sáng nhé {ai}!',
+                'Đứng yên đó, tao đang luyện phép "gà hoá" mới học trên mạng.'] },
+            flip: { name: 'Yêu Đảo Ngược', color: '#4ade80', prank: 'flip', lines: [
+                'Trái là phải, phải là trái. Sống đảo điên như {ai} ấy.',
+                'Thử đi thẳng xem nào {ai}, hahaha!',
+                'Tây Thiên ở bên trái. Hay bên phải nhỉ? Kệ, đảo luôn!',
+                'Bấm phím nào cũng sai, giống đời tao.'] },
+            shrink: { name: 'Yêu Thu Nhỏ', color: '#f472b6', prank: 'shrink', lines: [
+                '{ai} tí hon kìa! Đứng dậy đi, à quên, đang đứng.',
+                'Nhỏ thế này bỏ túi được rồi.',
+                'Đại Thánh size S, giảm giá 50%!',
+                'Ơ, {ai} đâu rồi? À, ở dưới chân tao.'] },
+            bully: { name: 'Đại Ca Chơi Xấu', color: '#fb923c', lines: [
+                'Mày lên trước đi!',
+                'Hy sinh vì đại cục nhé em.',
+                'Đàn em đâu, xung phong! Anh ở sau yểm trợ tinh thần.',
+                'Bay đi em, anh tin em!',
+                'Em cứ lên, có gì anh... chạy trước.'] },
+            thief: { name: 'Yêu Trộm Gậy', color: '#facc15', lines: [
+                'Gậy đẹp đấy, cho tao mượn đến hết đời nhé!',
+                'Của rơi là của tao, của chưa rơi cũng là của tao.',
+                'Đuổi theo đi {ai}, chân ngắn thế!',
+                'Như Ý Kim Cô Bổng? Bán ve chai được bao nhiêu nhỉ?'] },
+            stream: { name: 'Yêu Livestream', color: '#ef4444', lines: [
+                'Cả nhà ơi, xem Đại Thánh trượt chân nè!',
+                'Like, share, đăng ký kênh nhé cả nhà!',
+                'Hôm nay mình review {ai}. Một sao, không hơn.',
+                'Nhìn vào camera đi {ai}, cười lên nào!',
+                'Ai muốn xem {ai} bị đánh thì thả tim nhé!'] }
+        };
+        const WEIRD_ORDER = ['morph', 'bully', 'thief', 'flip', 'stream', 'shrink']; // later stages unlock more
+        // What each prank does to the hero: how long and how hard his swings still hit
+        const TROLL = {
+            chicken: { time: 4, power: 0.05, label: 'BIẾN THÀNH GÀ' },
+            flip:    { time: 4, power: 1,    label: 'ĐẢO PHÍM' },
+            shrink:  { time: 5, power: 0.5,  label: 'TÍ HON' },
+            unarmed: { time: 12, power: 0.35, label: 'MẤT GẬY' }
+        };
+        const THROWN_DAMAGE = 5;   // a minion thrown by the bully
+        const WEIRD_DAMAGE = 0.5;  // oddballs' own lunges hit half as hard as normal monsters
+        const THROWN_LINES = ['Đại ca ơi em chưa sẵn sàng!', 'Ơ ơ ơ, em sợ độ cao!', 'Đại ca chơi bẩn!', 'Em xin nghỉ việc!', 'Á á á, hạ cánh kiểu gì đây?!'];
+        const STREAM_COMMENTS = [
+            '{ai} gà quá', '1 sao', 'đánh như gãi ngứa', 'ai cho {ai} lên sóng vậy', 'kênh hay quá, sub rồi',
+            'đánh con livestream đi!!!', 'có ai xem từ ải 1 không', 'GG', 'xin link tải gậy', 'Đại Thánh fake à',
+            'mẹ ơi con lên sóng', 'chất lượng 144p', 'nhảy đi chứ', '=)))))', 'tặng 1 quả đào', 'lag quá',
+            'sao không dùng chiêu đi', 'cười đau bụng', 'quái này đẹp trai hơn {ai}', 'bao giờ tới Tây Thiên vậy'
+        ];
+        const nameLine = (line, hero) => {
+            const text = line.replace(/\{ai\}/g, TAUNT_NAMES[hero.charId] || 'ngươi');
+            return text[0].toUpperCase() + text.slice(1);
+        };
+
+        const CHICKEN_SPRITE = makePixelSprite([
+            '........rr....',
+            '.......rrr....',
+            '......wwww....',
+            '.....wwwkwy...',
+            '.....wwwwwyy..',
+            '......wwww.r..',
+            '.ww..wwwww....',
+            '.wwwwwwwwww...',
+            '..wwwwwwwww...',
+            '..wwwggwwww...',
+            '...wwwwwwww...',
+            '....wwwwww....',
+            '.....y..y.....',
+            '....yy.yy.....'
+        ], { r: '#dc2626', w: '#f8fafc', k: '#0f172a', y: '#f59e0b', g: '#cbd5e1' });
+        const CHICKEN_SCALE = 3.5;
+
+        // Name of the prank and a shrinking bar above the hero's head
+        function drawTrollTag(ctx, p, cx) {
+            const t = p.troll, info = TROLL[t.kind];
+            const y = snap(p.y - 30);
+            ctx.save();
+            ctx.font = "700 10px 'Noto Serif', serif";
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = 'rgba(2, 6, 23, 0.85)';
+            ctx.strokeText(info.label, cx, y);
+            ctx.fillStyle = '#e9d5ff';
+            ctx.fillText(info.label, cx, y);
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.8)';
+            ctx.fillRect(snap(cx - 20), y + 2, 40, 4);
+            ctx.fillStyle = '#c084fc';
+            ctx.fillRect(snap(cx - 19), y + 3, 38 * Math.max(0, t.timer / info.time), 2);
+            ctx.restore();
+        }
+
+        // A slow, slightly homing orb carrying a prank; a swing knocks it out of the air
+        class TrollShot {
+            constructor(owner, player) {
+                this.owner = owner;
+                this.prank = WEIRD[owner.weird].prank;
+                this.color = WEIRD[owner.weird].color;
+                this.x = owner.x + owner.width / 2;
+                this.y = owner.y + owner.height / 2;
+                const a = Math.atan2(player.y + player.height / 2 - this.y, player.x + player.width / 2 - this.x);
+                this.vx = Math.cos(a) * 3.6;
+                this.vy = Math.sin(a) * 3.6;
+                this.life = 3;
+                this.size = 9;
+                this.dead = false;
+            }
+
+            update(dt, player) {
+                const a = Math.atan2(player.y + player.height / 2 - this.y, player.x + player.width / 2 - this.x);
+                this.vx += Math.cos(a) * 0.05;
+                this.vy += Math.sin(a) * 0.05;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= dt;
+                if (Math.random() < 0.6) particles.push(new Particle(this.x, this.y, (Math.random() - 0.5), (Math.random() - 0.5), this.color, 3, 0.35));
+                const box = { x: this.x - this.size, y: this.y - this.size, width: this.size * 2, height: this.size * 2 };
+                if (player.isAttacking && overlaps(player.attackBox, box)) {
+                    this.dead = true;
+                    createHitSparks(this.x, this.y, this.color, 10);
+                    floatingTexts.push(new FloatingText('ĐỠ ĐƯỢC!', this.x - 20, this.y - 10, '#bbf7d0', 10));
+                    return;
+                }
+                // Dashing through it dodges it, like any other hit
+                if (overlaps(player, box) && !player.isDead && !player.isDashing && !player.skill) {
+                    this.dead = true;
+                    player.setTroll(this.prank);
+                    if (!this.owner.dead) say(this.owner, pickOne(['Trúng rồi! Hahaha!', 'Ăn chưởng chưa con!', 'Đẹp! Quay lại cho cả nhà xem!']), 'weird', 1.8);
+                    return;
+                }
+                if (this.life <= 0) this.dead = true;
+            }
+
+            draw(ctx, camX) {
+                const x = this.x - camX, pulse = 1 + Math.sin(worldTime * 18) * 0.15;
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.globalAlpha = 0.4;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(x, this.y, this.size * 1.7 * pulse, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                ctx.fillStyle = this.color;
+                ctx.fillRect(snap(x - 6), snap(this.y - 6), 12, 12);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = "700 10px 'Noto Serif', serif";
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('?', x, this.y + 1);
+            }
+        }
+
+        // Fake live-stream comments scrolling across the screen while a Yêu Livestream films the hero
+        let streamFeed = [];
+
+        function updateStreamFeed(dt) {
+            for (const c of streamFeed) c.x -= c.speed * dt;
+            streamFeed = streamFeed.filter(c => c.x > -c.w);
+        }
+
+        function drawStreamFeed(ctx) {
+            ctx.save();
+            ctx.font = "700 12px 'Noto Serif', serif";
+            ctx.textBaseline = 'middle';
+            for (const c of streamFeed) {
+                if (!c.w) c.w = ctx.measureText(c.text).width + 8;
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = 'rgba(2, 6, 23, 0.8)';
+                ctx.strokeText(c.text, c.x, c.y);
+                ctx.fillStyle = c.color;
+                ctx.fillText(c.text, c.x, c.y);
+            }
+            ctx.restore();
+        }
+
+        // Turns 2-4 ordinary monsters per stage into quái dị (more kinds and more of them in later stages)
+        function pickWeirdos(stage) {
+            const kinds = WEIRD_ORDER.slice(0, Math.min(WEIRD_ORDER.length, 3 + stage));
+            const count = Math.min(4, 2 + Math.floor(stage / 2));
+            const pool = enemies.filter(e => e.type !== 'boss' && e.x > 700 && !['jelly', 'spider', 'cloud'].includes(e.type));
+            const used = [];
+            for (let i = 0; i < count && pool.length; i++) {
+                // Different kinds first; ground-only tricks need a walker
+                const fresh = kinds.filter(k => !used.includes(k));
+                const kind = pickOne(fresh.length ? fresh : kinds);
+                const needsGround = kind === 'bully' || kind === 'thief' || kind === 'stream';
+                const fits = pool.filter(e => !needsGround || !e.flying);
+                if (!fits.length) continue;
+                const e = pickOne(fits);
+                pool.splice(pool.indexOf(e), 1);
+                e.makeWeird(kind);
+                used.push(kind);
+            }
+        }
+
         // Boss and monster toughness, on top of ENEMY_STATS hp
-        const MOB_HP_SCALE = 3;
-        const BOSS_HP_SCALE = 2;
+        const MOB_HP_SCALE = 6;
+        const BOSS_HP_SCALE = 4;
 
         const ENEMY_STATS = {
             slime:  { width: 36,  height: 30, hp: 30,  speed: 1.8, damage: 10, scoreValue: 100,  barLift: 10 },
@@ -4643,6 +5051,23 @@
                 this.hp = Math.round(this.hp * (type === 'boss' ? BOSS_HP_SCALE : MOB_HP_SCALE));
                 this.maxHp = this.hp;
                 this.chatter = type === 'boss' ? null : newChatter();
+                // Monster AI (see updateMob): patrol -> chase -> windup -> strike -> recover, or flee when scared
+                this.state = 'patrol';
+                this.stateTimer = 0;
+                this.homeX = x;
+                this.homeY = y;
+                this.attackCooldown = 1 + Math.random();
+                this.jumpCooldown = 0;
+                this.lostTimer = 0;
+                this.coward = this.chatter && this.chatter.mood === 'coward';
+                this.scared = false; // cowards run once they have been hit
+                this.weird = null;      // quái dị kind (see WEIRD), set by makeWeird
+                this.weirdTimer = 0;    // cooldown of its prank
+                this.carriedBy = null;  // held over the bully's head
+                this.grabbed = null;    // the minion a bully is holding
+                this.thrown = false;    // flying at the hero after being thrown
+                this.throwVx = 0;
+                this.hasStaff = false;  // Yêu Trộm Gậy holding the hero's staff
 
                 // Bees (demon) and fish hover around their spawn point and chase; jellyfish just drift up and down
                 // Hanging spiders sit on a thread at their spawn height and drop onto the player
@@ -4697,8 +5122,25 @@
 
                 if (this.slowTimer > 0) this.slowTimer -= dt;
 
-                // Frozen by Định Thân Pháp: no movement, no contact damage, but can still be hit
-                if (this.frozen > 0) {
+                if (this.carriedBy) {
+                    // Held over the bully's head, legs kicking
+                    const b = this.carriedBy;
+                    if (b.dead || b.grabbed !== this) {
+                        this.carriedBy = null;
+                    } else {
+                        this.x = b.x + b.width / 2 - this.width / 2;
+                        this.y = b.y - this.height - 4 + Math.sin(this.animTime * 30) * 2;
+                        this.vy = 0;
+                        this.animTime += dt;
+                    }
+                } else if (this.thrown) {
+                    this.animTime += dt;
+                    this.updateThrown(platforms);
+                    if (overlaps(player, this)) {
+                        player.takeDamage(THROWN_DAMAGE, sideOf(this, player));
+                    }
+                } else if (this.frozen > 0) {
+                    // Frozen by Định Thân Pháp: no movement, no contact damage, but can still be hit
                     this.frozen -= dt;
                     this.kvx = 0;
                 } else {
@@ -4706,9 +5148,13 @@
                     if (this.type === 'boss') this.updateBoss(dt, player, platforms);
                     else this.updateMob(dt, player, platforms);
 
-                    // Hit Player check
-                    if (overlaps(player, this)) {
-                        player.takeDamage(this.damage);
+                    // Hit Player check: walking and diving monsters only hurt while they strike
+                    if (overlaps(player, this) && this.harmful()) {
+                        if (this.weird === 'thief' && !this.hasStaff && !player.troll && !player.isDead && !player.isDashing && !player.skill) {
+                            this.stealStaff(player);
+                        } else {
+                            player.takeDamage(this.damage);
+                        }
                     }
                 }
 
@@ -4722,6 +5168,177 @@
                 }
             }
 
+            // Contact damage: walkers and divers only while striking; jellies, spiders, clouds and bosses always
+            harmful() {
+                if (this.weird === 'stream') return false; // too busy filming
+                if (this.type === 'boss' || this.type === 'jelly' || this.type === 'spider' || this.type === 'cloud') return true;
+                return this.state === 'strike';
+            }
+
+            makeWeird(kind) {
+                this.weird = kind;
+                this.weirdTimer = 1 + Math.random() * 2;
+                this.damage = Math.max(1, Math.round(this.damage * WEIRD_DAMAGE));
+                this.coward = false;
+                this.chatter = { mood: 'weird', kind, timer: 1 + Math.random() * 3 };
+            }
+
+            // Would a throw with this launch speed land on a platform (same steps as updateThrown)?
+            throwLands(vx, vy, platforms) {
+                let x = this.x, y = this.y;
+                for (let f = 0; f < 240 && y < GAME_HEIGHT + 60; f++) {
+                    x += vx;
+                    vy += 0.65;
+                    y += vy;
+                    if (vy > 0 && platforms.some(p => x < p.x + p.w && x + this.width > p.x && y < p.y + p.h && y + this.height > p.y)) return true;
+                }
+                return false;
+            }
+
+            // Flying in an arc after the bully threw it; lands dazed
+            updateThrown(platforms) {
+                this.x += this.throwVx;
+                this.applyGravity(platforms);
+                if (this.isGrounded) {
+                    this.thrown = false;
+                    this.kvx = 0;
+                    addShake(3);
+                    createHitSparks(this.x + this.width / 2, this.y + this.height, '#d6d3d1', 8);
+                    this.setMobState('recover', 1);
+                    this.strikeDir = 0;
+                    if (Math.random() < 0.6) say(this, pickOne(['Ui da... hạ cánh rồi.', 'Đại ca, em nhớ mặt anh đấy!', 'Lần sau anh tự bay đi!']), 'coward', 1.8);
+                } else if (this.y > GAME_HEIGHT + 60) {
+                    this.thrown = false;
+                    Object.assign(this, { x: this.homeX, y: this.homeY, vy: 0, kvx: 0 });
+                    this.setMobState('patrol', 0);
+                }
+            }
+
+            stealStaff(player) {
+                this.hasStaff = true;
+                player.setTroll('unarmed');
+                player.isAttacking = false;
+                playSound('slash');
+                createHitSparks(player.x + player.width / 2, player.y + 20, '#facc15', 12);
+                say(this, nameLine(pickOne(WEIRD.thief.lines), player), 'weird', 2.2);
+                this.attackCooldown = 2;
+                this.setMobState('flee', 0);
+            }
+
+            // The oddballs' tricks. Returns true when it handled this frame's movement itself.
+            weirdBrain(dt, player, platforms, dx, dy, dir, sees) {
+                this.weirdTimer -= dt;
+                const adx = Math.abs(dx);
+                const info = WEIRD[this.weird];
+
+                if (this.weird === 'thief') {
+                    // With the staff it just runs; the hero has to chase it down
+                    if (this.hasStaff && !['flee', 'windup', 'strike'].includes(this.state)) this.setMobState('flee', 0);
+                    return false;
+                }
+
+                if (this.weird === 'stream') {
+                    if (!sees) return false;
+                    // Films from a safe distance and feeds the comment ticker
+                    this.facing = dir > 0 ? 'right' : 'left';
+                    const gap = adx - 170;
+                    const move = Math.abs(gap) > 20 ? Math.sign(gap) * dir * this.speed * 1.3 : 0;
+                    if (this.weirdTimer <= 0) {
+                        this.weirdTimer = 0.8 + Math.random() * 0.7;
+                        streamFeed.push({ text: nameLine(pickOne(STREAM_COMMENTS), player), x: GAME_WIDTH + 10, y: 110 + Math.random() * 120,
+                            speed: 110 + Math.random() * 60, color: pickOne(['#ffffff', '#fde68a', '#bae6fd', '#fecaca', '#bbf7d0']), w: 0 });
+                    }
+                    this.moveWalker(move, 12, platforms);
+                    return true;
+                }
+
+                if (this.weird === 'bully') {
+                    if (this.state === 'grab') {
+                        this.facing = dir > 0 ? 'right' : 'left';
+                        if (this.stateTimer <= 0) {
+                            const m = this.grabbed;
+                            this.grabbed = null;
+                            if (m && !m.dead) {
+                                m.carriedBy = null;
+                                // Aim at the hero, but shorten the throw until the arc ends on solid ground
+                                const aim = Math.max(-9, Math.min(9, dx / 34));
+                                const vx = [1, 0.75, 0.5, 0.25].map(k => aim * k).find(v => m.throwLands(v, -10, platforms));
+                                if (vx !== undefined) {
+                                    m.thrown = true;
+                                    m.throwVx = vx;
+                                    m.vy = -10;
+                                    m.facing = this.facing;
+                                } else {
+                                    // Nowhere safe to throw: just put the minion down
+                                    m.x = this.x + this.width / 2 - m.width / 2;
+                                    m.y = this.y + this.height - m.height;
+                                    m.vy = 0;
+                                    say(this, 'Thôi, xuống đi em. Ném xuống vực thì ai làm việc.', 'weird', 1.8);
+                                }
+                            }
+                            this.weirdTimer = 6 + Math.random() * 3;
+                            this.setMobState('recover', 0.5);
+                            this.strikeDir = 0;
+                        }
+                        this.moveWalker(0, 12, platforms);
+                        return true;
+                    }
+                    if (sees && this.weirdTimer <= 0 && this.isGrounded && !['windup', 'strike'].includes(this.state)) {
+                        const m = enemies.find(e => e !== this && !e.dead && !e.weird && !e.flying && e.type !== 'boss' &&
+                            !e.carriedBy && !e.thrown && Math.abs(e.x - this.x) < 260 && Math.abs(e.y - this.y) < 80);
+                        if (!m) {
+                            this.weirdTimer = 2;
+                            if (Math.random() < 0.3) say(this, 'Đàn em đâu hết rồi? Toàn trốn việc!', 'weird', 1.8);
+                            return false;
+                        }
+                        this.grabbed = m;
+                        m.carriedBy = this;
+                        m.thrown = false;
+                        m.setMobState('patrol', 0);
+                        this.setMobState('grab', 0.8);
+                        say(this, pickOne(info.lines), 'weird', 2);
+                        say(m, pickOne(THROWN_LINES), 'coward', 2);
+                        return true;
+                    }
+                    return false;
+                }
+
+                // Casters (biến hình, đảo ngược, thu nhỏ): stop, glow, then fling a prank orb
+                if (this.state === 'cast') {
+                    this.facing = dir > 0 ? 'right' : 'left';
+                    if (Math.random() < 0.5) {
+                        particles.push(new Particle(this.x + Math.random() * this.width, this.y + this.height * Math.random(), 0, -1.2, info.color, 3, 0.4));
+                    }
+                    if (this.stateTimer <= 0) {
+                        projectiles.push(new TrollShot(this, player));
+                        playSound('skill');
+                        this.weirdTimer = 7 + Math.random() * 3;
+                        this.setMobState('chase', 0);
+                    }
+                    if (!this.flying) this.moveWalker(0, 12, platforms);
+                    return true;
+                }
+                if (sees && this.weirdTimer <= 0 && adx < 380 && !player.troll && ['patrol', 'chase'].includes(this.state)) {
+                    this.setMobState('cast', 0.8);
+                    say(this, nameLine(pickOne(info.lines), player), 'weird', 2.2);
+                    return true;
+                }
+                return false;
+            }
+
+            setMobState(state, time) {
+                this.state = state;
+                this.stateTimer = time;
+            }
+
+            // Is there something to stand on just ahead in direction d? A drop onto a lower platform
+            // within maxDrop counts; a pit (nothing below) never does.
+            canStep(d, platforms, maxDrop, ahead = 6) {
+                const probe = d > 0 ? this.x + this.width + ahead : this.x - ahead;
+                const feet = this.y + this.height;
+                return platforms.some(p => probe >= p.x && probe <= p.x + p.w && p.y >= feet - 6 && p.y <= feet + maxDrop);
+            }
+
             updateMob(dt, player, platforms) {
                 if (this.type === 'jelly') {
                     this.y = this.baseY + Math.sin(this.animTime * 1.2) * 70;
@@ -4733,50 +5350,223 @@
                     this.updateHangingSpider(dt, player);
                     return;
                 }
-                const distToPlayer = Math.hypot((player.x + player.width / 2) - (this.x + this.width / 2), (player.y + player.height / 2) - (this.y + this.height / 2));
-                const chasing = distToPlayer < 250 && !player.isDead;
-                const stunned = Math.abs(this.kvx) > 1;
-
-                if (stunned) {
-                    // knocked back: no steering until the push wears off
-                } else if (chasing) {
-                    if (player.x < this.x) {
-                        this.vx = -this.speed;
-                        this.facing = 'left';
-                    } else {
-                        this.vx = this.speed;
-                        this.facing = 'right';
-                    }
-                } else {
-                    if (this.x <= this.patrolLeft) {
-                        this.vx = this.speed;
-                        this.facing = 'right';
-                    } else if (this.x >= this.patrolRight) {
-                        this.vx = -this.speed;
-                        this.facing = 'left';
-                    }
+                if (this.type === 'cloud') {
+                    this.updateStormCloud(dt, player);
+                    return;
                 }
 
-                this.x += (stunned ? 0 : this.vx * this.slowFactor()) + this.kvx;
-                this.kvx *= 0.85;
+                this.stateTimer -= dt;
+                this.attackCooldown -= dt;
+                this.jumpCooldown -= dt;
+                const dx = (player.x + player.width / 2) - (this.x + this.width / 2);
+                const dy = (player.y + player.height / 2) - (this.y + this.height / 2);
+                const dir = dx < 0 ? -1 : 1;
+                const sees = !player.isDead && Math.abs(dx) < 360 && Math.abs(dy) < (this.flying ? 240 : 170);
 
-                if (this.type === 'cloud') {
-                    // Hover well above the player and drop lightning bolts
-                    const targetY = chasing ? Math.max(30, player.y - 150) : this.baseY + Math.sin(this.animTime * 2) * 12;
-                    this.y += Math.max(-2, Math.min(2, (targetY - this.y) * 0.05));
-                    this.shootTimer -= dt;
-                    if (chasing && this.shootTimer <= 0) {
-                        this.shootTimer = 2.2;
-                        projectiles.push(new Projectile(this.x + this.width / 2, this.y + this.height, '#fde047'));
+                if (this.weird && this.weirdBrain(dt, player, platforms, dx, dy, dir, sees)) return;
+                if (this.coward && this.scared && sees && this.state !== 'windup' && this.state !== 'strike' && this.state !== 'flee') {
+                    this.setMobState('flee', 0);
+                }
+                if (this.flying) this.flyerBrain(dt, player, dx, dy, dir, sees);
+                else this.walkerBrain(dt, player, platforms, dx, dy, dir, sees);
+            }
+
+            // Ground monsters: keep a fighting distance, wind up, lunge, back off; jump after a hero on a ledge
+            walkerBrain(dt, player, platforms, dx, dy, dir, sees) {
+                const reach = this.width / 2 + player.width / 2 + 30;
+                const adx = Math.abs(dx);
+                let move = 0;     // desired speed this frame
+                let mayDrop = 12; // how far it is willing to step down
+                switch (this.state) {
+                    case 'patrol':
+                        if (sees) {
+                            this.setMobState('chase', 0);
+                            break;
+                        }
+                        move = this.facing === 'right' ? this.speed * 0.6 : -this.speed * 0.6;
+                        if (this.x <= this.patrolLeft) this.facing = 'right';
+                        else if (this.x >= this.patrolRight) this.facing = 'left';
+                        break;
+                    case 'chase':
+                        this.lostTimer = sees ? 0 : this.lostTimer + dt;
+                        if (this.lostTimer > 1.5) {
+                            this.patrolLeft = this.x - 150;
+                            this.patrolRight = this.x + 150;
+                            this.setMobState('patrol', 0);
+                            break;
+                        }
+                        this.facing = dir > 0 ? 'right' : 'left';
+                        if (adx > reach + 8) move = dir * this.speed * 1.15;
+                        else if (adx < reach - 22) move = -dir * this.speed * 0.6;
+                        if (dy > 60) mayDrop = 260; // hero is below: step down off a ledge after him
+                        if (this.isGrounded && dy < -70 && adx < 170 && this.jumpCooldown <= 0) {
+                            this.vy = -14;
+                            this.jumpCooldown = 1.6;
+                        }
+                        if (adx <= reach + 25 && Math.abs(dy) < 60 && this.attackCooldown <= 0) {
+                            this.setMobState('windup', 0.45);
+                        }
+                        break;
+                    case 'windup':
+                        this.facing = dir > 0 ? 'right' : 'left';
+                        if (this.stateTimer <= 0) {
+                            this.strikeDir = dir;
+                            this.setMobState('strike', 0.28);
+                            if (Math.random() < 0.25) say(this, pickOne(CHATTER.shout), 'hurt', 0.9);
+                        }
+                        break;
+                    case 'strike':
+                        move = this.strikeDir * Math.max(6, this.speed * 3);
+                        if (this.stateTimer <= 0) {
+                            this.attackCooldown = 1.1 + Math.random() * 0.9;
+                            this.setMobState('recover', 0.6);
+                        }
+                        break;
+                    case 'recover':
+                        move = -this.strikeDir * this.speed * 0.7;
+                        if (this.stateTimer <= 0) this.setMobState('chase', 0);
+                        break;
+                    case 'flee': {
+                        if (!sees && this.stateTimer < -3) {
+                            this.setMobState('patrol', 0);
+                            break;
+                        }
+                        const away = -dir;
+                        this.facing = away > 0 ? 'right' : 'left';
+                        move = away * this.speed * 1.8;
+                        if (this.isGrounded && this.jumpCooldown <= 0 && Math.random() < dt * 0.8) {
+                            this.vy = -12; // panicked hop
+                            this.jumpCooldown = 1;
+                        }
+                        // Cornered at an edge: turn and fight, or hop off onto a ledge below
+                        if (this.isGrounded && !this.canStep(away, platforms, 260) && adx < 140) {
+                            say(this, pickOne(CHATTER.cornered), 'hurt', 1.4);
+                            this.setMobState('windup', 0.35);
+                        }
+                        break;
                     }
-                } else if (this.flying) {
-                    const targetY = chasing
-                        ? player.y + player.height / 2 - this.height / 2
-                        : this.baseY + Math.sin(this.animTime * 2.5) * 16;
-                    this.y += Math.max(-2, Math.min(2, (targetY - this.y) * 0.05));
-                    this.isLunging = chasing && distToPlayer < 90;
-                } else {
-                    this.applyGravity(platforms);
+                }
+                this.moveWalker(move, mayDrop, platforms);
+            }
+
+            // Never walk, hop or get knocked over a pit. On the ground it only steps down as far as
+            // mayDrop allows (and turns at edges); in the air anything with a platform below is fine.
+            moveWalker(move, mayDrop, platforms) {
+                let step = Math.abs(this.kvx) > 1 ? 0 : move * this.slowFactor();
+                const drop = this.isGrounded ? mayDrop : 600;
+                if (step !== 0 && !this.canStep(Math.sign(step), platforms, drop, Math.abs(step) + 2)) {
+                    step = 0;
+                    if (this.state === 'patrol') this.facing = this.facing === 'right' ? 'left' : 'right';
+                }
+                if (this.kvx !== 0 && !this.canStep(Math.sign(this.kvx), platforms, 600, Math.abs(this.kvx) + 2)) this.kvx = 0;
+                this.x += step + this.kvx;
+                this.kvx *= 0.85;
+                this.applyGravity(platforms);
+
+                // Safety net: one that still ends up in a pit comes back where it started
+                if (this.y > GAME_HEIGHT + 60) {
+                    Object.assign(this, { x: this.homeX, y: this.homeY, vy: 0, kvx: 0 });
+                    this.setMobState('patrol', 0);
+                }
+            }
+
+            // Flying monsters: hover off to the side above the hero, wind up, dive at where he was, climb away
+            flyerBrain(dt, player, dx, dy, dir, sees) {
+                const pcx = player.x + player.width / 2, pcy = player.y + player.height / 2;
+                const cx = this.x + this.width / 2, cy = this.y + this.height / 2;
+                let tx = cx, ty = this.baseY + this.height / 2, speed = this.speed;
+                switch (this.state) {
+                    case 'patrol':
+                        if (sees) {
+                            this.setMobState('chase', 0);
+                            break;
+                        }
+                        if (this.x <= this.patrolLeft) this.facing = 'right';
+                        else if (this.x >= this.patrolRight) this.facing = 'left';
+                        tx = cx + (this.facing === 'right' ? 40 : -40);
+                        ty += Math.sin(this.animTime * 2.5) * 16;
+                        break;
+                    case 'chase':
+                        this.lostTimer = sees ? 0 : this.lostTimer + dt;
+                        if (this.lostTimer > 2) {
+                            this.baseY = this.y;
+                            this.setMobState('patrol', 0);
+                            break;
+                        }
+                        this.facing = dir > 0 ? 'right' : 'left';
+                        tx = pcx - dir * 110;
+                        ty = pcy - 70 + Math.sin(this.animTime * 3) * 10;
+                        speed *= 1.2;
+                        if (Math.hypot(tx - cx, ty - cy) < 45 && this.attackCooldown <= 0) {
+                            this.diveTo = { x: pcx, y: pcy };
+                            this.setMobState('windup', 0.5);
+                        }
+                        break;
+                    case 'windup':
+                        tx = cx;
+                        ty = cy - 1; // brace in the air
+                        if (this.stateTimer <= 0) {
+                            this.setMobState('strike', 0.45);
+                            if (Math.random() < 0.25) say(this, pickOne(CHATTER.shout), 'hurt', 0.9);
+                        }
+                        break;
+                    case 'strike':
+                        tx = this.diveTo.x;
+                        ty = this.diveTo.y;
+                        speed = 7;
+                        if (this.stateTimer <= 0 || Math.hypot(tx - cx, ty - cy) < 8) {
+                            this.attackCooldown = 1.2 + Math.random();
+                            this.setMobState('recover', 0.7);
+                        }
+                        break;
+                    case 'recover':
+                        tx = cx - dir * 60;
+                        ty = cy - 80;
+                        if (this.stateTimer <= 0) this.setMobState('chase', 0);
+                        break;
+                    case 'flee':
+                        if (!sees && this.stateTimer < -3) {
+                            this.baseY = this.y;
+                            this.setMobState('patrol', 0);
+                            break;
+                        }
+                        this.facing = dir > 0 ? 'left' : 'right';
+                        tx = cx - dir * 120;
+                        ty = Math.min(cy, pcy) - 60 + Math.sin(this.animTime * 6) * 30; // zig-zag away and up
+                        speed *= 1.7;
+                        break;
+                }
+                this.isLunging = this.state === 'strike';
+                const mx = tx - cx, my = ty - cy, d = Math.hypot(mx, my);
+                if (d > 1) {
+                    const v = Math.min(d, speed * this.slowFactor());
+                    this.x += (mx / d) * v;
+                    this.y += (my / d) * v * (this.state === 'strike' ? 1 : 0.7);
+                }
+                this.x += this.kvx;
+                this.kvx *= 0.85;
+                this.y = Math.max(20, Math.min(470 - this.height, this.y));
+            }
+
+            // Storm clouds hover well above the hero and drop lightning bolts
+            updateStormCloud(dt, player) {
+                const dist = Math.hypot((player.x + player.width / 2) - (this.x + this.width / 2), (player.y + player.height / 2) - (this.y + this.height / 2));
+                const chasing = dist < 250 && !player.isDead;
+                if (Math.abs(this.kvx) <= 1) {
+                    if (chasing) this.vx = player.x < this.x ? -this.speed : this.speed;
+                    else if (this.x <= this.patrolLeft) this.vx = this.speed;
+                    else if (this.x >= this.patrolRight) this.vx = -this.speed;
+                    this.facing = this.vx < 0 ? 'left' : 'right';
+                    this.x += this.vx * this.slowFactor();
+                }
+                this.x += this.kvx;
+                this.kvx *= 0.85;
+                const targetY = chasing ? Math.max(30, player.y - 150) : this.baseY + Math.sin(this.animTime * 2) * 12;
+                this.y += Math.max(-2, Math.min(2, (targetY - this.y) * 0.05));
+                this.shootTimer -= dt;
+                if (chasing && this.shootTimer <= 0) {
+                    this.shootTimer = 2.2;
+                    projectiles.push(new Projectile(this.x + this.width / 2, this.y + this.height, '#fde047'));
                 }
             }
 
@@ -4814,9 +5604,9 @@
                 c.timer -= dt;
                 if (c.timer > 0) return;
                 c.timer = 6 + Math.random() * 8;
-                const busy = bubbles.filter(b => b.kind !== 'hurt' && b.kind !== 'dying').length >= MAX_CHATTING;
+                const busy = bubbles.filter(b => b.idle).length >= MAX_CHATTING;
                 if (busy || Math.abs(this.x - player.x) > 650 || bubbles.some(b => b.owner === this)) return;
-                say(this, chatterLine(c, player), c.mood, c.mood === 'poet' ? 5 : 3.5);
+                say(this, chatterLine(c, player), c.mood, c.mood === 'poet' ? 5 : 3.5, true);
             }
 
             // Lưu Sa Hà quicksand drags enemies to a crawl
@@ -4962,14 +5752,27 @@
                     this.kvx = dir * 2;
                 } else {
                     this.kvx = dir * 7;
-                    if (!this.flying) this.vy = -4;
+                    if (!this.flying && !this.thrown) this.vy = -4; // a thrown minion keeps its (checked) arc
                 }
                 playSound('hit');
                 hitStop = Math.max(hitStop, 0.045);
 
                 createHitSparks(this.x + this.width / 2, this.y + this.height / 2, '#fef08a', 8);
                 floatingTexts.push(new FloatingText(`${amount}`, this.x + 10, this.y - 10, '#fef08a', 14));
-                if (this.hp > 0 && this.chatter && Math.random() < 0.2) say(this, pickOne(CHATTER.hurt), 'hurt', 1.4);
+                if (this.hasStaff && player.troll && player.troll.kind === 'unarmed') {
+                    // Hit the thief and the staff flies back
+                    player.endTroll();
+                    if (this.hp > 0) say(this, pickOne(['Ối, rơi mất rồi!', 'Thôi trả đấy, nặng gãy lưng!', 'Của đáng tội, cầm cũng không quen tay.']), 'weird', 1.8);
+                } else if (this.hp > 0 && this.weird) {
+                    if (Math.random() < 0.5) say(this, nameLine(pickOne(CHATTER.hurt), player), 'weird', 1.6);
+                } else if (this.hp > 0 && this.chatter) {
+                    if (this.coward) {
+                        this.scared = true;
+                        if (Math.random() < 0.6) say(this, pickOne(CHATTER.beg), 'coward', 1.8);
+                    } else if (Math.random() < 0.35) {
+                        say(this, pickOne(CHATTER.hurt), 'hurt', 1.8);
+                    }
+                }
 
                 if (this.hp <= 0) {
                     this.dead = true;
@@ -4986,12 +5789,23 @@
                         addShake(12);
                         this.fireRain = 0;
                         for (let i = 0; i < 6; i++) pickups.push(new Pickup(cx, this.y + 20, true));
-                        floatingTexts.push(new FloatingText('CỔNG ĐÃ MỞ!', cx - 60, this.y - 40, '#facc15', 14));
                         storyDelay = { part: 'after', t: 1.6 };
                     } else {
                         hitStop = Math.max(hitStop, 0.08);
-                        if (Math.random() < 0.35) pickups.push(new Pickup(cx, this.y + 10, true));
-                        if (Math.random() < 0.4) say(this, pickOne(CHATTER.dying), 'dying', 2.5);
+                        if (this.grabbed) this.grabbed.carriedBy = null;
+                        if (this.weird) {
+                            // Oddballs pay out: the streamer drops its whole donation box
+                            const n = this.weird === 'stream' ? 5 : 2;
+                            for (let i = 0; i < n; i++) pickups.push(new Pickup(cx, this.y + 10, true));
+                            say(this, this.weird === 'stream' ? 'Mất sóng rồi cả nhà ơi...' : pickOne(CHATTER.dying), 'dying', 2.5);
+                        } else {
+                            if (Math.random() < 0.35) pickups.push(new Pickup(cx, this.y + 10, true));
+                            if (Math.random() < 0.4) say(this, pickOne(CHATTER.dying), 'dying', 2.5);
+                        }
+                    }
+                    // The last monster down opens the gate
+                    if (!enemies.some(e => !e.dead)) {
+                        floatingTexts.push(new FloatingText('CỔNG ĐÃ MỞ!', cx - 60, this.y - 40, '#facc15', 14));
                     }
                     updateHUD();
                 }
@@ -5036,6 +5850,62 @@
                 };
             }
 
+            // Quái dị extras: a crooked crown and its name, plus the stolen staff or the streaming phone
+            drawWeirdBits(ctx, cx, color) {
+                const top = this.y - this.barLift - 16;
+                if (this.weird === 'thief' && this.hasStaff) {
+                    // The hero's staff held up like a trophy
+                    ctx.save();
+                    ctx.translate(cx, this.y - 6);
+                    ctx.rotate(-0.5 + Math.sin(this.animTime * 10) * 0.15);
+                    ctx.fillStyle = '#b91c1c';
+                    ctx.fillRect(-3, -34, 6, 56);
+                    ctx.fillStyle = '#facc15';
+                    ctx.fillRect(-4, -36, 8, 7);
+                    ctx.fillRect(-4, 17, 8, 7);
+                    ctx.restore();
+                }
+                if (this.weird === 'stream') {
+                    // Phone held out in front, with a blinking LIVE tag
+                    const fx = cx + (this.facing === 'right' ? 1 : -1) * (this.width / 2 + 4);
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(snap(fx - 5), snap(this.y + 4), 10, 16);
+                    ctx.fillStyle = '#7dd3fc';
+                    ctx.fillRect(snap(fx - 3), snap(this.y + 6), 6, 11);
+                    if (Math.floor(this.animTime * 2) % 2 === 0) {
+                        ctx.fillStyle = '#dc2626';
+                        ctx.fillRect(snap(cx - 14), snap(top - 26), 28, 11);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = "700 8px 'Noto Serif', serif";
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('LIVE', cx, top - 20);
+                    }
+                }
+                // Crooked crown
+                ctx.save();
+                ctx.translate(cx + 4, this.y - this.barLift - 2);
+                ctx.rotate(0.3);
+                ctx.fillStyle = '#facc15';
+                ctx.fillRect(-8, -6, 16, 5);
+                for (const px of [-8, -2, 4]) ctx.fillRect(px, -10, 4, 4);
+                ctx.fillStyle = color;
+                ctx.fillRect(-2, -5, 3, 3);
+                ctx.restore();
+                // Name tag
+                ctx.save();
+                ctx.font = "700 9px 'Noto Serif', serif";
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = 'rgba(2, 6, 23, 0.85)';
+                const name = WEIRD[this.weird].name;
+                ctx.strokeText(name, cx, top);
+                ctx.fillStyle = color;
+                ctx.fillText(name, cx, top);
+                ctx.restore();
+            }
+
             draw(ctx, camX) {
                 if (this.dead && this.deathTimer <= 0) return;
 
@@ -5067,8 +5937,9 @@
                 }
 
                 // Boss stomps in place before charging
-                const winding = this.type === 'boss' && this.state === 'telegraph';
+                const winding = (this.type === 'boss' && this.state === 'telegraph') || this.state === 'windup' || this.state === 'cast';
                 if (winding) cx += Math.sin(this.animTime * 60) * 3;
+                const oddColor = this.weird && WEIRD[this.weird].color;
 
                 if (this.type === 'spider') {
                     // silk thread up to where it hangs from
@@ -5083,13 +5954,23 @@
                     ctx.fill();
                 }
 
-                if (glow) {
-                    ctx.shadowColor = glow;
-                    ctx.shadowBlur = 18;
+                if (glow || oddColor) {
+                    ctx.shadowColor = glow || oddColor;
+                    ctx.shadowBlur = glow ? 18 : 10 + Math.sin(this.animTime * 6) * 4;
                 }
                 const img = this.type === 'boss' && this.phase === 2 ? FLASH.rage[key] : IMG[key];
-                drawSprite(img, anim, frame, cx, feetY, flip, scale);
+                if (this.thrown) {
+                    // Tumbling through the air
+                    ctx.save();
+                    ctx.translate(cx, feetY - this.height / 2);
+                    ctx.rotate(this.animTime * 14 * (this.throwVx < 0 ? -1 : 1));
+                    drawSprite(img, anim, frame, 0, this.height / 2, flip, scale);
+                    ctx.restore();
+                } else {
+                    drawSprite(img, anim, frame, cx, feetY, flip, scale);
+                }
                 ctx.shadowBlur = 0;
+                if (this.weird) this.drawWeirdBits(ctx, cx, oddColor);
 
                 if (this.isHit || (winding && Math.floor(this.animTime * 12) % 2 === 0)) {
                     // Painted bosses already play a hurt row, so their flash is lighter
@@ -5132,6 +6013,45 @@
             }
         }
 
+        // "Còn N quái" at the top; when none is on screen, an arrow at the edge points to the nearest one
+        function drawMonsterCounter(ctx, camX) {
+            const alive = enemies.filter(e => !e.dead);
+            ctx.save();
+            ctx.font = "700 13px 'Noto Serif', serif";
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const text = alive.length ? `Còn ${alive.length} quái` : 'Cổng đã mở!';
+            const w = ctx.measureText(text).width + 24;
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.7)';
+            ctx.strokeStyle = alive.length ? '#f87171' : '#facc15';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(GAME_WIDTH / 2 - w / 2, 12, w, 24, 12);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = alive.length ? '#fecaca' : '#fde68a';
+            ctx.fillText(text, GAME_WIDTH / 2, 25);
+
+            const onScreen = alive.some(e => e.x + e.width > camX && e.x < camX + GAME_WIDTH);
+            if (alive.length && !onScreen) {
+                const px = player.x + player.width / 2;
+                const near = alive.reduce((a, e) => (Math.abs(e.x - px) < Math.abs(a.x - px) ? e : a));
+                const right = near.x > px;
+                const ax = right ? GAME_WIDTH - 22 : 22, ay = GAME_HEIGHT / 2;
+                const bob = Math.sin(worldTime * 6) * 4 * (right ? 1 : -1);
+                ctx.fillStyle = '#f87171';
+                ctx.beginPath();
+                ctx.moveTo(ax + bob + (right ? 12 : -12), ay);
+                ctx.lineTo(ax + bob + (right ? -6 : 6), ay - 12);
+                ctx.lineTo(ax + bob + (right ? -6 : 6), ay + 12);
+                ctx.fill();
+                ctx.font = "700 11px 'Noto Serif', serif";
+                ctx.fillStyle = '#fecaca';
+                ctx.fillText(`${Math.round(Math.abs(near.x - px) / 10)}m`, ax, ay + 24);
+            }
+            ctx.restore();
+        }
+
         function drawBossBar(ctx) {
             const boss = enemies.find(e => e.type === 'boss' && e.awake && !e.dead);
             if (!boss) return;
@@ -5172,8 +6092,8 @@
             update(dt, player) {
                 this.rotation += dt * 3;
                 if (this.hintTimer > 0) this.hintTimer -= dt;
-                // On boss stages the portal stays sealed until the boss falls
-                this.locked = enemies.some(e => e.type === 'boss' && !e.dead);
+                // The portal stays sealed until every monster (boss included) has fallen
+                this.locked = enemies.some(e => !e.dead);
 
                 if (!this.locked && Math.random() < 0.25) {
                     particles.push(new Particle(
@@ -5189,7 +6109,7 @@
                         storyBeat(currentLevelIndex, 'clear', stageClear);
                     } else if (this.hintTimer <= 0) {
                         this.hintTimer = 1.5;
-                        floatingTexts.push(new FloatingText('HẠ BOSS ĐỂ MỞ CỔNG', this.x - 80, this.y - 10, '#fca5a5', 10));
+                        floatingTexts.push(new FloatingText(`CÒN ${enemies.filter(e => !e.dead).length} QUÁI`, this.x - 40, this.y - 10, '#fca5a5', 10));
                     }
                 }
             }
@@ -5448,6 +6368,8 @@
             camera.snapTo(player, currentLevel.worldWidth);
 
             enemies = currentLevel.enemies.map(e => new Enemy(e.x, e.y, e.type));
+            pickWeirdos(index);
+            streamFeed = [];
             portal = new Portal(currentLevel.portalX, currentLevel.portalY);
             checkpoints = (currentLevel.checkpoints || []).map(c => new Checkpoint(c.x, c.y));
             pickups = (currentLevel.peaches || []).map(p => new Pickup(p.x, p.y));
@@ -7089,6 +8011,7 @@
             });
             updateSkillEffects(dt);
             updateBubbles(dt);
+            updateStreamFeed(dt);
             for (const p of pickups) p.update(dt, player, platforms);
             pickups = pickups.filter(p => !p.collected);
             for (const p of projectiles) p.update(dt, player, platforms);
@@ -7219,6 +8142,7 @@
             ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
             drawBubbles(ctx, camX);
+            if (gameState === 'PLAYING' || gameState === 'PAUSED') drawStreamFeed(ctx);
             for (let ft of floatingTexts) {
                 ft.draw(ctx, camX);
             }
@@ -7226,6 +8150,7 @@
             if (gameState === 'PLAYING' || gameState === 'PAUSED') {
                 drawBossBar(ctx);
                 drawSkillSlots(ctx);
+                drawMonsterCounter(ctx, camX);
             }
             drawLevelBanner(ctx, dt);
             drawCutIn(ctx, dt);
@@ -7277,6 +8202,25 @@
         function setupDevPanel() {
             const panel = document.getElementById('dev-panel');
             panel.classList.remove('hidden');
+
+            // Collapse to just the title bar; remembered across reloads
+            const body = document.getElementById('dev-body');
+            const collapseBtn = document.getElementById('dev-collapse');
+            const setCollapsed = (collapsed) => {
+                body.classList.toggle('hidden', collapsed);
+                panel.classList.toggle('w-60', !collapsed);
+                collapseBtn.innerHTML = `<i class="fa-solid fa-chevron-${collapsed ? 'up' : 'down'}"></i>`;
+                try { localStorage.setItem('devCollapsed', collapsed ? '1' : ''); } catch (e) {}
+            };
+            let startCollapsed = false;
+            try { startCollapsed = localStorage.getItem('devCollapsed') === '1'; } catch (e) {}
+            setCollapsed(startCollapsed);
+            collapseBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                collapseBtn.blur();
+                setCollapsed(!body.classList.contains('hidden'));
+            });
+
             document.getElementById('dev-stages').innerHTML = LEVELS.map((_, i) =>
                 `<button data-stage="${i}" class="py-1.5 rounded bg-amber-700 hover:bg-amber-600 pixel-font text-[9px] cursor-pointer">${i + 1}</button>`).join('');
 
