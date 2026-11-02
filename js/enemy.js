@@ -93,6 +93,7 @@ class Enemy {
             this.fireTimer = 0;
             // The boss never leaves the ground platform it spawns over
             const home = currentLevel.platforms.find(p => p.h >= 40 && x >= p.x && x < p.x + p.w);
+            this.home = home || null;
             this.homeLeft = home ? home.x + 10 : x - 300;
             this.homeRight = home ? home.x + home.w - this.width - 10 : x + 300;
             const size = THEMES[currentLevel.theme] && THEMES[currentLevel.theme].bossSize;
@@ -634,16 +635,11 @@ class Enemy {
     // Below half HP it enrages: faster, summons boars and calls down fire rain.
     updateBoss(dt, player, platforms) {
         const dx = (player.x + player.width / 2) - (this.x + this.width / 2);
+        if (this.intro) return; // the entrance scene moves it (js/boss-intro.js)
 
         if (!this.awake) {
-            if (Math.abs(dx) < 450 && !player.isDead) {
-                this.awake = true;
-                this.setState('roar', 1.0);
-                playSound('roar');
-                addShake(6);
-                storyBeat(currentLevelIndex, 'boss');
-            }
-            this.applyGravity(platforms);
+            if (!player.isDead && heroInArena(this)) startBossIntro(this);
+            else this.applyGravity(platforms);
             return;
         }
 
@@ -801,6 +797,7 @@ class Enemy {
                 this.fireRain = 0;
                 for (let i = 0; i < 6; i++) pickups.push(new Pickup(cx, this.y + 20, true));
                 storyDelay = { part: 'after', t: 1.6 };
+                endBossFight();
             } else {
                 hitStop = Math.max(hitStop, 0.08);
                 if (this.grabbed) this.grabbed.carriedBy = null;
@@ -929,6 +926,7 @@ class Enemy {
 
     draw(ctx, camX) {
         if (this.dead && this.deathTimer <= 0) return;
+        if (this.introAlpha === 0) return; // not arrived yet
 
         let cx = this.x + this.width / 2 - camX;
         if (cx < -150 || cx > GAME_WIDTH + 150) return;
@@ -938,6 +936,7 @@ class Enemy {
         const frame = (anim.start || 0) + Math.floor(this.animTime * fps) % anim.frames;
 
         ctx.save();
+        if (this.introAlpha !== undefined) ctx.globalAlpha = this.introAlpha;
         if (this.dead) {
             const elapsed = ENEMY_DEATH_TIME - this.deathTimer;
             const deathAnim = this.skin ? this.skin.anims.death : this.type === 'boss' && THEMES[currentLevel.theme].bossAnims?.death;

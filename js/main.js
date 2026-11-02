@@ -72,6 +72,7 @@ function updateWorld(dt) {
     for (let enemy of enemies) {
         enemy.update(dt, player, platforms);
     }
+    updateBossArena(dt);
     for (const c of clones) c.update(dt, platforms);
     clones = clones.filter(c => {
         if (c.life > 0) return true;
@@ -198,6 +199,7 @@ function gameLoop(timestamp) {
         for (let enemy of enemies) {
             enemy.draw(ctx, camX);
         }
+        drawBossArena(ctx, camX);
 
         for (const c of clones) c.draw(ctx, camX);
         player.draw(ctx, camX);
@@ -227,6 +229,7 @@ function gameLoop(timestamp) {
     }
     ctx.restore();
     if (gameState === 'PLAYING' || gameState === 'PAUSED') drawStreamFeed(ctx);
+    drawBossIntroScreen(ctx);
 
     if (gameState === 'PLAYING' || gameState === 'PAUSED') {
         drawBossBar(ctx);

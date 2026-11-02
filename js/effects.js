@@ -28,6 +28,8 @@ const camera = {
         if (this.x > worldWidth - this.width) this.x = worldWidth - this.width;
         const top = (currentLevel && currentLevel.topY) || 0;
         this.y = Math.max(top, Math.min(0, this.y));
+        // A locked boss arena holds the view on the arena
+        if (this.lock) this.x = Math.max(this.lock.min, Math.min(this.lock.max, this.x));
     }
 };
 

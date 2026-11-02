@@ -219,7 +219,7 @@ function drawEnvironment(ctx, level, camX, camY = 0) {
 
     for (let p of level.platforms) {
         const drawX = p.x - camX;
-        if (drawX + p.w < -100 || drawX > GAME_WIDTH + 100) continue;
+        if (p.barrier || drawX + p.w < -100 || drawX > GAME_WIDTH + 100) continue;
         if (p.y - camY > GAME_HEIGHT + 20 || p.y + p.h - camY < -100) continue;
         drawPlatform(theme, p, drawX);
     }
@@ -256,8 +256,10 @@ let enemies = [];
 let portal = new Portal(currentLevel.portalX, currentLevel.portalY);
 
 function loadLevel(index) {
+    if (currentLevel) resetBossArena();
     currentLevelIndex = index;
     currentLevel = LEVELS[currentLevelIndex];
+    player.input = keys;
     respawnPoint = { x: 100, y: 350 };
     player.reset(respawnPoint.x, respawnPoint.y);
     camera.snapTo(player, currentLevel.worldWidth);
