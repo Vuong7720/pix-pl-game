@@ -467,6 +467,8 @@
                 Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY)) || {});
             } catch (e) { /* storage unavailable: play without saving */ }
             if (!CHARACTERS[save.character]) save.character = 'wukong';
+            // Saves from before Thiên Môn: a cleared last stage opens the next one
+            if ((save.stars[save.unlocked] || 0) > 0) save.unlocked = Math.min(save.unlocked + 1, LEVELS.length - 1);
         }
 
         function writeSave() {
@@ -809,7 +811,47 @@
             hqsFar: 'hqs-far.png',
             hqsNear: 'hqs-near.png',
             hqsTiles: 'hqs-tiles.png',
+            hdsSky: 'hds-sky.png',
+            hdsFar: 'hds-far.png',
+            hdsNear: 'hds-near.png',
+            hdsTiles: 'hds-tiles.png',
+            bcdSky: 'bcd-sky.png',
+            bcdFar: 'bcd-far.png',
+            bcdNear: 'bcd-near.png',
+            bcdTiles: 'bcd-tiles.png',
+            lcSky: 'lc-sky.png',
+            lcFar: 'lc-far.png',
+            lcNear: 'lc-near.png',
+            lcTiles: 'lc-tiles.png',
+            btdSky: 'btd-sky.png',
+            btdFar: 'btd-far.png',
+            btdNear: 'btd-near.png',
+            btdTiles: 'btd-tiles.png',
+            tcSky: 'tc-sky.png',
+            tcFar: 'tc-far.png',
+            tcNear: 'tc-near.png',
+            tcTiles: 'tc-tiles.png',
+            tmSky: 'tm-sky.png',
+            tmFar: 'tm-far.png',
+            tmNear: 'tm-near.png',
+            tmTiles: 'tm-tiles.png',
             bossAfternoon: 'boss-afternoon.png',
+            bossNguma: 'boss-nguma.png',
+            bossBachcot: 'boss-bachcot.png',
+            mobMonkey: 'mob-monkey.png',
+            mobSilver: 'mob-silver.png',
+            mobImp: 'mob-imp.png',
+            mobBull: 'mob-bull.png',
+            mobSkeleton: 'mob-skeleton.png',
+            mobLantern: 'mob-lantern.png',
+            mobShrimp: 'mob-shrimp.png',
+            mobCrabgen: 'mob-crabgen.png',
+            mobBigspider: 'mob-bigspider.png',
+            mobSpiderwoman: 'mob-spiderwoman.png',
+            mobGold: 'mob-gold.png',
+            mobCrane: 'mob-crane.png',
+            mobPuppet: 'mob-puppet.png',
+            mobSpearpuppet: 'mob-spearpuppet.png',
             hero: 'hero-wukong.png',
             wukongEyes: 'wukong-eyes.png',
             heroNezha: 'hero-nezha.png',
@@ -1001,6 +1043,55 @@
             death: afCell(4, 4),
             rage: afCell(5, 6)        // roar / enraged (Địa Ngục Phán Xét)
         };
+        // Painted monsters (mob-*.png): rows walk, attack, hurt, death in 192x150 cells, all facing right.
+        // The first two attack frames are the windup, the rest the strike.
+        const mobCell = (row, frames, start = 0) => ({ fw: 192, fh: 150, frames, row, start, ax: 96, foot: 144 });
+        const mobAnims = (walk, attack) => ({
+            walk: mobCell(0, walk), windup: mobCell(1, 2), strike: mobCell(1, attack - 2, 2), hurt: mobCell(2, 1), death: mobCell(3, 3)
+        });
+        // w/h replace the hitbox of the enemy type they stand in for
+        const MOB_SKINS = {
+            monkey:      { key: 'mobMonkey',      anims: mobAnims(6, 4), scale: 0.44, w: 32, h: 48, barLift: 14 },
+            silver:      { key: 'mobSilver',      anims: mobAnims(6, 3), scale: 0.44, w: 34, h: 54, barLift: 16 },
+            imp:         { key: 'mobImp',         anims: mobAnims(6, 4), scale: 0.42, w: 32, h: 48, barLift: 14 },
+            bull:        { key: 'mobBull',        anims: mobAnims(6, 4), scale: 0.46, w: 38, h: 56, barLift: 16 },
+            skeleton:    { key: 'mobSkeleton',    anims: mobAnims(6, 4), scale: 0.44, w: 32, h: 50, barLift: 14 },
+            lantern:     { key: 'mobLantern',     anims: mobAnims(6, 3), scale: 0.42, w: 30, h: 44, barLift: 10 },
+            shrimp:      { key: 'mobShrimp',      anims: mobAnims(6, 4), scale: 0.42, w: 34, h: 48, barLift: 14 },
+            crabgen:     { key: 'mobCrabgen',     anims: mobAnims(6, 3), scale: 0.44, w: 44, h: 52, barLift: 14 },
+            bigspider:   { key: 'mobBigspider',   anims: mobAnims(5, 4), scale: 0.42, w: 48, h: 24, barLift: 30 },
+            spiderwoman: { key: 'mobSpiderwoman', anims: mobAnims(6, 4), scale: 0.42, w: 32, h: 48, barLift: 14 },
+            gold:        { key: 'mobGold',        anims: mobAnims(6, 4), scale: 0.44, w: 34, h: 54, barLift: 16 },
+            crane:       { key: 'mobCrane',       anims: mobAnims(6, 3), scale: 0.42, w: 32, h: 52, barLift: 14 },
+            puppet:      { key: 'mobPuppet',      anims: mobAnims(6, 3), scale: 0.44, w: 32, h: 52, barLift: 14 },
+            spearpuppet: { key: 'mobSpearpuppet', anims: mobAnims(6, 4), scale: 0.44, w: 32, h: 52, barLift: 14 }
+        };
+        // Which painted monster plays each enemy type, per stage theme (types not listed keep their old art)
+        const THEME_MOBS = {
+            forest: { slime: 'monkey', goblin: 'silver' },
+            fire:   { slime: 'imp', goblin: 'bull', demon: 'imp' },
+            bone:   { slime: 'skeleton', goblin: 'skeleton', demon: 'lantern' },
+            sea:    { fish: 'shrimp', crab: 'crabgen' },
+            web:    { spider: 'bigspider', spiderling: 'spiderwoman' },
+            sky:    { soldier: 'gold', cloud: 'crane' },
+            gate:   { soldier: 'spearpuppet', goblin: 'puppet', cloud: 'lantern' }
+        };
+        function mobSkin(type) {
+            const pick = currentLevel && THEME_MOBS[currentLevel.theme];
+            return pick && pick[type] ? MOB_SKINS[pick[type]] : null;
+        }
+
+        // Ngưu Ma Vương and Bạch Cốt Tinh (boss-nguma.png, boss-bachcot.png) share one layout
+        const pbCell = (row, frames, start = 0) => ({ fw: 280, fh: 190, frames, row, start, ax: 140, foot: 184 });
+        const PAINTED_BOSS_ANIMS = {
+            walk: pbCell(0, 3),
+            windup: pbCell(1, 2),
+            strike: pbCell(1, 2, 2),
+            jump: pbCell(2, 3),
+            hurt: pbCell(3, 2),
+            death: pbCell(4, 4),
+            rage: pbCell(5, 2)
+        };
 
         // Source rectangles inside tiles.png (16px grid)
         const TILE = {
@@ -1024,8 +1115,21 @@
             chest:     { x: 289, y: 277, w: 30, h: 27 },
             chestOpen: { x: 321, y: 275, w: 30, h: 29 },
             hqsFlower: { x: 0,   y: 343, w: 98, h: 90,  img: 'hqsTiles', scale: 0.5 },
-            hqsRock:   { x: 102, y: 343, w: 96, h: 101, img: 'hqsTiles', scale: 0.5 }
+            hqsRock:   { x: 102, y: 343, w: 96, h: 101, img: 'hqsTiles', scale: 0.5 },
+            // Painted ground sheets of stages 2-7: one decoration each, next to the small block
+            hdsFire:   { x: 124, y: 273, w: 216, h: 188, img: 'hdsTiles', scale: 0.35 },
+            bcdSkulls: { x: 124, y: 273, w: 216, h: 154, img: 'bcdTiles', scale: 0.35 },
+            lcShells:  { x: 124, y: 273, w: 218, h: 162, img: 'lcTiles', scale: 0.35 },
+            tcLotus:   { x: 124, y: 273, w: 173, h: 138, img: 'tcTiles', scale: 0.35 },
+            tmCrystal: { x: 124, y: 273, w: 151, h: 182, img: 'tmTiles', scale: 0.35 }
         };
+        // Every painted sheet shares one layout: ground top row (also drawn smaller as the floating ledge),
+        // fill row under it, then a small floating block
+        for (const code of ['hds', 'bcd', 'lc', 'btd', 'tc', 'tm']) {
+            TILE[code + 'Ground'] = { sx: 0, sw: 896, left: 96, right: 96, topY: 0, topH: 125, fillY: 125, fillH: 144, surface: 24, scale: 0.5 };
+            TILE[code + 'Ledge'] = { sx: 0, sw: 896, left: 96, right: 96, sy: 0, sh: 125, surface: 24, scale: 0.32 };
+            PROPS[code + 'Block'] = { x: 0, y: 273, w: 120, h: 125, img: code + 'Tiles', scale: 0.3 };
+        }
         const BUSH = { x: 274, w: 124, h: 43, rowY: 5, rowStep: 48 };
         // Inside the tree sheets (every colour variant shares this layout)
         const TREES = {
@@ -1042,6 +1146,22 @@
         };
 
         const THEMES = {};
+        // Painted stage art: <code>-sky/far/near.png and <code>-tiles.png, laid out like Hoa Quả Sơn
+        function paintedStage(code, nearTint, tintAmount = 0.4, farTint = null) {
+            return {
+                sky: IMG[code + 'Sky'],
+                layers: [
+                    { img: farTint ? tintImage(IMG[code + 'Far'], farTint, 0.55) : IMG[code + 'Far'], parallax: 0.12, scale: 0.65, bottom: GAME_HEIGHT - 90 },
+                    { img: tintImage(IMG[code + 'Near'], nearTint, tintAmount), parallax: 0.3, scale: 0.42, bottom: GAME_HEIGHT }
+                ],
+                trees: null,
+                treesMid: null,
+                groundTiles: IMG[code + 'Tiles'],
+                ground: code + 'Ground',
+                ledge: code + 'Ledge',
+                bushRow: null
+            };
+        }
         function buildThemes() {
             // Hoa Quả Sơn: painted sky, mountain and pine/peach layers, its own ground sheet
             THEMES.forest = {
@@ -1060,19 +1180,17 @@
                 props: ['hqsFlower', 'hqsRock', 'hqsFlower', 'flower'],
                 fog: 'rgba(220, 255, 235, 0.18)',
                 ambient: 'firefly',
-                boss: 'boarRunBlack',
+                boss: 'bossNguma',
+                bossAnim: PAINTED_BOSS_ANIMS.walk,
+                bossAnims: PAINTED_BOSS_ANIMS,
+                bossFacesRight: true,
+                bossScale: 1,
                 bossGlow: '#ef4444'
             };
             THEMES.fire = {
-                sky: tintImage(IMG.sky, '#c2410c', 0.7),
-                bgTrees: tintImage(IMG.bgTrees, '#3b0a0a', 0.55),
-                trees: IMG.treeRed,
-                treesMid: tintImage(IMG.treeRed, '#1a0505', 0.35),
+                ...paintedStage('hds', '#1a0505'),
                 tiles: tintImage(IMG.tiles, '#7c2d12', 0.3),
-                ground: 'stone',
-                ledge: 'moss',
-                bushRow: 2,
-                props: ['rockA', 'rockB', 'rockC'],
+                props: ['hdsFire', 'hdsBlock', 'hdsBlock'],
                 fog: 'rgba(255, 110, 40, 0.22)',
                 ambient: 'ember',
                 boss: 'bossAfternoon',
@@ -1083,31 +1201,23 @@
                 bossGlow: '#a855f7'
             };
             THEMES.bone = {
-                sky: tintImage(IMG.sky, '#1e1b4b', 0.82),
-                bgTrees: tintImage(IMG.bgTrees, '#0f0c29', 0.6),
-                trees: IMG.treeDark,
-                treesMid: tintImage(IMG.treeDark, '#1e1b4b', 0.35),
+                ...paintedStage('bcd', '#0f0c29'),
                 tiles: tintImage(IMG.tiles, '#312e81', 0.35),
-                ground: 'stone',
-                ledge: 'moss',
-                bushRow: 4,
-                props: ['rockA', 'rockB', 'rockC', 'lavender'],
+                props: ['bcdSkulls', 'bcdBlock', 'lavender'],
                 fog: 'rgba(168, 85, 247, 0.2)',
                 ambient: 'wisp',
-                boss: 'boarRunWhite',
+                boss: 'bossBachcot',
+                bossAnim: PAINTED_BOSS_ANIMS.walk,
+                bossAnims: PAINTED_BOSS_ANIMS,
+                bossFacesRight: true,
+                bossScale: 1,
                 bossGlow: '#a855f7'
             };
-            // Underwater: the forest pack recoloured into a sea floor
+            // Long Cung: painted sea floor
             THEMES.sea = {
-                sky: tintImage(IMG.sky, '#0c4a6e', 0.78),
-                bgTrees: tintImage(IMG.bgTrees, '#083344', 0.62),
-                trees: tintImage(IMG.treeDark, '#134e4a', 0.55),
-                treesMid: tintImage(IMG.treeGreen, '#042f2e', 0.6),
+                ...paintedStage('lc', '#042f2e'),
                 tiles: tintImage(IMG.tiles, '#0e7490', 0.38),
-                ground: 'stone',
-                ledge: 'moss',
-                bushRow: 1,
-                props: ['kelp', 'coral', 'kelp', 'rockA', 'rockC'],
+                props: ['lcShells', 'kelp', 'coral', 'lcBlock'],
                 fog: 'rgba(56, 189, 248, 0.25)',
                 ambient: 'bubble',
                 boss: 'dragonKing',
@@ -1116,17 +1226,11 @@
                 bossGlow: '#22d3ee',
                 minion: 'crab'
             };
-            // Cave: everything pushed toward black and purple; darkness and a stalactite ceiling are drawn on top
+            // Cave: painted spider cave; darkness and a stalactite ceiling are drawn on top
             THEMES.web = {
-                sky: tintImage(IMG.sky, '#0c0a09', 0.9),
-                bgTrees: tintImage(IMG.bgTrees, '#1c1917', 0.8),
-                trees: tintImage(IMG.treeDark, '#1c1917', 0.7),
-                treesMid: tintImage(IMG.treeDark, '#0c0a09', 0.8),
+                ...paintedStage('btd', '#0c0a09'),
                 tiles: tintImage(IMG.tiles, '#3b0764', 0.35),
-                ground: 'stone',
-                ledge: 'moss',
-                bushRow: 4,
-                props: ['rockA', 'rockB', 'rockC', 'mushA', 'mushC'],
+                props: ['btdBlock', 'mushA', 'mushC'],
                 fog: 'rgba(168, 85, 247, 0.12)',
                 ambient: 'wisp',
                 boss: 'spiderQueen',
@@ -1137,17 +1241,11 @@
                 cave: true,
                 dark: true
             };
-            // Heaven: golden sky, gilded marble floors, cloud ledges drawn in code, no trees or bushes
+            // Heaven: golden sky, white jade floors and floating jade slabs
             THEMES.sky = {
-                sky: tintImage(IMG.sky, '#fde68a', 0.6),
-                bgTrees: tintImage(IMG.bgTrees, '#f59e0b', 0.45),
-                trees: null,
-                treesMid: null,
+                ...paintedStage('tc', '#78350f', 0.2),
                 tiles: tintImage(IMG.tiles, '#fde68a', 0.55),
-                ground: 'stone',
-                ledge: 'cloud',
-                bushRow: null,
-                props: ['lantern', 'lantern', 'rockB'],
+                props: ['tcLotus', 'lantern', 'tcBlock'],
                 fog: 'rgba(254, 243, 199, 0.12)',
                 ambient: 'sparkle',
                 boss: 'erlang',
@@ -1157,9 +1255,27 @@
                 minion: 'soldier'
             };
 
+            // Thiên Môn: floating rune islands. Its boss is a stand-in (Nhị Lang Thần in gold)
+            // until boss-thienmenh.png is drawn
+            IMG.thienMenh = tintImage(IMG.erlang, '#fbbf24', 0.55);
+            THEMES.gate = {
+                // Both island layers pushed back into the dark so they do not read as platforms
+                ...paintedStage('tm', '#0b0a1f', 0.65, '#1e1b4b'),
+                tiles: tintImage(IMG.tiles, '#312e81', 0.4),
+                props: ['tmCrystal', 'tmBlock', 'tmBlock'],
+                fog: 'rgba(250, 204, 21, 0.08)',
+                ambient: 'sparkle',
+                boss: 'thienMenh',
+                bossAnim: ENEMY_ANIMS.erlang,
+                bossScale: 5,
+                bossGlow: '#facc15',
+                minion: 'soldier'
+            };
+
             const enemySheets = ['boarRun', 'boarRunBlack', 'boarRunWhite', 'snailWalk', 'beeFly', 'beeAttack',
                 'fishSwim', 'crabWalk', 'jellyFloat', 'dragonKing', 'spiderCrawl', 'spiderQueen',
-                'soldierWalk', 'stormCloud', 'erlang', 'bossAfternoon'];
+                'soldierWalk', 'stormCloud', 'erlang', 'bossAfternoon', 'bossNguma', 'bossBachcot',
+                'mobMonkey', 'mobSilver', 'mobImp', 'mobBull', 'mobSkeleton', 'mobLantern', 'mobShrimp', 'mobCrabgen', 'mobBigspider', 'mobSpiderwoman', 'mobGold', 'mobCrane', 'mobPuppet', 'mobSpearpuppet', 'thienMenh'];
             FLASH.gold = {};
             for (const key of enemySheets) {
                 FLASH[key] = tintImage(IMG[key], '#ffffff', 1);
@@ -1171,7 +1287,7 @@
             FLASH.p2 = tintImage(IMG.hero, '#3b82f6', 0.4);
             FLASH.p2clone = tintImage(IMG.hero, '#7dd3fc', 0.45);
             FLASH.rage = {};
-            for (const key of ['boarRunBlack', 'boarRunWhite', 'dragonKing', 'spiderQueen', 'erlang', 'bossAfternoon']) FLASH.rage[key] = tintImage(IMG[key], '#dc2626', 0.35);
+            for (const key of ['bossNguma', 'bossBachcot', 'dragonKing', 'spiderQueen', 'erlang', 'bossAfternoon', 'thienMenh']) FLASH.rage[key] = tintImage(IMG[key], '#dc2626', 0.35);
         }
 
         // Builds a tiny sprite from rows of palette characters ('.' = transparent)
@@ -1748,7 +1864,7 @@
         // --- LEVEL DEFINITIONS (TÂY DU KÝ THEME) ---
         const LEVELS = [
             {
-                name: "CẢNH 1: HOA QUẢ SƠN - TIỂU YÊU QUẤY RỐI",
+                name: "CẢNH 1: HOA QUẢ SƠN - NGƯU MA VƯƠNG",
                 theme: 'forest',
                 worldWidth: 2200,
                 bgGradient: ['#0f380f', '#306230', '#8bac0f'],
@@ -1768,7 +1884,11 @@
                     { x: 950, y: 420, type: 'goblin' },
                     { x: 1250, y: 210, type: 'slime' },
                     { x: 1750, y: 420, type: 'goblin' },
+                    { x: 1950, y: 400, type: 'boss' },
                 ],
+                bossName: 'NGƯU MA VƯƠNG',
+                bossShot: '#f97316',
+                bossPower: 0.6, // first boss: less HP and damage
                 // y values are the surface the object stands on
                 checkpoints: [{ x: 1050, y: 480 }],
                 peaches: [{ x: 340, y: 330 }, { x: 580, y: 250 }, { x: 1290, y: 240 }, { x: 1760, y: 320 }],
@@ -1966,6 +2086,43 @@
                 peaches: [{ x: 620, y: 390 }, { x: 820, y: 320 }, { x: 1050, y: 270 }, { x: 1490, y: 290 }, { x: 2280, y: 300 }],
                 chests: [{ x: 1270, y: 170 }, { x: 1880, y: 480 }],
                 portalX: 3100,
+                portalY: 400
+            },
+            {
+                name: "CẢNH 7: THIÊN MÔN - THIÊN MỆNH PHÁP TƯỚNG",
+                theme: 'gate',
+                worldWidth: 3300,
+                bgGradient: ['#0f0c29', '#302b63', '#24243e'],
+                platforms: [
+                    { x: 0, y: 480, w: 520, h: 60, type: 'stone' },
+                    { x: 590, y: 420, w: 140, h: 20, type: 'stone' },
+                    { x: 790, y: 350, w: 130, h: 20, type: 'stone', move: { dx: 80, speed: 0.9 } },
+                    { x: 1010, y: 300, w: 150, h: 20, type: 'stone' },
+                    { x: 1230, y: 380, w: 130, h: 20, type: 'stone' },
+                    { x: 1420, y: 480, w: 400, h: 60, type: 'stone' },
+                    { x: 1500, y: 320, w: 140, h: 20, type: 'stone' },
+                    { x: 1900, y: 410, w: 130, h: 20, type: 'stone', move: { dx: 100, speed: 1 } },
+                    { x: 2130, y: 340, w: 140, h: 20, type: 'stone' },
+                    { x: 2340, y: 420, w: 120, h: 20, type: 'stone' },
+                    { x: 2520, y: 480, w: 780, h: 60, type: 'stone' },
+                    { x: 1080, y: 170, w: 110, h: 20, type: 'stone' }, // secret ledge
+                ],
+                enemies: [
+                    { x: 300, y: 420, type: 'soldier' },
+                    { x: 1000, y: 200, type: 'cloud' },
+                    { x: 1550, y: 420, type: 'goblin' },
+                    { x: 1700, y: 420, type: 'soldier' },
+                    { x: 2200, y: 150, type: 'cloud' },
+                    { x: 2650, y: 420, type: 'goblin' },
+                    { x: 2950, y: 400, type: 'boss' },
+                ],
+                bossName: 'THIÊN MỆNH PHÁP TƯỚNG',
+                bossShot: '#facc15',
+                bossPower: 1.2, // the last boss hits harder
+                checkpoints: [{ x: 1460, y: 480 }, { x: 2560, y: 480 }],
+                peaches: [{ x: 650, y: 390 }, { x: 850, y: 310 }, { x: 1080, y: 270 }, { x: 1560, y: 290 }, { x: 2190, y: 310 }],
+                chests: [{ x: 1120, y: 170 }, { x: 1760, y: 480 }],
+                portalX: 3200,
                 portalY: 400
             }
         ];
@@ -5058,8 +5215,18 @@
                 this.y = y;
                 this.type = type;
                 Object.assign(this, ENEMY_STATS[type]);
+                this.skin = mobSkin(type);
+                if (this.skin) {
+                    this.width = this.skin.w;
+                    this.height = this.skin.h;
+                    this.barLift = this.skin.barLift;
+                }
                 this.speed *= MOVE_SCALE;
                 this.hp =Math.round(this.hp * (type === 'boss' ? BOSS_HP_SCALE : MOB_HP_SCALE));
+                if (type === 'boss' && currentLevel.bossPower) {
+                    this.hp = Math.round(this.hp * currentLevel.bossPower);
+                    this.damage = Math.round(this.damage * currentLevel.bossPower);
+                }
                 this.maxHp = this.hp;
                 this.chatter = type === 'boss' ? null : newChatter();
                 // Monster AI (see updateMob): patrol -> chase -> windup -> strike -> recover, or flee when scared
@@ -5824,6 +5991,15 @@
             }
 
             sprite() {
+                if (this.skin) {
+                    const A = this.skin.anims;
+                    const base = { key: this.skin.key, scale: this.skin.scale, facesRight: true };
+                    if (this.isHit) return { ...base, anim: A.hurt, fps: 1 };
+                    if (this.state === 'windup' || this.state === 'cast' || this.state === 'grab') return { ...base, anim: A.windup, fps: 6 };
+                    if (this.state === 'strike' || this.isLunging) return { ...base, anim: A.strike, fps: 12 };
+                    const still = this.type === 'spider' && this.dropState === 'hang';
+                    return { ...base, anim: A.walk, fps: still ? 3 : 10 };
+                }
                 if (this.type === 'slime') return { key: 'snailWalk', anim: ENEMY_ANIMS.snail, fps: 10, scale: ART_SCALE };
                 if (this.type === 'goblin') return { key: 'boarRun', anim: ENEMY_ANIMS.boar, fps: 12, scale: ART_SCALE };
                 if (this.type === 'fish') return { key: 'fishSwim', anim: ENEMY_ANIMS.fish, fps: this.isLunging ? 12 : 6, scale: 3 };
@@ -5930,8 +6106,8 @@
                 ctx.save();
                 if (this.dead) {
                     const elapsed = ENEMY_DEATH_TIME - this.deathTimer;
-                    const deathAnim = this.type === 'boss' && THEMES[currentLevel.theme].bossAnims?.death;
-                    if (this.type === 'slime') {
+                    const deathAnim = this.skin ? this.skin.anims.death : this.type === 'boss' && THEMES[currentLevel.theme].bossAnims?.death;
+                    if (this.type === 'slime' && !this.skin) {
                         drawSprite(IMG.snailDead, ENEMY_ANIMS.snailDead, Math.min(7, Math.floor(elapsed / 0.075)), cx, feetY, flip);
                     } else if (deathAnim) {
                         // Its own death frames, fading out as they play
@@ -5985,7 +6161,7 @@
 
                 if (this.isHit || (winding && Math.floor(this.animTime * 12) % 2 === 0)) {
                     // Painted bosses already play a hurt row, so their flash is lighter
-                    const painted = this.type === 'boss' && THEMES[currentLevel.theme].bossAnims;
+                    const painted = this.skin || (this.type === 'boss' && THEMES[currentLevel.theme].bossAnims);
                     ctx.globalAlpha = this.isHit ? (painted ? 0.45 : 0.85) : 0.45;
                     drawSprite(FLASH[key], anim, frame, cx, feetY, flip, scale);
                     ctx.globalAlpha = 1;
@@ -6441,10 +6617,12 @@
             nezha:    { name: 'NA TRA', color: '#fb7185', char: 'nezha' },
             general:  { name: 'THIÊN TƯỚNG', color: '#e2e8f0', icon: 'fa-shield-halved' },
             afternoon: { name: 'AFTERNOON TÀ', color: '#e879f9', face: { img: 'bossAfternoon', sx: 46, sy: 46, sw: 84, sh: 84 } },
-            bone:     { name: 'BẠCH CỐT TINH', color: '#c4b5fd', icon: 'fa-skull' },
+            bull:     { name: 'NGƯU MA VƯƠNG', color: '#f87171', face: { img: 'bossNguma', sx: 118, sy: 20, sw: 74, sh: 74 } },
+            bone:     { name: 'BẠCH CỐT TINH', color: '#c4b5fd', face: { img: 'bossBachcot', sx: 128, sy: 28, sw: 64, sh: 64 } },
             dragon:   { name: 'ĐÔNG HẢI LONG VƯƠNG', color: '#22d3ee', icon: 'fa-dragon' },
             spider:   { name: 'NHỆN TINH BÀN TƠ', color: '#c084fc', icon: 'fa-spider' },
-            erlang:   { name: 'NHỊ LANG THẦN', color: '#fde047', icon: 'fa-eye' }
+            erlang:   { name: 'NHỊ LANG THẦN', color: '#fde047', icon: 'fa-eye' },
+            destiny:  { name: 'THIÊN MỆNH PHÁP TƯỚNG', color: '#facc15', icon: 'fa-dharmachakra' }
         };
         const QUIZ_REWARD = 5; // Đào Tiên for a right answer
 
@@ -6478,6 +6656,20 @@
                       right: 'Đúng... Khoan, sao một con khỉ lại tính nhanh hơn cả phòng kế toán Thiên Đình?',
                       wrong: 'Sai bét. Nhưng ta cũng không chắc đáp án lắm. Thôi qua đi, ta hết ca rồi.' },
                     ['tang', 'Ngộ Không, ra tay nhẹ thôi. Lũ tiểu yêu chỉ là nạn nhân của hệ thống.']
+                ],
+                boss: [
+                    ['narrator', 'Mặt đất rung chuyển. Từ rừng đào bước ra một bóng đen sừng cong, tay cầm cây chùy to bằng cột nhà.'],
+                    ['bull', 'Hiền đệ! Năm trăm năm rồi mà đệ vẫn chưa trả ta bữa nhậu kết nghĩa.'],
+                    ['wukong', 'Ngưu đại ca? Huynh đến Hoa Quả Sơn làm gì?'],
+                    ['bull', 'Thiên Mệnh thuê ta san phẳng chỗ này làm khu nghỉ dưỡng. Lương cao, có bảo hiểm, được nghỉ thứ Bảy.'],
+                    ['wukong', 'Huynh phá nhà đệ để lấy tiền đóng bảo hiểm à?'],
+                    ['bull', 'Anh em là anh em, hợp đồng là hợp đồng. Đỡ chùy!']
+                ],
+                after: [
+                    ['narrator', 'Ngưu Ma Vương ngồi phịch xuống đất. Phù ấn trên sừng nứt làm đôi.'],
+                    ['bull', 'Hiền đệ... ta tỉnh rồi. Hợp đồng chẳng có bảo hiểm gì cả, chỉ có điều khoản "làm đến khi Thiên Mệnh bảo dừng".'],
+                    ['bull', 'Về Hỏa Diệm Sơn mà xem. La Sát đang giận. Lần này không phải giận ta... chắc thế.'],
+                    ['wukong', 'Huynh yên tâm. Lão Tôn sẽ nói đỡ cho huynh một câu.']
                 ],
                 clear: [
                     ['narrator', 'Dưới gốc đào già, Ngộ Không nhặt được một mảnh phù văn cổ. Trên đó khắc chính dấu ấn của hắn, kèm một dòng chữ nhỏ: "Made in Thiên Đình".'],
@@ -6616,7 +6808,37 @@
                     ['tang', 'Ngộ Không... trang kinh biến mất năm ấy không phải tự nhiên mà mất. Chân kinh chính là chiếc khóa cuối cùng của Thiên Mệnh.'],
                     ['tang', 'Và không, không phải Bát Giới ăn mất. Vi sư xin lỗi Bát Giới.'],
                     ['bajie', 'Ba năm rồi mới xin lỗi...'],
-                    ['title', 'HỒI V', 'THIÊN MÔN VÔ TỰ · CÒN TIẾP (KHI NÀO DEV RẢNH)']
+                    ['wukong', 'Đi thôi. Thiên Môn đang chờ, mà lão Tôn thì ghét bị bắt chờ.']
+                ]
+            },
+            { // Thiên Môn
+                intro: [
+                    ['title', 'HỒI V', 'THIÊN MÔN VÔ TỰ'],
+                    ['narrator', 'Phía sau Thiên Môn không có ngai vàng. Chỉ có những đảo đá trôi lơ lửng, xích sáng nối nhau, và một tấm biển ghi "Khu vực đang bảo trì".'],
+                    ['sha', 'Đại sư huynh, lũ rối này không có mặt. Trên người chỉ toàn phù văn, như hợp đồng không có chữ ký.'],
+                    ['wukong', 'Không có mặt càng tốt. Lão Tôn đánh khỏi phải nhìn biểu cảm.']
+                ],
+                boss: [
+                    ['narrator', 'Cỗ pháp trận khổng lồ quay chậm lại. Từ trong ánh sáng bước ra một thực thể không mặt, sáu cánh tay cầm sáu thứ, trong đó có một cây bút đỏ.'],
+                    ['destiny', 'Biến số thứ nhất. Ngươi đã đi lệch khỏi kịch bản tám mươi mốt lần.'],
+                    ['wukong', 'Tám mươi hai. Ngươi quên lần ta trốn học phép biến hóa đi hái đào.'],
+                    ['destiny', 'Ta không ghét ngươi. Ta chỉ xóa những gì không nằm trong dự đoán.'],
+                    { quiz: 'destiny', q: 'Ta đã tính trước mọi lựa chọn của ngươi. Vậy ngươi chọn gì?',
+                      options: ['Đánh ngươi', 'Bỏ chạy', 'Đọc kinh cho ngươi ngủ', 'Làm điều ngươi không đoán được'], answer: 3,
+                      right: 'Lỗi... không tìm thấy dữ liệu. Ngươi... thật phiền phức.',
+                      wrong: 'Đúng như dự đoán. Nhàm chán.' },
+                    ['destiny', 'Tiến hành sửa lỗi Tam Giới. Phiên bản mới không có khỉ.']
+                ],
+                after: [
+                    ['narrator', 'Cánh tay cuối cùng của Pháp Tướng rơi xuống. Cỗ pháp trận nứt từng vòng một, như bánh xe hết dầu.'],
+                    ['tang', 'Ngộ Không, vi sư có thể dùng chân kinh khóa nó lại. Nhưng như thế Tam Giới sẽ bị ràng buộc mãi mãi.'],
+                    ['wukong', 'Sư phụ, năm trăm năm dưới núi là đủ ràng buộc rồi. Lần này để chúng sinh tự chọn.'],
+                    ['narrator', 'Ngộ Không giáng gậy xuống. Pháp trận vỡ tan, ánh sáng tràn khắp Tam Giới. Ở đâu đó, một cái đầu bay thở phào vì cuối cùng cũng được nghỉ phép.'],
+                    ['bajie', 'Vậy là hết kiếp nạn rồi hả Hầu ca? Đi ăn được chưa?'],
+                    ['wukong', 'Được. Lần này lão Tôn mời. Ngưu đại ca trả tiền.']
+                ],
+                clear: [
+                    ['title', 'TÂY DU KÝ', 'THIÊN MỆNH PHÁ TOÁI · HẾT (THẬT ĐẤY)']
                 ]
             }
         ];
@@ -6905,12 +7127,13 @@
         // --- WORLD MAP (Hành Trình Tây Thiên) ---
         // Nodes without a `stage` are teasers for stages that do not exist yet
         const MAP_NODES = [
-            { x: 110, y: 380, stage: 0, title: 'HOA QUẢ SƠN' },
-            { x: 250, y: 285, stage: 1, title: 'HỎA DIỆM SƠN' },
-            { x: 395, y: 355, stage: 2, title: 'BẠCH CỐT ĐỘNG' },
-            { x: 530, y: 250, stage: 3, title: 'LONG CUNG' },
-            { x: 650, y: 330, stage: 4, title: 'BÀN TƠ ĐỘNG' },
-            { x: 735, y: 200, stage: 5, title: 'THIÊN CUNG' }
+            { x: 80, y: 385, stage: 0, title: 'HOA QUẢ SƠN' },
+            { x: 195, y: 290, stage: 1, title: 'HỎA DIỆM SƠN' },
+            { x: 315, y: 365, stage: 2, title: 'BẠCH CỐT ĐỘNG' },
+            { x: 430, y: 265, stage: 3, title: 'LONG CUNG' },
+            { x: 540, y: 345, stage: 4, title: 'BÀN TƠ ĐỘNG' },
+            { x: 640, y: 240, stage: 5, title: 'THIÊN CUNG' },
+            { x: 735, y: 165, stage: 6, title: 'THIÊN MÔN' }
         ];
         const MAP_HERO_SCALE = 0.75; // relative to the in-game size
         const mapState = { selected: 0, from: 0, walkT: 1, t: 0 };

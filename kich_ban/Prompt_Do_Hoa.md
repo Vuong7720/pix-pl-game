@@ -36,44 +36,277 @@ no shadows on the background, no gradient. Every sprite separated by at least
 
 Mỗi ải cần **3 ảnh riêng**: bầu trời, lớp xa, lớp gần. Lớp xa và lớp gần là dải nằm ngang, nối liền được khi lặp lại.
 
-### 1a. Bầu trời (1 ảnh mỗi ải)
+Các prompt dưới đây đã ghép sẵn khối phong cách, **chỉ cần copy nguyên khung rồi dán**. Ải 1 (Hoa Quả Sơn) đã xong: `hqs-sky.png`, `hqs-far.png`, `hqs-near.png`.
+
+Cách làm:
+- Tạo cả 3 ảnh của một ải **trong cùng một cuộc trò chuyện**, theo thứ tự bầu trời → lớp xa → lớp gần.
+- Nếu mở cuộc trò chuyện mới, đính kèm 3 ảnh `hqs-*.png` của ải 1 trước khi dán prompt đầu tiên, để câu *"Match the art style and palette of the previous image"* có ảnh để bám theo.
+- Khổ ảnh: landscape 1536×1024.
+- Khi gửi cho tôi, đặt tên file như ghi cạnh mỗi prompt.
+
+### Ải 2: Hỏa Diệm Sơn
+
+**Bầu trời**: `hds-sky.png`
 ```
-[KHỐI PHONG CÁCH]
-A wide pixel art sky backdrop for a side-scrolling game, {SKY}.
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A wide pixel art sky backdrop for a side-scrolling game, blood-red smoky sky, falling embers.
 Horizontal composition, horizon in the lower third, no ground, no characters.
 The left and right edges must match so the image tiles seamlessly horizontally.
 ```
 
-### 1b. Lớp xa (núi/kiến trúc mờ phía xa)
+**Lớp xa**: `hds-far.png`
 ```
-[KHỐI PHONG CÁCH]
-A horizontal parallax background layer for a side-scrolling game: {FAR}.
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A horizontal parallax background layer for a side-scrolling game: jagged volcanic mountains with glowing lava rivers.
 Silhouettes only in the bottom 60% of the image, low contrast, desaturated, hazy.
 The top 40% is solid flat #FF00FF magenta (it will be made transparent).
 The left and right edges must match so it tiles seamlessly horizontally.
 ```
 
-### 1c. Lớp gần (cây cối/kiến trúc gần hơn)
+**Lớp gần**: `hds-near.png`
 ```
-[KHỐI PHONG CÁCH]
-A horizontal parallax foreground-background layer for a side-scrolling game: {NEAR}.
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A horizontal parallax foreground-background layer for a side-scrolling game: burnt dead trees, smoking black rocks, lava glow at the bottom.
 Shapes rise from the bottom edge and occupy the bottom 50%, more detail and contrast
 than a distant layer but still darker than gameplay objects.
 Everything above is solid flat #FF00FF magenta.
 The left and right edges must match so it tiles seamlessly horizontally.
 ```
 
-### Thay {SKY} / {FAR} / {NEAR} theo ải
+### Ải 3: Bạch Cốt Động
 
-| Ải | {SKY} | {FAR} | {NEAR} |
-|---|---|---|---|
-| 1 Hoa Quả Sơn | warm sunset sky, soft clouds, faint cracks of golden light in the sky | misty green mountain peaks with waterfalls, Chinese ink-painting shapes | peach trees with pink blossoms, bamboo, mossy rocks |
-| 2 Hỏa Diệm Sơn | blood-red smoky sky, falling embers | jagged volcanic mountains with glowing lava rivers | burnt dead trees, smoking black rocks, lava glow at the bottom |
-| 3 Bạch Cốt Động | dim purple cave darkness with pale green ghost lights | cave walls with huge skeletal ribs and skulls | stalagmites made of bones, hanging chains, pale torches |
-| 4 Long Cung | deep blue underwater light rays, bubbles | distant underwater palace with Chinese roofs, coral reef | coral, swaying seaweed, jade pillars |
-| 5 Bàn Tơ Động | dark violet cave, moonlight through a hole | cave walls covered in giant spider webs | thick web strands, cocoons hanging, glowing purple mushrooms |
-| 6 Thiên Cung | bright golden heavenly sky above the clouds | floating celestial palaces with golden roofs on clouds | white jade railings, red pillars, sea of clouds |
-| 7 Thiên Môn | cracked night sky, broken stars, glowing golden runes floating | colossal ancient gate made of stone and light, giant rotating rune circle | broken floating stone platforms, chains of light |
+**Bầu trời**: `bcd-sky.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A wide pixel art sky backdrop for a side-scrolling game, dim purple cave darkness with pale green ghost lights.
+Horizontal composition, horizon in the lower third, no ground, no characters.
+The left and right edges must match so the image tiles seamlessly horizontally.
+```
+
+**Lớp xa**: `bcd-far.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A horizontal parallax background layer for a side-scrolling game: cave walls with huge skeletal ribs and skulls.
+Silhouettes only in the bottom 60% of the image, low contrast, desaturated, hazy.
+The top 40% is solid flat #FF00FF magenta (it will be made transparent).
+The left and right edges must match so it tiles seamlessly horizontally.
+```
+
+**Lớp gần**: `bcd-near.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A horizontal parallax foreground-background layer for a side-scrolling game: stalagmites made of bones, hanging chains, pale torches.
+Shapes rise from the bottom edge and occupy the bottom 50%, more detail and contrast
+than a distant layer but still darker than gameplay objects.
+Everything above is solid flat #FF00FF magenta.
+The left and right edges must match so it tiles seamlessly horizontally.
+```
+
+### Ải 4: Long Cung
+
+**Bầu trời**: `lc-sky.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A wide pixel art sky backdrop for a side-scrolling game, deep blue underwater light rays, bubbles.
+Horizontal composition, horizon in the lower third, no ground, no characters.
+The left and right edges must match so the image tiles seamlessly horizontally.
+```
+
+**Lớp xa**: `lc-far.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A horizontal parallax background layer for a side-scrolling game: distant underwater palace with Chinese roofs, coral reef.
+Silhouettes only in the bottom 60% of the image, low contrast, desaturated, hazy.
+The top 40% is solid flat #FF00FF magenta (it will be made transparent).
+The left and right edges must match so it tiles seamlessly horizontally.
+```
+
+**Lớp gần**: `lc-near.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A horizontal parallax foreground-background layer for a side-scrolling game: coral, swaying seaweed, jade pillars.
+Shapes rise from the bottom edge and occupy the bottom 50%, more detail and contrast
+than a distant layer but still darker than gameplay objects.
+Everything above is solid flat #FF00FF magenta.
+The left and right edges must match so it tiles seamlessly horizontally.
+```
+
+### Ải 5: Bàn Tơ Động
+
+**Bầu trời**: `btd-sky.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A wide pixel art sky backdrop for a side-scrolling game, dark violet cave, moonlight through a hole.
+Horizontal composition, horizon in the lower third, no ground, no characters.
+The left and right edges must match so the image tiles seamlessly horizontally.
+```
+
+**Lớp xa**: `btd-far.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A horizontal parallax background layer for a side-scrolling game: cave walls covered in giant spider webs.
+Silhouettes only in the bottom 60% of the image, low contrast, desaturated, hazy.
+The top 40% is solid flat #FF00FF magenta (it will be made transparent).
+The left and right edges must match so it tiles seamlessly horizontally.
+```
+
+**Lớp gần**: `btd-near.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A horizontal parallax foreground-background layer for a side-scrolling game: thick web strands, cocoons hanging, glowing purple mushrooms.
+Shapes rise from the bottom edge and occupy the bottom 50%, more detail and contrast
+than a distant layer but still darker than gameplay objects.
+Everything above is solid flat #FF00FF magenta.
+The left and right edges must match so it tiles seamlessly horizontally.
+```
+
+### Ải 6: Thiên Cung
+
+**Bầu trời**: `tc-sky.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A wide pixel art sky backdrop for a side-scrolling game, bright golden heavenly sky above the clouds.
+Horizontal composition, horizon in the lower third, no ground, no characters.
+The left and right edges must match so the image tiles seamlessly horizontally.
+```
+
+**Lớp xa**: `tc-far.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A horizontal parallax background layer for a side-scrolling game: floating celestial palaces with golden roofs on clouds.
+Silhouettes only in the bottom 60% of the image, low contrast, desaturated, hazy.
+The top 40% is solid flat #FF00FF magenta (it will be made transparent).
+The left and right edges must match so it tiles seamlessly horizontally.
+```
+
+**Lớp gần**: `tc-near.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A horizontal parallax foreground-background layer for a side-scrolling game: white jade railings, red pillars, sea of clouds.
+Shapes rise from the bottom edge and occupy the bottom 50%, more detail and contrast
+than a distant layer but still darker than gameplay objects.
+Everything above is solid flat #FF00FF magenta.
+The left and right edges must match so it tiles seamlessly horizontally.
+```
+
+### Ải 7: Thiên Môn
+
+**Bầu trời**: `tm-sky.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A wide pixel art sky backdrop for a side-scrolling game, cracked night sky, broken stars, glowing golden runes floating.
+Horizontal composition, horizon in the lower third, no ground, no characters.
+The left and right edges must match so the image tiles seamlessly horizontally.
+```
+
+**Lớp xa**: `tm-far.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A horizontal parallax background layer for a side-scrolling game: colossal ancient gate made of stone and light, giant rotating rune circle.
+Silhouettes only in the bottom 60% of the image, low contrast, desaturated, hazy.
+The top 40% is solid flat #FF00FF magenta (it will be made transparent).
+The left and right edges must match so it tiles seamlessly horizontally.
+```
+
+**Lớp gần**: `tm-near.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Match the art style and palette of the previous image.
+
+A horizontal parallax foreground-background layer for a side-scrolling game: broken floating stone platforms, chains of light.
+Shapes rise from the bottom edge and occupy the bottom 50%, more detail and contrast
+than a distant layer but still darker than gameplay objects.
+Everything above is solid flat #FF00FF magenta.
+The left and right edges must match so it tiles seamlessly horizontally.
+```
 
 ---
 
@@ -126,24 +359,125 @@ Gợi ý {ENEMY}:
 
 ## 4. Boss
 
+Mỗi boss 1 ảnh. Các prompt đã ghép sẵn khối phong cách và khối sprite, **chỉ cần copy nguyên khung rồi dán**.
+
+- Afternoon Tà (ải 1) đã có ảnh `boss-afternoon.png`. Nên tạo các boss trong cùng cuộc trò chuyện với ảnh hero, hoặc đính kèm `hero-wukong.png` để giữ cùng phong cách.
+- Long Vương, Nhện Tinh và Nhị Lang Thần hiện đang vẽ bằng code (pixel nhỏ). Tạo ảnh theo prompt dưới đây để đồng bộ với hero; màu sắc trong prompt đã khớp với bản vẽ hiện tại.
+- Khi gửi cho tôi, đặt tên file như ghi cạnh mỗi prompt.
+
+### Ngưu Ma Vương (Hỏa Diệm Sơn): `boss-nguma.png`
 ```
-[KHỐI PHONG CÁCH] [KHỐI SPRITE]
-A boss sprite sheet of {BOSS}, facing left, side view, about 250 px tall, same scale in every frame.
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Solid flat #FF00FF magenta background filling the whole image, no checkerboard,
+no shadows on the background, no gradient. Every sprite separated by at least
+40 px of empty magenta space, none touching or overlapping. Nothing cut off at the edges.
+
+A boss sprite sheet of the Bull Demon King, huge muscular bull-headed warrior in dark iron armor, giant iron staff, facing left, side view, about 250 px tall, same scale in every frame.
 Row 1: idle, 4 frames.
 Row 2: walk or charge, 6 frames.
 Row 3: attack 1 (melee), 4 frames.
-Row 4: attack 2 ({SPECIAL}), 4 frames, plus 2 separate projectile/effect sprites.
+Row 4: attack 2 (slams the ground, fire shockwave), 4 frames, plus 2 separate projectile/effect sprites.
 Row 5: enraged pose, 2 frames; defeated, 3 frames.
 Frames evenly spaced in a grid, feet aligned on the same baseline in each row.
 ```
 
-| Boss | {BOSS} | {SPECIAL} |
-|---|---|---|
-| Ngưu Ma Vương | the Bull Demon King, huge muscular bull-headed warrior in dark iron armor, giant iron staff | slams the ground, fire shockwave |
-| Bạch Cốt Tinh | the White Bone Demon, pale elegant woman in white robes with a ghostly skeletal form showing through | throws floating bone shards |
-| Thiên Mệnh Pháp Tướng | the Avatar of Heavenly Destiny, a towering faceless deity made of golden light, stone and floating runes, six arms holding a scroll, a sword, chains and a rune wheel, a giant eye on its chest | fires a beam of runes from its chest eye |
+### Bạch Cốt Tinh (Bạch Cốt Động): `boss-bachcot.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Solid flat #FF00FF magenta background filling the whole image, no checkerboard,
+no shadows on the background, no gradient. Every sprite separated by at least
+40 px of empty magenta space, none touching or overlapping. Nothing cut off at the edges.
 
-(Long Vương, Nhện Tinh, Nhị Lang Thần đã có hình vẽ bằng code. Nếu muốn đồng bộ với hero thì dùng cùng prompt này.)
+A boss sprite sheet of the White Bone Demon, pale elegant woman in white robes with a ghostly skeletal form showing through, facing left, side view, about 250 px tall, same scale in every frame.
+Row 1: idle, 4 frames.
+Row 2: walk or charge, 6 frames.
+Row 3: attack 1 (melee), 4 frames.
+Row 4: attack 2 (throws floating bone shards), 4 frames, plus 2 separate projectile/effect sprites.
+Row 5: enraged pose, 2 frames; defeated, 3 frames.
+Frames evenly spaced in a grid, feet aligned on the same baseline in each row.
+```
+
+### Đông Hải Long Vương (Long Cung): `boss-longvuong.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Solid flat #FF00FF magenta background filling the whole image, no checkerboard,
+no shadows on the background, no gradient. Every sprite separated by at least
+40 px of empty magenta space, none touching or overlapping. Nothing cut off at the edges.
+
+A boss sprite sheet of the Dragon King of the East Sea, a green-scaled dragon-headed king with golden horns and long whiskers, wearing a red imperial robe, holding a golden trident, facing left, side view, about 250 px tall, same scale in every frame.
+Row 1: idle, 4 frames.
+Row 2: walk or charge, 6 frames.
+Row 3: attack 1 (melee), 4 frames.
+Row 4: attack 2 (summons a crashing water wave), 4 frames, plus 2 separate projectile/effect sprites.
+Row 5: enraged pose, 2 frames; defeated, 3 frames.
+Frames evenly spaced in a grid, feet aligned on the same baseline in each row.
+```
+
+### Nhện Tinh (Bàn Tơ Động): `boss-nhentinh.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Solid flat #FF00FF magenta background filling the whole image, no checkerboard,
+no shadows on the background, no gradient. Every sprite separated by at least
+40 px of empty magenta space, none touching or overlapping. Nothing cut off at the edges.
+
+A boss sprite sheet of the Spider Queen, a demon woman with long black hair and pale skin whose lower body is a giant purple spider with a yellow hourglass mark, eight spiked legs, facing left, side view, about 250 px tall, same scale in every frame.
+Row 1: idle, 4 frames.
+Row 2: walk or charge, 6 frames.
+Row 3: attack 1 (melee), 4 frames.
+Row 4: attack 2 (shoots sticky web balls), 4 frames, plus 2 separate projectile/effect sprites.
+Row 5: enraged pose, 2 frames; defeated, 3 frames.
+Frames evenly spaced in a grid, feet aligned on the same baseline in each row.
+```
+
+### Nhị Lang Thần (Thiên Cung): `boss-nhilang.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Solid flat #FF00FF magenta background filling the whole image, no checkerboard,
+no shadows on the background, no gradient. Every sprite separated by at least
+40 px of empty magenta space, none touching or overlapping. Nothing cut off at the edges.
+
+A boss sprite sheet of Erlang Shen, a stern heavenly general with a silver helmet and red plume, a glowing third eye on his forehead, golden armor, a flowing blue cape, holding a three-pointed double-edged halberd, facing left, side view, about 250 px tall, same scale in every frame.
+Row 1: idle, 4 frames.
+Row 2: walk or charge, 6 frames.
+Row 3: attack 1 (melee), 4 frames.
+Row 4: attack 2 (fires a red laser beam from his third eye), 4 frames, plus 2 separate projectile/effect sprites.
+Row 5: enraged pose, 2 frames; defeated, 3 frames.
+Frames evenly spaced in a grid, feet aligned on the same baseline in each row.
+```
+
+### Thiên Mệnh Pháp Tướng (Thiên Môn): `boss-thienmenh.png`
+```
+Style: detailed 16-bit pixel art, SNES-era, crisp pixels, no anti-aliasing blur,
+limited palette, strong dark outlines, Chinese mythology (Journey to the West) theme.
+Side-view 2D platformer game asset. Light source from top-left.
+No text, no labels, no numbers, no watermark, no UI frame.
+Solid flat #FF00FF magenta background filling the whole image, no checkerboard,
+no shadows on the background, no gradient. Every sprite separated by at least
+40 px of empty magenta space, none touching or overlapping. Nothing cut off at the edges.
+
+A boss sprite sheet of the Avatar of Heavenly Destiny, a towering faceless deity made of golden light, stone and floating runes, six arms holding a scroll, a sword, chains and a rune wheel, a giant eye on its chest, facing left, side view, about 250 px tall, same scale in every frame.
+Row 1: idle, 4 frames.
+Row 2: walk or charge, 6 frames.
+Row 3: attack 1 (melee), 4 frames.
+Row 4: attack 2 (fires a beam of runes from its chest eye), 4 frames, plus 2 separate projectile/effect sprites.
+Row 5: enraged pose, 2 frames; defeated, 3 frames.
+Frames evenly spaced in a grid, feet aligned on the same baseline in each row.
+```
 
 ---
 
@@ -215,6 +549,6 @@ Story illustration, cinematic, wide 3:2: {SCENE}. No text.
 1. Nền + tileset ải 1 (thử trước để chốt phong cách, rồi mới làm các ải khác)
 2. Bộ khung HUD
 3. Nền + tileset ải 2–7
-4. Boss Ngưu Ma Vương, Bạch Cốt Tinh, Thiên Mệnh Pháp Tướng
+4. Boss (cả 6 boss ở mục 4)
 5. Quái thường
 6. Màn hình tiêu đề, bản đồ, tranh kể chuyện
