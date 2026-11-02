@@ -239,6 +239,7 @@ function loadLevel(index) {
     clones = [];
     projectiles = [];
     heroShots = [];
+    tmFx = [];
     zones = [];
     beams = [];
     gazes = [];

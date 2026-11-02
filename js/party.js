@@ -49,6 +49,10 @@ const CHARACTER_ART = {
         poses: { pray: ['poses', 0], meditate: ['poses', 1], chant: ['poses', 2], summon: ['poses', 3] },
         fx: { buddha: 0, lotus: 1 },
         face: [92, 60, 36, 36], portrait: [28, 74, 146, 92]
+    },
+    thienmenh: {
+        sheet: 'heroThienmenh', anims: TM_ANIMS, poses: TM_POSES, fx: {},
+        face: [84, 46, 40, 40], portrait: [50, 40, 120, 70]
     }
 };
 
@@ -122,7 +126,7 @@ function hdAnim(p, ch = p.char) {
         case 'run':
             return six ? pose('sixIdle') : [A.run, Math.floor(p.animTime / 0.09) % A.run.frames];
         case 'dash':
-            return [A.run, 2];
+            return ch.poses.roll ? pose('roll') : [A.run, 2];
         case 'dead':
         case 'sleep':
             return [A.dead, 0];

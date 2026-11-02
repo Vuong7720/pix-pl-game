@@ -294,6 +294,7 @@ function beginDuelMatch(arena, chars, loadouts = []) {
     pickups = [];
     projectiles = [];
     heroShots = [];
+    tmFx = [];
     zones = [];
     beams = [];
     gazes = [];
@@ -457,6 +458,7 @@ function duelSnapshot() {
         gz: gazes.map(g => ({ k: g.kind, x: r1(g.x), y: g.y, d: g.dir, l: r2(g.life) })),
         ci: duel.cutIns.splice(0),
         bm: beams.map(b => ({ x: r1(b.x), b: b.bottom, l: r2(b.life) })),
+        tf: tmFx.map(e => ({ k: e.kind, x: r1(e.x), y: r1(e.y), g: r1(e.ground), d: e.dir, t: r2(e.t), dl: e.delay, l: e.life })),
         m: { round: duel.round, wins: duel.wins, phase: duel.phase, pt: r2(duel.phaseTimer), timer: r1(duel.timer), rw: duel.roundWinner }
     };
 }
@@ -515,6 +517,10 @@ function applySnapshot(s) {
     }
     gazes = s.gz.map(d => ({ kind: d.k, x: d.x, y: d.y, dir: d.d, life: d.l }));
     beams = s.bm.map(d => ({ x: d.x, bottom: d.b, life: d.l }));
+    // Thiên Mệnh effects: drawn only, the host already dealt their damage
+    tmFx = (s.tf || []).map(d => Object.assign(Object.create(TmEffect.prototype), {
+        kind: d.k, x: d.x, y: d.y, ground: d.g, dir: d.d, t: d.t, delay: d.dl, life: d.l, owner: null, hits: new Set()
+    }));
 
     const before = clones.length;
     clones = s.c.map(d => Object.assign(Object.create(Clone.prototype), {

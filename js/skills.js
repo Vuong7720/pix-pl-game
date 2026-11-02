@@ -647,6 +647,8 @@ function drawBuff(ctx, p, cx, feetY) {
             ctx.fillRect(snap(gx - 2), snap(gy + 1), 4, 2);
             ctx.fillStyle = '#facc15';
         }
+    } else if (b.kind === 'darkguard') {
+        drawDarkGuard(ctx, cx, feetY);
     } else if (b.kind === 'sixarms') {
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = 0.25 + Math.sin(worldTime * 8) * 0.08;
@@ -704,6 +706,7 @@ function drawCutIn(ctx, dt) {
 
 function updateSkillEffects(dt) {
     for (const s of heroShots) s.update(dt);
+    updateTmFx(dt);
     heroShots = heroShots.filter(s => !s.dead);
 
     for (const z of zones) {
@@ -827,6 +830,7 @@ function drawArtZone(ctx, z, camX) {
 
 function drawShotsAndBeams(ctx, camX) {
     for (const s of heroShots) s.draw(ctx, camX);
+    drawTmFxList(ctx, camX);
     drawGazes(ctx, camX);
     for (const b of beams) {
         const x = b.x - camX;

@@ -256,7 +256,7 @@ const LEVELS = [
             { x: 2950, y: 400, type: 'boss' },
         ],
         bossName: 'THIÊN MỆNH PHÁP TƯỚNG',
-        bossShot: '#facc15',
+        bossShot: '#a855f7',
         bossPower: 1.2, // the last boss hits harder
         checkpoints: [{ x: 1460, y: 480 }, { x: 2560, y: 480 }],
         peaches: [{ x: 650, y: 390 }, { x: 850, y: 310 }, { x: 1080, y: 270 }, { x: 1560, y: 290 }, { x: 2190, y: 310 }],

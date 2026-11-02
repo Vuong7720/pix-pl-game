@@ -54,6 +54,8 @@ const ASSET_FILES = {
     heroBajie: 'hero-bajie.png',
     heroSha: 'hero-sha.png',
     heroTang: 'hero-tang.png',
+    heroThienmenh: 'hero-thienmenh.png',
+    fxThienmenh: 'fx-thienmenh.png',
     boarRun: 'boar-run.png',
     snailWalk: 'snail-walk.png',
     snailDead: 'snail-dead.png',
@@ -145,7 +147,14 @@ const SKILLS = {
     smite:     { cost: 55, name: 'PHẬT QUANG PHỔ CHIẾU', short: 'QUANG', desc: 'Cột sáng giáng xuống 3 kẻ địch gần nhất', cast: p => castSmite(p), pose: 'summon' },
     buddha:    { cost: 65, name: 'TRIỆU HOÁN PHẬT QUANG', short: 'PHẬT', desc: 'Tượng Phật vàng hiện 4 giây: hồi máu cho mình, đánh kẻ địch gần', cast: p => castBuddha(p), pose: 'summon', cutIn: true },
     meditate:  { cost: 30, name: 'TỊNH TÂM', short: 'TÂM', desc: 'Ngồi thiền 2,5 giây: bất tử, hồi máu và nạp Pháp Lực rất nhanh', cast: p => castMeditate(p), pose: 'meditate' },
-    sutra:     { cost: 45, name: 'KINH VĂN HỘ THÂN', short: 'VĂN', desc: 'Chữ kinh vàng xoay quanh mình 6 giây, bào máu kẻ địch chạm vào', cast: p => castSutra(p), pose: 'chant' }
+    sutra:     { cost: 45, name: 'KINH VĂN HỘ THÂN', short: 'VĂN', desc: 'Chữ kinh vàng xoay quanh mình 6 giây, bào máu kẻ địch chạm vào', cast: p => castSutra(p), pose: 'chant' },
+    // Thiên Mệnh (js/thien-menh.js)
+    tmSpin:    { cost: 35, name: 'CHÉM XOÁY', short: 'XOÁY', desc: 'Xoay kiếm chém quanh mình rồi phóng sóng hắc ám xuyên thấu', cast: p => castTmSpin(p), pose: 'spin' },
+    tmBeam:    { cost: 45, name: 'CẦU TIA HẮC ÁM', short: 'TIA', desc: 'Bắn tia hắc ám xuyên thẳng phía trước', cast: p => castTmBeam(p), pose: 'beam' },
+    tmDragon:  { cost: 60, name: 'TRIỆU HỒI HẮC LONG', short: 'LONG', desc: 'Gọi hắc long lao qua màn hình, cắn mọi kẻ địch trên đường', cast: p => castTmDragon(p), pose: 'summon', cutIn: true },
+    tmShadow:  { cost: 40, name: 'DỊCH CHUYỂN BÓNG TỐI', short: 'BÓNG', desc: 'Biến mất rồi hiện sau lưng kẻ địch gần nhất phía trước, chém một nhát', cast: p => castTmShadow(p), pose: 'appear' },
+    tmRuin:    { cost: 75, name: 'PHÁ HỦY TOÀN DIỆN', short: 'HỦY', desc: 'Tụ pháp trận rồi nổ gai hắc ám khắp xung quanh', cast: p => castTmRuin(p), pose: 'destroy', cutIn: true },
+    tmGuard:   { cost: 35, name: 'HẮC THUẪN', short: 'THUẪN', desc: 'Khiên hắc ám 3 giây, chặn mọi đòn', cast: p => castTmGuard(p), pose: 'shield' }
 };
 // Skill slots: keys and the stage whose clear unlocks each slot in the campaign
 const SLOT_KEYS = ['U', 'I', 'O'];
@@ -202,6 +211,14 @@ const CHARACTERS = {
         skills: ['chant', 'heal', 'buddha'],
         skillPool: ['chant', 'heal', 'smite', 'buddha', 'meditate', 'sutra'],
         passiveText: 'Chân Kinh: nạp Pháp Lực nhanh hơn 50%'
+    },
+    thienmenh: {
+        name: 'THIÊN MỆNH', role: 'Hắc ám · Triệu hồi',
+        hp: 100, speed: 5.6, jumps: 2,
+        attack: { timings: { 1: 0.28, 2: 0.26, 3: 0.36 }, reach: { 1: 95, 2: 100, 3: 110 }, damage: 1 },
+        skills: ['tmSpin', 'tmBeam', 'tmDragon'],
+        skillPool: ['tmSpin', 'tmBeam', 'tmDragon', 'tmShadow', 'tmRuin', 'tmGuard'],
+        passiveText: 'Né Bóng: cú lướt là cú lăn sát đất, không bị trúng đòn'
     }
 };
 const CHARACTER_IDS = Object.keys(CHARACTERS);
@@ -414,9 +431,7 @@ function buildThemes() {
         minion: 'soldier'
     };
 
-    // Thiên Môn: floating rune islands. Its boss is a stand-in (Nhị Lang Thần in gold)
-    // until boss-thienmenh.png is drawn
-    IMG.thienMenh = tintImage(IMG.erlang, '#fbbf24', 0.55);
+    // Thiên Môn: floating rune islands. The boss is Thiên Mệnh with its own skill kit (js/thien-menh.js)
     THEMES.gate = {
         // Both island layers pushed back into the dark so they do not read as platforms
         ...paintedStage('tm', '#0b0a1f', 0.65, '#1e1b4b'),
@@ -424,17 +439,21 @@ function buildThemes() {
         props: ['tmCrystal', 'tmBlock', 'tmBlock'],
         fog: 'rgba(250, 204, 21, 0.08)',
         ambient: 'sparkle',
-        boss: 'thienMenh',
-        bossAnim: ENEMY_ANIMS.erlang,
-        bossScale: 5,
-        bossGlow: '#facc15',
+        boss: 'heroThienmenh',
+        bossAnim: TM_BOSS_ANIMS.walk,
+        bossAnims: TM_BOSS_ANIMS,
+        bossFacesRight: true,
+        bossScale: TM_BOSS_SCALE,
+        bossKit: 'thienMenh',
+        bossSize: { w: 60, h: 120 },
+        bossGlow: TM_PURPLE,
         minion: 'soldier'
     };
 
     const enemySheets = ['boarRun', 'snailWalk', 'beeFly', 'beeAttack',
         'fishSwim', 'crabWalk', 'jellyFloat', 'dragonKing', 'spiderCrawl', 'spiderQueen',
         'soldierWalk', 'stormCloud', 'erlang', 'bossAfternoon', 'bossNguma', 'bossBachcot',
-        'mobMonkey', 'mobSilver', 'mobImp', 'mobBull', 'mobSkeleton', 'mobLantern', 'mobShrimp', 'mobCrabgen', 'mobBigspider', 'mobSpiderwoman', 'mobGold', 'mobCrane', 'mobPuppet', 'mobSpearpuppet', 'thienMenh'];
+        'mobMonkey', 'mobSilver', 'mobImp', 'mobBull', 'mobSkeleton', 'mobLantern', 'mobShrimp', 'mobCrabgen', 'mobBigspider', 'mobSpiderwoman', 'mobGold', 'mobCrane', 'mobPuppet', 'mobSpearpuppet', 'heroThienmenh'];
     FLASH.gold = {};
     for (const key of enemySheets) {
         FLASH[key] = tintImage(IMG[key], '#ffffff', 1);
@@ -446,7 +465,7 @@ function buildThemes() {
     FLASH.p2 = tintImage(IMG.hero, '#3b82f6', 0.4);
     FLASH.p2clone = tintImage(IMG.hero, '#7dd3fc', 0.45);
     FLASH.rage = {};
-    for (const key of ['bossNguma', 'bossBachcot', 'dragonKing', 'spiderQueen', 'erlang', 'bossAfternoon', 'thienMenh']) FLASH.rage[key] = tintImage(IMG[key], '#dc2626', 0.35);
+    for (const key of ['bossNguma', 'bossBachcot', 'dragonKing', 'spiderQueen', 'erlang', 'bossAfternoon', 'heroThienmenh']) FLASH.rage[key] = tintImage(IMG[key], '#dc2626', 0.35);
 }
 
 // Builds a tiny sprite from rows of palette characters ('.' = transparent)

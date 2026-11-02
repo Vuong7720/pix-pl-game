@@ -210,7 +210,8 @@ const SLASH_STYLE = {
     bajie:  { edge: '#fff7ed', body: '#fdba74', glow: 'rgba(194, 65, 12, 0.45)', spark: '#fb923c', claws: true },
     sha:    { edge: '#ecfeff', body: '#67e8f9', glow: 'rgba(8, 145, 178, 0.45)', spark: '#a5f3fc' },
     nezha:  { edge: '#fff7ed', body: '#fb923c', glow: 'rgba(239, 68, 68, 0.5)', spark: '#f97316' },
-    tang:   { edge: '#ffffff', body: '#fef3c7', glow: 'rgba(251, 191, 36, 0.4)', spark: '#fde68a' }
+    tang:   { edge: '#ffffff', body: '#fef3c7', glow: 'rgba(251, 191, 36, 0.4)', spark: '#fde68a' },
+    thienmenh: { edge: '#f5f3ff', body: '#a855f7', glow: 'rgba(126, 34, 206, 0.5)', spark: '#d8b4fe' }
 };
 // Per combo step: sweep from/to (degrees, 0 = straight ahead, negative = up) and blade thickness
 const SLASH_ARCS = {
