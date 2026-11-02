@@ -20,6 +20,7 @@ powershell -NoProfile -Command "& .\tools\art\build-mobs.ps1 -Only mob-imp,mob-b
 | `build-tiles.ps1` | `ground/<ải>.png` | `<mã>-tiles.png` (thêm `-Only tc` để chỉ làm một ải) |
 | `build-bosses.ps1` | `boss/*.png` | `boss-nguma.png`, `boss-bachcot.png` |
 | `build-mobs.ps1` | `enemy/ai1.png` … `ai7.png` | `mob-*.png` (thêm `-Only mob-imp` để chỉ làm một con) |
+| `build-thien-menh.ps1` | `char-and-back/Sprite boss 2D.png` | `hero-thienmenh.png` (nhân vật và boss ải 7), `fx-thienmenh.png` (hiệu ứng) |
 
 Mã ải: `hqs` Hoa Quả Sơn, `hds` Hỏa Diệm Sơn, `bcd` Bạch Cốt Động, `lc` Long Cung, `btd` Bàn Tơ Động, `tc` Thiên Cung, `tm` Thiên Môn.
 

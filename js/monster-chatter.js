@@ -73,7 +73,7 @@ const CHATTER = {
     dying: ['Ta sẽ quay lại... ở ải sau.', 'Nhớ... trả lương... cho tôi...', 'Cuối cùng cũng được nghỉ.', 'Hẹn gặp lại khi bạn chơi lại màn này.', 'Chưa kịp ăn trưa...', 'Nói với vợ tôi... nước mắm...']
 };
 // How each monster calls the hero, per character
-const TAUNT_NAMES = { wukong: 'con khỉ', bajie: 'con heo', sha: 'ông râu', nezha: 'nhóc Na Tra', tang: 'sư thầy' };
+const TAUNT_NAMES = { wukong: 'con khỉ', bajie: 'con heo', sha: 'ông râu', nezha: 'nhóc Na Tra', tang: 'sư thầy', thienmenh: 'anh đeo kính' };
 // Thơ nhảm (tho/): read two lines at a time
 const POEMS = [
     ['Đường đời thật lắm gian truân,', 'Hồi nhỏ còn trẻ, sống lâu thì già.', 'Muốn vui thì phải cười ca,', 'Khi nào mệt quá là ta... nghỉ liền.'],

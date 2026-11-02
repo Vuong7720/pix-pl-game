@@ -95,6 +95,12 @@ class Enemy {
             const home = currentLevel.platforms.find(p => p.h >= 40 && x >= p.x && x < p.x + p.w);
             this.homeLeft = home ? home.x + 10 : x - 300;
             this.homeRight = home ? home.x + home.w - this.width - 10 : x + 300;
+            const size = THEMES[currentLevel.theme] && THEMES[currentLevel.theme].bossSize;
+            if (size) {
+                this.y += this.height - size.h;
+                this.width = size.w;
+                this.height = size.h;
+            }
         }
     }
 
@@ -652,6 +658,15 @@ class Enemy {
             enemies.push(new Enemy(this.homeLeft + 40, this.y, minion), new Enemy(this.homeRight - 40, this.y, minion));
         }
 
+        if (THEMES[currentLevel.theme].bossKit === 'thienMenh') {
+            updateTmBoss(this, dt, dx);
+            this.x += this.vx * this.slowFactor() + this.kvx;
+            this.kvx *= 0.85;
+            this.x = Math.max(this.homeLeft, Math.min(this.homeRight, this.x));
+            this.applyGravity(platforms);
+            return;
+        }
+
         this.stateTimer -= dt;
         switch (this.state) {
             case 'walk':
@@ -734,6 +749,10 @@ class Enemy {
     // Returns true if the hit landed
     takeDamage(amount, knockbackDir) {
         if (this.isHit || this.dead) return false;
+        if (this.type === 'boss' && THEMES[currentLevel.theme].bossKit === 'thienMenh') {
+            amount = tmBossHit(this, amount);
+            if (amount === null) return false;
+        }
 
         this.hp -= amount;
         this.isHit = true;
@@ -829,6 +848,7 @@ class Enemy {
                 : { key: 'beeFly', anim: ENEMY_ANIMS.beeFly, fps: 14, scale: ART_SCALE };
         }
         const theme = THEMES[currentLevel.theme];
+        if (theme.bossKit === 'thienMenh') return tmBossSprite(this);
         if (theme.bossAnims) {
             // A boss with a row per action
             const A = theme.bossAnims;

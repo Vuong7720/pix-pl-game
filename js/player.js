@@ -651,6 +651,12 @@ class Player {
             return false;
         }
         if (this.isDead || this.invulnerableTimer > 0 || this.isDashing || this.skill || this.form) return false;
+        if (this.buff && this.buff.kind === 'darkguard') {
+            // Hắc Thuẫn blocks everything while it lasts
+            this.invulnerableTimer = 0.3;
+            createHitSparks(centreX(this), this.y + this.height / 2, '#d8b4fe', 10);
+            return false;
+        }
         if (this.buff && this.buff.kind === 'bubble') {
             // Thủy Cầu Hộ Thể soaks the hit
             this.buff.hits--;

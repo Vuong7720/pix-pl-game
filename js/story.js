@@ -17,7 +17,7 @@ const SPEAKERS = {
     dragon:   { name: 'ĐÔNG HẢI LONG VƯƠNG', color: '#22d3ee', icon: 'fa-dragon' },
     spider:   { name: 'NHỆN TINH BÀN TƠ', color: '#c084fc', icon: 'fa-spider' },
     erlang:   { name: 'NHỊ LANG THẦN', color: '#fde047', icon: 'fa-eye' },
-    destiny:  { name: 'THIÊN MỆNH PHÁP TƯỚNG', color: '#facc15', icon: 'fa-dharmachakra' }
+    destiny:  { name: 'THIÊN MỆNH PHÁP TƯỚNG', color: '#c084fc', face: { img: 'heroThienmenh', sx: 84, sy: 46, sw: 40, sh: 40 } }
 };
 const QUIZ_REWARD = 5; // Đào Tiên for a right answer
 
@@ -214,7 +214,7 @@ const STORY = [
             ['wukong', 'Không có mặt càng tốt. Lão Tôn đánh khỏi phải nhìn biểu cảm.']
         ],
         boss: [
-            ['narrator', 'Cỗ pháp trận khổng lồ quay chậm lại. Từ trong ánh sáng bước ra một thực thể không mặt, sáu cánh tay cầm sáu thứ, trong đó có một cây bút đỏ.'],
+            ['narrator', 'Cỗ pháp trận khổng lồ quay chậm lại. Từ trong ánh sáng bước ra một kẻ mặc giáp đen, áo choàng đỏ, đeo kính cận, tay cầm hắc kiếm. Trông như vừa tăng ca ba nghìn năm.'],
             ['destiny', 'Biến số thứ nhất. Ngươi đã đi lệch khỏi kịch bản tám mươi mốt lần.'],
             ['wukong', 'Tám mươi hai. Ngươi quên lần ta trốn học phép biến hóa đi hái đào.'],
             ['destiny', 'Ta không ghét ngươi. Ta chỉ xóa những gì không nằm trong dự đoán.'],
@@ -222,10 +222,11 @@ const STORY = [
               options: ['Đánh ngươi', 'Bỏ chạy', 'Đọc kinh cho ngươi ngủ', 'Làm điều ngươi không đoán được'], answer: 3,
               right: 'Lỗi... không tìm thấy dữ liệu. Ngươi... thật phiền phức.',
               wrong: 'Đúng như dự đoán. Nhàm chán.' },
-            ['destiny', 'Tiến hành sửa lỗi Tam Giới. Phiên bản mới không có khỉ.']
+            ['wukong', 'Ngươi đeo kính à? Thiên Mệnh mà cũng cận?'],
+            ['destiny', 'Nhìn màn hình Tam Giới ba nghìn năm thì ai chẳng cận. Tiến hành sửa lỗi. Phiên bản mới không có khỉ.']
         ],
         after: [
-            ['narrator', 'Cánh tay cuối cùng của Pháp Tướng rơi xuống. Cỗ pháp trận nứt từng vòng một, như bánh xe hết dầu.'],
+            ['narrator', 'Hắc kiếm của Pháp Tướng gãy làm đôi. Cặp kính rơi xuống, cỗ pháp trận nứt từng vòng một, như bánh xe hết dầu.'],
             ['tang', 'Ngộ Không, vi sư có thể dùng chân kinh khóa nó lại. Nhưng như thế Tam Giới sẽ bị ràng buộc mãi mãi.'],
             ['wukong', 'Sư phụ, năm trăm năm dưới núi là đủ ràng buộc rồi. Lần này để chúng sinh tự chọn.'],
             ['narrator', 'Ngộ Không giáng gậy xuống. Pháp trận vỡ tan, ánh sáng tràn khắp Tam Giới. Ở đâu đó, một cái đầu bay thở phào vì cuối cùng cũng được nghỉ phép.'],
