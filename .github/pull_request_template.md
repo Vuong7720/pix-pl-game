@@ -9,6 +9,7 @@
 ## Kiểm tra trước khi gửi
 
 - [ ] Đã chạy `node tools/check.js` và không báo lỗi
+- [ ] Thay đổi lớn: đã chạy `node tools/smoke.mjs` (Chrome chạy qua mọi ải, không lỗi)
 - [ ] Đã chơi thử phần mình sửa trên trình duyệt
 - [ ] Không thêm file pack gốc, file zip hay file backup
 - [ ] Hình mới (nếu có) được phép dùng và đăng công khai

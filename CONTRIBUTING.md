@@ -30,9 +30,41 @@ Thay đổi lớn thì nên nhờ người kia xem qua trước khi gộp. Nếu
 
 ## Cấu trúc
 
-- `index.html`: toàn bộ game (HTML, giao diện và code JavaScript).
-- `assets/`: các file hình game dùng. Hình mới thêm vào đây và khai báo trong `ASSET_FILES`.
-- `tools/check.js`: kiểm tra cú pháp và đủ file hình. GitHub chạy tự động với mỗi Pull Request.
+Game không cần build: `index.html` nạp lần lượt các file trong `js/`. Các file này là script thường, dùng chung một phạm vi toàn cục, nên **thứ tự nạp quan trọng**. Code chạy ngay khi tải trang chỉ được dùng thứ đã khai báo ở file đứng trước. Code bên trong hàm thì gọi được mọi thứ.
+
+| File | Nội dung |
+| --- | --- |
+| `index.html` | Khung HTML: canvas, HUD, các bảng menu |
+| `css/game.css` | Font và giao diện ngoài canvas |
+| `js/core.js` | Canvas, chế độ `?dev`, lưu tiến trình, nâng cấp cửa hàng, hàm dùng chung |
+| `js/input.js` | Bàn phím, chuột (chạy được khi bật Unikey) |
+| `js/audio.js` | Âm thanh và nhạc |
+| `js/assets.js` | Danh sách file hình (`ASSET_FILES`), bố cục sprite, gạch, giao diện từng ải (`THEMES`), hình quái theo ải (`THEME_MOBS`) |
+| `js/code-sprites.js` | Sprite vẽ bằng code (sinh vật biển, hang, trời) |
+| `js/party.js` | Nhân vật chơi được |
+| `js/levels.js` | Bản đồ từng ải (`LEVELS`) và đoạn nối dài tự sinh |
+| `js/effects.js` | Camera, hạt, chữ bay, sóng chấn động, vệt chém |
+| `js/objects.js` | Đào, rương, cờ hồi sinh, đạn, gai, mạng nhện |
+| `js/player.js` | Nhân vật người chơi |
+| `js/skills.js` | Thần thông của mọi nhân vật, phân thân |
+| `js/monster-chatter.js` | Quái nói chuyện |
+| `js/weird.js` | Quái dị và trò troll |
+| `js/enemy.js` | Quái và boss |
+| `js/world.js` | Cổng, cảnh nền, vẽ màn chơi |
+| `js/story.js` | Cốt truyện, câu đố, hộp thoại |
+| `js/menus.js` | Bản đồ hành trình, chọn nhân vật, cửa hàng |
+| `js/duel.js` | Solo online |
+| `js/main.js` | Nút cảm ứng, vòng lặp game, nút bấm, bảng dev, khởi động |
+
+Thư mục khác:
+
+- `assets/`: file hình game dùng. Hình mới thêm vào đây và khai báo trong `ASSET_FILES` (`js/assets.js`).
+- `kich_ban/`: cốt truyện và prompt tạo đồ họa.
+- `tools/check.js`: kiểm tra cú pháp, tên trùng giữa các file và đủ file hình. GitHub chạy tự động với mỗi Pull Request.
+- `tools/smoke.mjs`: mở game trong Chrome, chạy qua từng ải và báo lỗi JavaScript. Chạy tay trước khi gửi PR lớn: `node tools/smoke.mjs` (cần Node 22+ và Chrome).
+- `tools/art/`: script biến ảnh vẽ bằng AI thành file trong `assets/`. Xem `tools/art/README.md`.
+
+Thêm file mới vào `js/` thì nhớ thêm thẻ `<script>` vào `index.html`, đặt sau các file mà nó cần lúc nạp.
 
 ## Quy ước
 

@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Anek+Malayalam:wght@600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap');
+
+body {
+    background-color: #0d0f12;
+    font-family: 'Anek Malayalam', sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+.pixel-font {
+    font-family: 'Press Start 2P', monospace;
+}
+
+.pixelated {
+    image-rendering: pixelated;
+}
+
+/* Story text: a serif with full Vietnamese diacritics (the pixel font lacks them) */
+.story-font {
+    font-family: 'Noto Serif', serif;
+}
+
+/* Glassmorphism containers */
+.glass-panel {
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Custom scrollbar for HUD panels */
+::-webkit-scrollbar {
+    width: 4px;
+}
+::-webkit-scrollbar-thumb {
+    background: #e11d48;
+    border-radius: 4px;
+}
