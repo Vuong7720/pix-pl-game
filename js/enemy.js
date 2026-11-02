@@ -715,7 +715,7 @@ class Enemy {
             this.fireTimer -= dt;
             if (this.fireTimer <= 0) {
                 this.fireTimer = 0.35;
-                projectiles.push(new Projectile(player.x + player.width / 2 + (Math.random() - 0.5) * 320, -20, currentLevel.bossShot));
+                projectiles.push(new Projectile(player.x + player.width / 2 + (Math.random() - 0.5) * 320, camera.y - 20, currentLevel.bossShot));
             }
         }
 
@@ -1053,7 +1053,8 @@ function drawMonsterCounter(ctx, camX) {
     ctx.fillStyle = alive.length ? '#fecaca' : '#fde68a';
     ctx.fillText(text, GAME_WIDTH / 2, 25);
 
-    const onScreen = alive.some(e => e.x + e.width > camX && e.x < camX + GAME_WIDTH);
+    const onScreen = alive.some(e => e.x + e.width > camX && e.x < camX + GAME_WIDTH &&
+        e.y + e.height > camera.y && e.y < camera.y + GAME_HEIGHT);
     if (alive.length && !onScreen) {
         const px = player.x + player.width / 2;
         const near = alive.reduce((a, e) => (Math.abs(e.x - px) < Math.abs(a.x - px) ? e : a));

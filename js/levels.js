@@ -5,34 +5,56 @@ const LEVELS = [
     {
         name: "CẢNH 1: HOA QUẢ SƠN - NGƯU MA VƯƠNG",
         theme: 'forest',
-        worldWidth: 2200,
+        worldWidth: 3300,
+        topY: -560, // the camera climbs this far above the first screen
+        ownClimb: true, // its well is hand-made, so extendLevel adds none
         bgGradient: ['#0f380f', '#306230', '#8bac0f'],
+        // Lower road straight to the boss, or up the well between two cliffs (Giếng Thủy Liêm)
+        // onto the ridge with the chest, then down the steps. The ridge has no monsters: the climb stays optional.
         platforms: [
-            { x: 0, y: 480, w: 700, h: 60, type: 'grass' },
-            { x: 800, y: 480, w: 600, h: 60, type: 'grass' },
-            { x: 1500, y: 480, w: 700, h: 60, type: 'grass' },
+            { x: 0, y: 480, w: 1960, h: 60, type: 'grass' },
             { x: 250, y: 360, w: 180, h: 20, type: 'wood' },
-            { x: 500, y: 280, w: 160, h: 20, type: 'wood' },
-            { x: 900, y: 360, w: 200, h: 20, type: 'wood' },
-            { x: 1200, y: 270, w: 180, h: 20, type: 'wood' },
-            { x: 1650, y: 350, w: 220, h: 20, type: 'wood' },
-            { x: 1960, y: 170, w: 150, h: 20, type: 'wood' }, // secret ledge (Trụ Thiên)
+            { x: 520, y: 280, w: 160, h: 20, type: 'wood' },
+            // The well: two hanging cliffs with an 80px gap under them for the lower road
+            { x: 860, y: -300, w: 100, h: 700, type: 'grass' },
+            { x: 1160, y: -300, w: 100, h: 700, type: 'grass' },
+            { x: 960, y: 380, w: 80, h: 20, type: 'wood' },
+            { x: 1080, y: 280, w: 80, h: 20, type: 'wood' },
+            { x: 960, y: 180, w: 80, h: 20, type: 'wood' },
+            { x: 1080, y: 80, w: 80, h: 20, type: 'wood' },
+            // no ledges for the last 380px: wall jumps only
+            // The ridge above, then steps back down
+            { x: 1260, y: -300, w: 640, h: 60, type: 'grass' },
+            { x: 1960, y: -190, w: 120, h: 20, type: 'wood' },
+            { x: 2110, y: -80, w: 120, h: 20, type: 'wood' },
+            { x: 2260, y: 40, w: 120, h: 20, type: 'wood' },
+            // Lower road
+            { x: 1400, y: 370, w: 160, h: 20, type: 'wood' },
+            { x: 1680, y: 300, w: 140, h: 20, type: 'wood' },
+            { x: 2060, y: 480, w: 340, h: 60, type: 'grass' },
+            { x: 2500, y: 480, w: 800, h: 60, type: 'grass' },
+            { x: 2950, y: 170, w: 150, h: 20, type: 'wood' }, // secret ledge (Trụ Thiên)
         ],
         enemies: [
             { x: 400, y: 420, type: 'slime' },
-            { x: 950, y: 420, type: 'goblin' },
-            { x: 1250, y: 210, type: 'slime' },
-            { x: 1750, y: 420, type: 'goblin' },
-            { x: 1950, y: 400, type: 'boss' },
+            { x: 700, y: 420, type: 'goblin' },
+            { x: 1450, y: 310, type: 'slime' },
+            { x: 1650, y: 420, type: 'goblin' },
+            { x: 2200, y: 420, type: 'goblin' },
+            { x: 2750, y: 400, type: 'boss' },
         ],
         bossName: 'NGƯU MA VƯƠNG',
         bossShot: '#f97316',
         bossPower: 0.6, // first boss: less HP and damage
+        hints: [
+            { x: 1060, y: 470, text: '↑ Leo giếng: áp vào vách rồi nhảy để bật tường' }
+        ],
         // y values are the surface the object stands on
-        checkpoints: [{ x: 1050, y: 480 }],
-        peaches: [{ x: 340, y: 330 }, { x: 580, y: 250 }, { x: 1290, y: 240 }, { x: 1760, y: 320 }],
-        chests: [{ x: 1320, y: 480 }, { x: 2010, y: 170 }],
-        portalX: 2050,
+        checkpoints: [{ x: 760, y: 480 }, { x: 2120, y: 480 }],
+        peaches: [{ x: 340, y: 330 }, { x: 600, y: 250 }, { x: 1000, y: 150 }, { x: 1060, y: -160 },
+                  { x: 1400, y: -340 }, { x: 1700, y: -340 }, { x: 1480, y: 340 }],
+        chests: [{ x: 1820, y: -300 }, { x: 3000, y: 170 }],
+        portalX: 3150,
         portalY: 400
     },
     {
@@ -272,6 +294,33 @@ const LEVELS = [
 const EXTRA_CHUNKS = 4;
 const CHUNK_W = 1000;
 const FLYER_HEIGHT = { demon: 300, fish: 320, jelly: 300, spider: 40, cloud: 150 }; // spawn y of flying monsters
+const CLIMB_HINT = '↑ Leo giếng: áp vào vách rồi nhảy để bật tường';
+
+// Giếng leo, one chunk wide: the lower road runs under two hanging cliffs. Between them ledges climb
+// to a stretch that needs wall jumps, up to a ridge with a chest and peaches; the ridge end drops back
+// onto the road. No monsters up there, so the climb stays optional.
+// Underwater (the sea surface is a ceiling) the ridge sits just under the surface and you swim up.
+function addClimbChunk(level, x, groundType, ledge, walker, flyer) {
+    const top = level.water ? 120 : -300; // ridge surface
+    level.platforms.push(
+        { x, y: 480, w: CHUNK_W, h: 60, type: groundType },
+        { x: x + 120, y: top, w: 100, h: 400 - top, type: groundType },
+        { x: x + 420, y: top, w: 100, h: 400 - top, type: groundType },
+        { x: x + 520, y: top, w: 340, h: 60, type: groundType },
+        ledge(x + 620, 340, 150));
+    // ledges every 100px, leaving the top 380px of the well bare
+    for (let y = 380, i = 0; y >= top + 380; y -= 100, i++) level.platforms.push(ledge(i % 2 ? x + 340 : x + 220, y, 80));
+    level.peaches.push({ x: x + 320, y: top + 160 }, { x: x + 600, y: top - 40 }, { x: x + 720, y: top - 40 }, { x: x + 690, y: 310 });
+    level.chests.push({ x: x + 820, y: top });
+    level.checkpoints.push({ x: x + 40, y: 480 });
+    level.hints = [...(level.hints || []), { x: x + 320, y: 470, text: level.water ? '↑ Bơi lên: trên cao có rương' : CLIMB_HINT }];
+    level.enemies.push(
+        { x: x + 300, y: 420, type: walker() },
+        { x: x + 640, y: 420, type: walker() },
+        { x: x + 900, y: 420, type: walker() });
+    if (flyer) level.enemies.push({ x: x + 700, y: FLYER_HEIGHT[flyer], type: flyer });
+    if (!level.water) level.topY = Math.min(level.topY || 0, -560);
+}
 
 function extendLevel(level, chunks) {
     const rand = seededRandom(level.worldWidth * 7 + 3);
@@ -292,6 +341,10 @@ function extendLevel(level, chunks) {
     for (let c = 0; c < chunks; c++) {
         const x = split + c * CHUNK_W;
         const ledge = (lx, ly, w) => ({ x: lx, y: ly, w, h: 20, type: ledgeType });
+        if (c === 1 && !level.ownClimb) {
+            addClimbChunk(level, x, arena.type, ledge, walker, flyers.length ? pick(flyers) : null);
+            continue;
+        }
         let flyX;
         if (c % 2 === 0) {
             // Two grounds with a jumpable gap, three ledges (the middle one over the gap)

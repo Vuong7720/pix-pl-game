@@ -286,6 +286,7 @@ function beginDuelMatch(arena, chars, loadouts = []) {
     buildScenery(currentLevel, theme);
     resetAmbient(theme.ambient);
     camera.x = 0;
+    camera.y = 0;
     enemies = [];
     chests = [];
     webs = [];

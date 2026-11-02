@@ -323,7 +323,7 @@ function drawCaveCeiling(camX) {
 // Hang tối: only a pool of light around the player; it widens when the boss fight starts
 function drawDarkness(ctx, camX) {
     const px = player.x + player.width / 2 - camX;
-    const py = player.y + player.height / 2;
+    const py = player.y + player.height / 2 - camera.y;
     // Wider light in boss fights and duels so you can see who you are fighting
     const bossFight = duel.active || enemies.some(e => e.type === 'boss' && e.awake && !e.dead);
     const inner = bossFight ? 170 : 100;

@@ -175,13 +175,15 @@ function gameLoop(timestamp) {
         stepAcc = 0;
     }
 
-    const camX = snap(camera.x);
+    const camX = snap(camera.x), camY = snap(camera.y);
 
     ctx.save();
     applyShake(ctx);
 
-    drawEnvironment(ctx, currentLevel, camX);
+    drawEnvironment(ctx, currentLevel, camX, camY);
 
+    // Everything in the world below is shifted up/down with the camera
+    ctx.translate(0, -camY);
     const theme = THEMES[currentLevel.theme];
     if (theme) {
         drawCurrents(ctx, camX);
@@ -217,11 +219,14 @@ function gameLoop(timestamp) {
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
+    ctx.save();
+    ctx.translate(0, -camY);
     drawBubbles(ctx, camX);
-    if (gameState === 'PLAYING' || gameState === 'PAUSED') drawStreamFeed(ctx);
     for (let ft of floatingTexts) {
         ft.draw(ctx, camX);
     }
+    ctx.restore();
+    if (gameState === 'PLAYING' || gameState === 'PAUSED') drawStreamFeed(ctx);
 
     if (gameState === 'PLAYING' || gameState === 'PAUSED') {
         drawBossBar(ctx);

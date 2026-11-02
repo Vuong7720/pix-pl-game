@@ -85,6 +85,30 @@ function buildScenery(level, theme) {
 }
 
 // --- ENVIRONMENT RENDERING ---
+// Hint signs painted into the world: { x, y, text } (y is the bottom of the sign)
+function drawHints(ctx, level, camX) {
+    if (!level.hints) return;
+    ctx.save();
+    ctx.font = "700 12px 'Noto Serif', serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const h of level.hints) {
+        const x = h.x - camX;
+        if (x < -150 || x > GAME_WIDTH + 150) continue;
+        const w = ctx.measureText(h.text).width + 16;
+        ctx.fillStyle = 'rgba(2, 6, 23, 0.6)';
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(x - w / 2, h.y - 24, w, 22, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fde68a';
+        ctx.fillText(h.text, x, h.y - 13);
+    }
+    ctx.restore();
+}
+
 // Tiles a strip with parallax, bottom-aligned. `mirror` flips every other copy,
 // which makes any image seamless.
 function drawStrip(img, r, offset, bottom, scale = ART_SCALE, mirror = false) {
@@ -103,7 +127,7 @@ function drawStrip(img, r, offset, bottom, scale = ART_SCALE, mirror = false) {
     }
 }
 
-// Sky, then the far and near background strips
+// Sky, then the far and near background strips (they stay put vertically: the strips have flat tops)
 function drawBackdrop(theme, camX) {
     const sky = theme.sky, skyW = sky.width * GAME_HEIGHT / sky.height;
     ctx.drawImage(sky, -snap(Math.min(camX * 0.03, skyW - GAME_WIDTH)), 0, skyW, GAME_HEIGHT);
@@ -132,16 +156,22 @@ function drawRowSlices(img, d, sy, sh, x, w, dy) {
 function drawPlatform(theme, p, drawX) {
     const img = theme.groundTiles;
     if (p.h >= 40) {
-        // Solid ground: top edge row, then fill rows down to the bottom of the platform
+        // Solid ground: top edge row, then fill rows down to the bottom of the platform.
+        // Clipped there, so a hanging wall does not draw into the passage under it.
         const d = TILE[theme.ground];
         const S = d.scale || ART_SCALE;
         let dy = p.y - d.surface * S;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(drawX - 20, dy, p.w + 40, p.y + p.h - dy);
+        ctx.clip();
         drawRowSlices(img, d, d.topY, d.topH, drawX, p.w, dy);
         dy += d.topH * S;
         while (dy < p.y + p.h) {
             drawRowSlices(img, d, d.fillY, d.fillH, drawX, p.w, dy);
             dy += d.fillH * S;
         }
+        ctx.restore();
     } else {
         const d = TILE[theme.ledge];
         drawRowSlices(img, d, d.sy, d.sh, drawX, p.w, p.y - d.surface * (d.scale || ART_SCALE));
@@ -161,7 +191,7 @@ function drawDecor(theme, item, camX) {
     }
 }
 
-function drawEnvironment(ctx, level, camX) {
+function drawEnvironment(ctx, level, camX, camY = 0) {
     const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
     grad.addColorStop(0, level.bgGradient[0]);
     grad.addColorStop(0.5, level.bgGradient[1]);
@@ -181,6 +211,8 @@ function drawEnvironment(ctx, level, camX) {
     ctx.fillStyle = haze;
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
+    ctx.save();
+    ctx.translate(0, -camY);
     for (const item of scenery.decor) {
         drawDecor(theme, item, camX);
     }
@@ -188,8 +220,11 @@ function drawEnvironment(ctx, level, camX) {
     for (let p of level.platforms) {
         const drawX = p.x - camX;
         if (drawX + p.w < -100 || drawX > GAME_WIDTH + 100) continue;
+        if (p.y - camY > GAME_HEIGHT + 20 || p.y + p.h - camY < -100) continue;
         drawPlatform(theme, p, drawX);
     }
+    drawHints(ctx, level, camX);
+    ctx.restore();
 
     if (theme.cave) drawCaveCeiling(camX);
 }

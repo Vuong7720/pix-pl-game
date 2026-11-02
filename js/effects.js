@@ -6,20 +6,28 @@ const camera = {
     y: 0,
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
-    // Eases toward the player and looks a little ahead in the facing direction
+    // Eases toward the player and looks a little ahead in the facing direction.
+    // Vertically it keeps the player a bit below the middle; tall stages set topY < 0.
     follow(target, worldWidth, dt) {
         const lookAhead = target.facing === 'right' ? 60 : -60;
         const goal = target.x + target.width / 2 - this.width / 2 + lookAhead;
         this.x += (goal - this.x) * Math.min(1, dt * 6);
+        this.y += (this.goalY(target) - this.y) * Math.min(1, dt * 5);
         this.clamp(worldWidth);
     },
     snapTo(target, worldWidth) {
         this.x = target.x + target.width / 2 - this.width / 2;
+        this.y = this.goalY(target);
         this.clamp(worldWidth);
+    },
+    goalY(target) {
+        return target.y + target.height / 2 - this.height * 0.58;
     },
     clamp(worldWidth) {
         if (this.x < 0) this.x = 0;
         if (this.x > worldWidth - this.width) this.x = worldWidth - this.width;
+        const top = (currentLevel && currentLevel.topY) || 0;
+        this.y = Math.max(top, Math.min(0, this.y));
     }
 };
 
