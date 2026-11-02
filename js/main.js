@@ -35,7 +35,7 @@ bindTouch('btn-skill3', 'skill3', () => localSkill(2));
 // Platforms with `move` drift side to side; whoever stands on one rides along
 function moveClouds(platforms) {
     for (const p of platforms) {
-        if (!p.move) continue;
+        if (!p.move || p.move.dy) continue; // lifts with vertical travel: updateMechanisms
         if (p.baseX === undefined) p.baseX = p.x;
         const nx = p.baseX + Math.sin(worldTime * p.move.speed) * p.move.dx;
         const delta = nx - p.x;
@@ -62,7 +62,8 @@ function updateWorld(dt) {
         }
     }
 
-    const platforms = currentLevel.platforms;
+    updateMechanisms(dt);
+    const platforms = solidPlatforms();
     moveClouds(platforms);
     player.update(dt, platforms);
     // A finished death animation may have ended the run (game over overlay)
@@ -188,6 +189,7 @@ function gameLoop(timestamp) {
     const theme = THEMES[currentLevel.theme];
     if (theme) {
         drawCurrents(ctx, camX);
+        drawMechanismsBack(ctx, camX);
         for (const c of checkpoints) c.draw(ctx, camX);
         for (const c of chests) c.draw(ctx, camX, theme);
         for (const h of hazards) h.draw(ctx, camX);
@@ -208,6 +210,7 @@ function gameLoop(timestamp) {
         for (const p of projectiles) p.draw(ctx, camX);
         drawShockwaves(ctx, camX);
         drawImpacts(ctx, camX);
+        drawMechanismsFront(ctx, camX);
     }
 
     for (let p of particles) {

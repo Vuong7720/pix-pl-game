@@ -19,6 +19,8 @@ class Player {
         this.wallSide = 0;       // -1 / 1 while touching a wall on that side in the air
         this.wallTimer = 0;      // grace time to wall-jump after letting go
         this.wallKick = 0;       // after a wall jump, input is ignored briefly so the kick carries
+        this.onRope = null;      // the rope being climbed (js/mechanisms.js)
+        this.ropeCooldown = 0;   // after jumping off a rope it cannot be grabbed for a moment
         this.facing = 'right';
 
         this.hp = 100;
@@ -462,6 +464,7 @@ class Player {
             if (currentLevel.water) this.vy = Math.min(this.vy, 5);
             if (this.slowed) this.vy = Math.max(-6, Math.min(this.vy, 1.5));
             this.applyCurrents();
+            applyRopes(this, input, dt);
         }
 
         if (input.dash && this.dashCooldown <= 0 && !this.isDashing) {
@@ -523,6 +526,7 @@ class Player {
             for (const w of webs) {
                 if (w.alive && overlaps(this.attackBox, w)) w.cut();
             }
+            if (!duel.active) hitSwitches(this.attackBox);
         }
 
         this.updateAnimation(dt);
@@ -667,6 +671,7 @@ class Player {
             }
             return true;
         }
+        if (this.onRope) this.ropeCooldown = 0.3; // jumping off a rope
         if (!this.isGrounded && this.wallTimer > 0) {
             // Bật tường: kick off away from the wall, and the air jumps are back.
             // Same push for every character, held long enough to cross a 200px well.

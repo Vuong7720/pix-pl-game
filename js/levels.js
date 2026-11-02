@@ -294,32 +294,108 @@ const LEVELS = [
 const EXTRA_CHUNKS = 4;
 const CHUNK_W = 1000;
 const FLYER_HEIGHT = { demon: 300, fish: 320, jelly: 300, spider: 40, cloud: 150 }; // spawn y of flying monsters
-const CLIMB_HINT = '↑ Leo giếng: áp vào vách rồi nhảy để bật tường';
+// --- CLIMBS: one per stage, each built around its own cơ quan (see js/mechanisms.js) ---
+// A climb fills one chunk: the lower road runs straight along the bottom, the climb leads up to a
+// ridge with a chest and peaches (no monsters up there, so it stays optional), and the ridge end
+// drops back onto the road. x is the chunk's left edge.
 
-// Giếng leo, one chunk wide: the lower road runs under two hanging cliffs. Between them ledges climb
-// to a stretch that needs wall jumps, up to a ridge with a chest and peaches; the ridge end drops back
-// onto the road. No monsters up there, so the climb stays optional.
-// Underwater (the sea surface is a ceiling) the ridge sits just under the surface and you swim up.
-function addClimbChunk(level, x, groundType, ledge, walker, flyer) {
-    const top = level.water ? 120 : -300; // ridge surface
-    level.platforms.push(
-        { x, y: 480, w: CHUNK_W, h: 60, type: groundType },
-        { x: x + 120, y: top, w: 100, h: 400 - top, type: groundType },
-        { x: x + 420, y: top, w: 100, h: 400 - top, type: groundType },
-        { x: x + 520, y: top, w: 340, h: 60, type: groundType },
-        ledge(x + 620, 340, 150));
-    // ledges every 100px, leaving the top 380px of the well bare
-    for (let y = 380, i = 0; y >= top + 380; y -= 100, i++) level.platforms.push(ledge(i % 2 ? x + 340 : x + 220, y, 80));
-    level.peaches.push({ x: x + 320, y: top + 160 }, { x: x + 600, y: top - 40 }, { x: x + 720, y: top - 40 }, { x: x + 690, y: 310 });
-    level.chests.push({ x: x + 820, y: top });
+// Shared pieces: the road with its monsters and checkpoint, and the reward ridge
+function climbBase(level, x, groundType, walker, flyer, hint) {
+    level.platforms.push({ x, y: 480, w: CHUNK_W, h: 60, type: groundType });
     level.checkpoints.push({ x: x + 40, y: 480 });
-    level.hints = [...(level.hints || []), { x: x + 320, y: 470, text: level.water ? '↑ Bơi lên: trên cao có rương' : CLIMB_HINT }];
+    level.hints = [...(level.hints || []), { x: x + 480, y: 470, text: hint }];
     level.enemies.push(
         { x: x + 300, y: 420, type: walker() },
         { x: x + 640, y: 420, type: walker() },
         { x: x + 900, y: 420, type: walker() });
     if (flyer) level.enemies.push({ x: x + 700, y: FLYER_HEIGHT[flyer], type: flyer });
     if (!level.water) level.topY = Math.min(level.topY || 0, -560);
+}
+function climbRidge(level, x, w, y, groundType) {
+    level.platforms.push({ x, y, w, h: 60, type: groundType });
+    level.peaches.push({ x: x + 60, y: y - 40 }, { x: x + 160, y: y - 40 });
+    level.chests.push({ x: x + w - 50, y });
+}
+// Two hanging cliffs with a 200px well between them; the road passes under them
+function climbWell(level, x, groundType, top) {
+    level.platforms.push(
+        { x: x + 120, y: top, w: 100, h: 400 - top, type: groundType },
+        { x: x + 420, y: top, w: 100, h: 400 - top, type: groundType });
+}
+
+const CLIMBS = {
+    // Hỏa Diệm Sơn: crumbling stone ledges in the well, and lava that rises after you once you start
+    fire(level, x, g, ledge) {
+        climbWell(level, x, g, -300);
+        for (let y = 380, i = 0; y >= -120; y -= 100, i++) level.platforms.push({ ...ledge(i % 2 ? x + 340 : x + 220, y, 80), crumble: 'stone' });
+        level.lavas = [...(level.lavas || []), { x: x + 220, w: 200, floor: 480, top: -330, speed: 50 }];
+        level.peaches.push({ x: x + 320, y: -200 });
+        climbRidge(level, x + 520, 340, -300, g);
+        return 'Dung nham dâng khi leo: leo nhanh! · bệ đá nứt sẽ sập';
+    },
+    // Bạch Cốt Động: a zig-zag of ledges with bone spikes on a timer, and a stone door on the ridge
+    // that the skull switch halfway up opens
+    bone(level, x, g, ledge) {
+        const steps = [[150, 390], [330, 300], [150, 210], [330, 120], [150, 30], [330, -60], [150, -150], [330, -240]];
+        steps.forEach(([lx, ly], i) => {
+            level.platforms.push(ledge(x + lx, ly, 120));
+            if (i % 2 === 1) level.spikes = [...(level.spikes || []), { x: x + lx + 10, y: ly, w: 100, period: 2.4, offset: i * 0.6 }];
+        });
+        level.switches = [...(level.switches || []), { x: x + 210, y: -150, gate: 'bone' + x, look: 'skull' }];
+        climbRidge(level, x + 520, 360, -300, g);
+        level.platforms.push({ x: x + 600, y: -700, w: 30, h: 400, type: g, gate: 'bone' + x });
+        return 'Gai xương nhô theo nhịp · đánh đầu lâu để mở cửa đá';
+    },
+    // Long Cung: a bubble column lifts you, a current along the top pushes you back,
+    // and a clam on the sea floor opens the shell door in front of the chest
+    sea(level, x, g, ledge) {
+        level.currents = [...(level.currents || []),
+            { x: x + 230, y: 150, w: 90, h: 330, fx: 0, fy: -0.75, bubbles: true },
+            { x: x + 330, y: 130, w: 220, h: 90, fx: -1.1, fy: 0 }];
+        level.platforms.push(ledge(x + 120, 300, 110), ledge(x + 380, 240, 110));
+        climbRidge(level, x + 520, 360, 120, g);
+        level.platforms.push({ x: x + 760, y: 0, w: 30, h: 120, type: g, gate: 'clam' + x });
+        level.switches = [...(level.switches || []), { x: x + 560, y: 480, gate: 'clam' + x, look: 'shell' }];
+        return 'Cột bong bóng đẩy lên · đánh vỏ sò dưới đáy để mở cửa';
+    },
+    // Bàn Tơ Động: climb a silk thread, then hop across ledges hanging on silk that snaps if you linger
+    web(level, x, g, ledge) {
+        level.ropes = [...(level.ropes || []), { x: x + 200, y: -40, h: 520, look: 'silk' }];
+        level.platforms.push(ledge(x + 220, -40, 110));
+        level.platforms.push({ ...ledge(x + 380, -120, 90), crumble: 'silk' }, { ...ledge(x + 520, -200, 90), crumble: 'silk' });
+        climbRidge(level, x + 640, 300, -300, g);
+        level.peaches.push({ x: x + 200, y: 120 });
+        return 'Giữ ↑ để leo tơ · bệ treo tơ sẽ đứt nếu đứng lâu';
+    },
+    // Thiên Cung: clouds rising and sinking on their own rhythm, a crosswind near the top
+    sky(level, x, g, ledge) {
+        level.platforms.push(
+            { ...ledge(x + 150, 300, 120), move: { dy: 170, speed: 1.0 } },
+            { ...ledge(x + 340, 40, 120), move: { dy: 140, speed: 1.2, phase: 1.6 } },
+            { ...ledge(x + 150, -170, 120), move: { dy: 110, speed: 0.9, phase: 3.1 } },
+            ledge(x + 380, -250, 130));
+        level.currents = [...(level.currents || []), { x: x + 280, y: -180, w: 240, h: 160, fx: 1.0, fy: 0 }];
+        climbRidge(level, x + 560, 340, -300, g);
+        return 'Mây nâng lên xuống: canh nhịp mà nhảy';
+    },
+    // Thiên Môn: a chain of light, a floating island on a loop, a second chain up to the ridge,
+    // and the road below is a locked room: every rune puppet down before the walls open
+    gate(level, x, g, ledge, walker) {
+        level.ropes = [...(level.ropes || []),
+            { x: x + 200, y: 100, h: 380, look: 'chain' },
+            { x: x + 520, y: -330, h: 340, look: 'chain' }];
+        level.platforms.push(ledge(x + 150, 100, 110), { ...ledge(x + 320, 20, 120), move: { dx: 50, dy: 40, speed: 1.1 } });
+        climbRidge(level, x + 560, 340, -300, g);
+        level.locks = [...(level.locks || []), { x1: x + 560, x2: x + CHUNK_W, top: 160 }];
+        level.enemies.push({ x: x + 760, y: 420, type: walker() });
+        return 'Giữ ↑ để leo xích · phòng khóa: hạ hết rối mới mở';
+    }
+};
+
+function addClimbChunk(level, x, groundType, ledge, walker, flyer) {
+    const build = CLIMBS[level.theme];
+    const hint = build(level, x, groundType, ledge, walker);
+    climbBase(level, x, groundType, walker, flyer, hint);
 }
 
 function extendLevel(level, chunks) {

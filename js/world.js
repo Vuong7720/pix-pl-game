@@ -219,9 +219,17 @@ function drawEnvironment(ctx, level, camX, camY = 0) {
 
     for (let p of level.platforms) {
         const drawX = p.x - camX;
-        if (p.barrier || drawX + p.w < -100 || drawX > GAME_WIDTH + 100) continue;
+        if (p.barrier || p.lockWall || p.gate || p.gone || drawX + p.w < -100 || drawX > GAME_WIDTH + 100) continue;
         if (p.y - camY > GAME_HEIGHT + 20 || p.y + p.h - camY < -100) continue;
-        drawPlatform(theme, p, drawX);
+        if (p.crumble === 'silk') {
+            // hanging on two threads
+            ctx.fillStyle = 'rgba(226, 232, 240, 0.7)';
+            ctx.fillRect(snap(drawX + 12), p.y - 160, 2, 160);
+            ctx.fillRect(snap(drawX + p.w - 14), p.y - 160, 2, 160);
+        }
+        // a crumbling ledge trembles before it goes
+        const shake = p.crumbleT > 0 ? Math.sin(worldTime * 60) * 2 * (p.crumbleT / CRUMBLE_TIME) : 0;
+        drawPlatform(theme, p, drawX + shake);
     }
     drawHints(ctx, level, camX);
     ctx.restore();
@@ -259,6 +267,7 @@ function loadLevel(index) {
     if (currentLevel) resetBossArena();
     currentLevelIndex = index;
     currentLevel = LEVELS[currentLevelIndex];
+    resetMechanisms(currentLevel);
     player.input = keys;
     respawnPoint = { x: 100, y: 350 };
     player.reset(respawnPoint.x, respawnPoint.y);
