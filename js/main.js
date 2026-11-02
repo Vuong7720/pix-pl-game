@@ -35,7 +35,7 @@ bindTouch('btn-skill3', 'skill3', () => localSkill(2));
 // Platforms with `move` drift side to side; whoever stands on one rides along
 function moveClouds(platforms) {
     for (const p of platforms) {
-        if (!p.move) continue;
+        if (!p.move || p.move.dy) continue; // lifts with vertical travel: updateMechanisms
         if (p.baseX === undefined) p.baseX = p.x;
         const nx = p.baseX + Math.sin(worldTime * p.move.speed) * p.move.dx;
         const delta = nx - p.x;
@@ -62,7 +62,8 @@ function updateWorld(dt) {
         }
     }
 
-    const platforms = currentLevel.platforms;
+    updateMechanisms(dt);
+    const platforms = solidPlatforms();
     moveClouds(platforms);
     player.update(dt, platforms);
     // A finished death animation may have ended the run (game over overlay)
@@ -72,6 +73,7 @@ function updateWorld(dt) {
     for (let enemy of enemies) {
         enemy.update(dt, player, platforms);
     }
+    updateBossArena(dt);
     for (const c of clones) c.update(dt, platforms);
     clones = clones.filter(c => {
         if (c.life > 0) return true;
@@ -175,16 +177,19 @@ function gameLoop(timestamp) {
         stepAcc = 0;
     }
 
-    const camX = snap(camera.x);
+    const camX = snap(camera.x), camY = snap(camera.y);
 
     ctx.save();
     applyShake(ctx);
 
-    drawEnvironment(ctx, currentLevel, camX);
+    drawEnvironment(ctx, currentLevel, camX, camY);
 
+    // Everything in the world below is shifted up/down with the camera
+    ctx.translate(0, -camY);
     const theme = THEMES[currentLevel.theme];
     if (theme) {
         drawCurrents(ctx, camX);
+        drawMechanismsBack(ctx, camX);
         for (const c of checkpoints) c.draw(ctx, camX);
         for (const c of chests) c.draw(ctx, camX, theme);
         for (const h of hazards) h.draw(ctx, camX);
@@ -196,6 +201,7 @@ function gameLoop(timestamp) {
         for (let enemy of enemies) {
             enemy.draw(ctx, camX);
         }
+        drawBossArena(ctx, camX);
 
         for (const c of clones) c.draw(ctx, camX);
         player.draw(ctx, camX);
@@ -204,6 +210,7 @@ function gameLoop(timestamp) {
         for (const p of projectiles) p.draw(ctx, camX);
         drawShockwaves(ctx, camX);
         drawImpacts(ctx, camX);
+        drawMechanismsFront(ctx, camX);
     }
 
     for (let p of particles) {
@@ -217,11 +224,15 @@ function gameLoop(timestamp) {
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
+    ctx.save();
+    ctx.translate(0, -camY);
     drawBubbles(ctx, camX);
-    if (gameState === 'PLAYING' || gameState === 'PAUSED') drawStreamFeed(ctx);
     for (let ft of floatingTexts) {
         ft.draw(ctx, camX);
     }
+    ctx.restore();
+    if (gameState === 'PLAYING' || gameState === 'PAUSED') drawStreamFeed(ctx);
+    drawBossIntroScreen(ctx);
 
     if (gameState === 'PLAYING' || gameState === 'PAUSED') {
         drawBossBar(ctx);

@@ -323,7 +323,7 @@ function drawCaveCeiling(camX) {
 // Hang tối: only a pool of light around the player; it widens when the boss fight starts
 function drawDarkness(ctx, camX) {
     const px = player.x + player.width / 2 - camX;
-    const py = player.y + player.height / 2;
+    const py = player.y + player.height / 2 - camera.y;
     // Wider light in boss fights and duels so you can see who you are fighting
     const bossFight = duel.active || enemies.some(e => e.type === 'boss' && e.awake && !e.dead);
     const inner = bossFight ? 170 : 100;
@@ -341,6 +341,21 @@ function drawCurrents(ctx, camX) {
     ctx.fillStyle = '#e0f2fe';
     for (const c of currentLevel.currents || []) {
         if (c.x - camX > GAME_WIDTH || c.x + c.w - camX < 0) continue;
+        if (c.bubbles) {
+            // bubble column: round bubbles wobbling upward
+            for (let k = 0; k < 16; k++) {
+                const by = c.y + c.h - ((k * 61 + worldTime * 150) % c.h);
+                const bx = c.x + ((k * 37) % (c.w - 10)) + 5 + Math.sin(worldTime * 4 + k) * 4;
+                const r = 2 + (k % 3);
+                ctx.globalAlpha = 0.55;
+                ctx.strokeStyle = '#e0f2fe';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(bx - camX, by, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            continue;
+        }
         const horizontal = Math.abs(c.fx) > Math.abs(c.fy);
         for (let k = 0; k < 18; k++) {
             const seedX = (k * 53) % c.w, seedY = (k * 97) % c.h;

@@ -149,6 +149,10 @@ function pressKey(code, repeat) {
         else if (['Space', 'Enter', 'KeyJ'].includes(code)) advanceStory();
         return;
     }
+    if (bossIntro.active && gameState === 'PLAYING') {
+        if (!repeat && ['Space', 'KeyW', 'ArrowUp', 'Enter', 'KeyJ'].includes(code)) skipBossIntro();
+        return;
+    }
     if (code === 'KeyA' || code === 'ArrowLeft') keys.left = true;
     if (code === 'KeyD' || code === 'ArrowRight') keys.right = true;
     if (code === 'KeyW' || code === 'ArrowUp' || code === 'Space') {

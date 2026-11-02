@@ -286,6 +286,7 @@ function beginDuelMatch(arena, chars, loadouts = []) {
     buildScenery(currentLevel, theme);
     resetAmbient(theme.ambient);
     camera.x = 0;
+    camera.y = 0;
     enemies = [];
     chests = [];
     webs = [];
@@ -572,6 +573,7 @@ function sendGuestInput(dt) {
 
 // Jump / skill presses go to the local fighter (host) or are counted and sent (guest)
 function localJump() {
+    if (bossIntro.active) return skipBossIntro();
     if (duel.active) {
         if (duel.phase !== 'fight') return;
         if (!duel.isHost) {
@@ -583,6 +585,7 @@ function localJump() {
 }
 
 function localSkill(slot) {
+    if (bossIntro.active) return;
     if (duel.active) {
         if (duel.phase !== 'fight') return;
         if (!duel.isHost) {

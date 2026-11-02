@@ -1,6 +1,10 @@
 // The hero
 
 // --- PLAYER CLASS ---
+// Platforms thinner than this are one-way ledges (pass through from below)
+const THIN_LEDGE = 40;
+const LEDGE_STEP = 14; // how far below a ledge the feet may be at the top of a jump and still step onto it
+
 class Player {
     constructor(x, y, charId = 'wukong') {
         this.x = x;
@@ -12,6 +16,11 @@ class Player {
         this.jumpForce = -12.5;
         this.isGrounded = false;
         this.jumpCount = 0;
+        this.wallSide = 0;       // -1 / 1 while touching a wall on that side in the air
+        this.wallTimer = 0;      // grace time to wall-jump after letting go
+        this.wallKick = 0;       // after a wall jump, input is ignored briefly so the kick carries
+        this.onRope = null;      // the rope being climbed (js/mechanisms.js)
+        this.ropeCooldown = 0;   // after jumping off a rope it cannot be grabbed for a moment
         this.facing = 'right';
 
         this.hp = 100;
@@ -429,7 +438,9 @@ class Player {
         } else {
             const chicken = this.troll && this.troll.kind === 'chicken';
             const speed = this.speed * (currentLevel.water ? 0.85 : 1) * (this.slowed ? 0.4 : 1) * (chicken ? 0.6 : 1);
-            if (input.left) {
+            if (this.wallKick > 0) {
+                this.wallKick -= dt;
+            } else if (input.left) {
                 this.vx = -speed;
                 this.facing = 'left';
             } else if (input.right) {
@@ -439,9 +450,21 @@ class Player {
                 this.vx *= 0.7;
             }
             this.vy += this.gravity();
+            // Bám tường: pressing into a wall in the air slides down slowly
+            if (this.wallTimer > 0) this.wallTimer -= dt;
+            const hugging = this.wallSide !== 0 && !this.isGrounded && (this.wallSide > 0 ? input.right : input.left);
+            if (hugging && this.vy > 2.2) {
+                this.vy = 2.2;
+                if (Math.random() < 0.3) {
+                    particles.push(new Particle(this.x + (this.wallSide > 0 ? this.width : 0), this.y + this.height - 10,
+                        -this.wallSide, -Math.random(), '#d6d3d1', 3, 0.3));
+                }
+            }
+            this.wallSide = 0;
             if (currentLevel.water) this.vy = Math.min(this.vy, 5);
             if (this.slowed) this.vy = Math.max(-6, Math.min(this.vy, 1.5));
             this.applyCurrents();
+            applyRopes(this, input, dt);
         }
 
         if (input.dash && this.dashCooldown <= 0 && !this.isDashing) {
@@ -503,6 +526,7 @@ class Player {
             for (const w of webs) {
                 if (w.alive && overlaps(this.attackBox, w)) w.cut();
             }
+            if (!duel.active) hitSwitches(this.attackBox);
         }
 
         this.updateAnimation(dt);
@@ -561,22 +585,44 @@ class Player {
 
     checkHorizontalCollisions(platforms) {
         for (let p of platforms) {
+            if (p.h < THIN_LEDGE) continue; // thin ledges are one-way: no sides
             if (this.x < p.x + p.w &&
                 this.x + this.width > p.x &&
                 this.y < p.y + p.h &&
                 this.y + this.height > p.y) {
                 if (this.vx > 0) this.x = p.x - this.width;
                 else if (this.vx < 0) this.x = p.x + p.w;
+                // Thick blocks (ground, cliffs) are walls you can cling to; thin ledges are not
+                if (p.h >= 60 && this.vx !== 0 && !this.isGrounded) {
+                    this.wallSide = this.vx > 0 ? 1 : -1;
+                    this.wallTimer = 0.12;
+                    this.lastWallSide = this.wallSide;
+                }
             }
         }
     }
 
+    // Called right after y += vy
     checkVerticalCollisions(platforms) {
+        const prevFeet = this.y + this.height - this.vy;
         for (let p of platforms) {
             if (this.x < p.x + p.w &&
                 this.x + this.width > p.x &&
                 this.y < p.y + p.h &&
                 this.y + this.height > p.y) {
+                if (p.h < THIN_LEDGE) {
+                    // Thin ledges: jump up through them, land when coming down from above,
+                    // or near the top of a jump when the feet are only a step below the surface
+                    const fromAbove = this.vy > 0 && prevFeet <= p.y + 1;
+                    const step = this.vy > -2.5 && this.y + this.height - p.y <= LEDGE_STEP;
+                    if (!fromAbove && !step) continue;
+                    this.y = p.y - this.height;
+                    this.vy = 0;
+                    this.isGrounded = true;
+                    this.groundPlatform = p;
+                    this.jumpCount = 0;
+                    continue;
+                }
                 if (this.vy > 0) {
                     this.y = p.y - this.height;
                     this.vy = 0;
@@ -622,6 +668,24 @@ class Player {
                     (Math.random() - 0.5) * 2, -Math.random() * 2,
                     '#bae6fd', 3, 0.4
                 ));
+            }
+            return true;
+        }
+        if (this.onRope) this.ropeCooldown = 0.3; // jumping off a rope
+        if (!this.isGrounded && this.wallTimer > 0) {
+            // Bật tường: kick off away from the wall, and the air jumps are back.
+            // Same push for every character, held long enough to cross a 200px well.
+            const away = -this.lastWallSide;
+            this.vy = this.jumpForce;
+            this.vx = away * 7 * MOVE_SCALE;
+            this.facing = away > 0 ? 'right' : 'left';
+            this.wallKick = 0.25;
+            this.wallTimer = 0;
+            this.jumpCount = 1;
+            playSound('jump');
+            for (let i = 0; i < 6; i++) {
+                particles.push(new Particle(this.x + (away > 0 ? 0 : this.width), this.y + this.height / 2,
+                    away * Math.random() * 3, (Math.random() - 0.5) * 3, '#fef08a', 3, 0.25));
             }
             return true;
         }
